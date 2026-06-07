@@ -1,11 +1,11 @@
 ---
-name: issue-label-triage
-description: Classifies GitHub or GitLab issues, detects likely duplicates, selects labels from the repository label taxonomy, applies those labels to the remote issue, and verifies the result. Use when the user asks to triage, classify, tag, label, dedupe, find duplicates, or apply labels to a GitHub or GitLab issue.
+name: issue-triage
+description: Triage GitHub or GitLab issues by classifying type, priority, area, missing information, and duplicates, then optionally applying labels from the existing repository taxonomy. Use when the user asks to triage, classify, tag, label, dedupe, prioritize, or find duplicate issues.
 ---
 
-# Issue Label Triage
+# Issue Triage
 
-Use this skill when the goal is to classify an existing GitHub or GitLab issue and apply labels back to the remote issue tracker.
+Use this skill when the goal is to classify an existing GitHub or GitLab issue, detect duplicates, choose the right repository labels, and optionally apply those labels back to the remote issue tracker.
 
 ## Scope
 
@@ -14,6 +14,7 @@ Do:
 - Read one issue from GitHub or GitLab.
 - Inspect enough repository context to classify the issue.
 - Check for likely duplicate issues before applying labels.
+- Classify issue type, affected area, priority/severity, and missing information.
 - Choose labels from the repository's existing label taxonomy.
 - Apply labels to the remote issue.
 - Verify the final label state.
@@ -37,10 +38,10 @@ If platform or repository cannot be determined, ask for clarification before mut
 
 ## Modes
 
-- `dry-run`: read the issue, classify it, check duplicates, and report the label decision without changing the remote issue.
+- `dry-run`: read the issue, classify it, check duplicates, and report the triage decision without changing the remote issue.
 - `apply`: apply the selected labels and verify the result.
 
-Use `apply` when the user clearly asks to label, tag, triage, or update a specific remote issue. Use `dry-run` when the user asks what labels should be applied, asks for a review, or the target issue is ambiguous.
+Use `apply` when the user clearly asks to label, tag, triage, prioritize, or update a specific remote issue. Use `dry-run` when the user asks what labels should be applied, asks for a review, or the target issue is ambiguous.
 
 ## Workflow
 
@@ -102,7 +103,7 @@ Use `apply` when the user clearly asks to label, tag, triage, or update a specif
    - Confirm that requested labels are present and removed labels are absent.
    - Report the final label list and any labels that could not be applied.
 
-## Decision Output
+## Triage Decision Output
 
 Before mutating the remote issue, be able to state this decision:
 
