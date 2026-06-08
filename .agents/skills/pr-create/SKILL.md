@@ -9,7 +9,7 @@ Use this after `git-push` when the user asks to create, update, or open a GitHub
 
 ## Goal
 
-Create or update a review-ready PR/MR from the current branch after syncing the base branch, reviewing the diff locally, and linking the related task.
+Create or update a review-ready PR/MR from the current branch after syncing the base branch, reviewing the diff locally, and linking the related issue or task.
 
 ## Workflow
 
@@ -33,15 +33,19 @@ Create or update a review-ready PR/MR from the current branch after syncing the 
    ```
    Review the diff for accidental files, secrets, conflict markers, generated churn, and missing tests or docs.
    Fetch the base branch and make sure it has been merged or rebased into the current branch before creating or updating the PR/MR.
+   If the branch has already been pushed, prefer merging the base branch. Do not rebase a published branch unless the user explicitly approves the history rewrite and the follow-up force-with-lease push.
    If conflicts occur, resolve them locally, rerun relevant validation, commit the resolution, and push through `git-push` so any configured `pre-push` hook runs.
 
 3. **Build title, body, and issue link**
    Default the title from the issue title or the main commit subject.
    Infer issue links from the user request, branch name, or commits. Do not invent issue IDs.
-   Keep the body concise and include:
+   Keep the body concise and complete-on-create. Include:
    - summary
    - validation performed
    - issue link such as `Closes #123`, `Fixes #123`, or `Refs #123` when known
+   - scope and notable non-goals when they help reviewers
+   - risks, migration notes, or reviewer notes when present
+   - planning file or progress comment links when the branch uses GCW planning files
 
 4. **Create or update PR/MR**
    Use `gh` for GitHub remotes and `glab` for GitLab remotes.
@@ -91,5 +95,6 @@ After creating or finding a PR/MR, report:
 - head branch
 - title
 - validation included in the body
+- issue link and any planning/progress links included in the body
 - whether the base branch was merged or rebased locally
-- remind the user to watch CI, respond to review comments, and keep the PR/MR current by regularly merging or rebasing the base branch
+- remind the user to watch CI, respond to review comments, and keep the PR/MR current by merging the base branch or using an explicitly approved rebase

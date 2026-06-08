@@ -60,11 +60,13 @@ If catchup report shows unsynced context:
 
 - **Templates** are in `~/.agents/skills/planning-with-files/templates/`
 - **Your planning files** go in **your project directory**
+- **GCW issue work** uses `.gcw/issues/<issue-id>/` inside the issue worktree instead of root-level planning files.
 
 | Location | What Goes There |
 |----------|-----------------|
 | Skill directory (`~/.agents/skills/planning-with-files/`) | Templates, scripts, reference docs |
 | Your project directory | `task_plan.md`, `findings.md`, `progress.md` |
+| GCW issue worktree | `.gcw/issues/<issue-id>/task_plan.md`, `.gcw/issues/<issue-id>/findings.md`, `.gcw/issues/<issue-id>/progress.md` |
 
 ## Quick Start
 
@@ -77,6 +79,28 @@ Before ANY complex task:
 5. **Update after each phase** — Mark complete, log errors
 
 > **Note:** Planning files go in your project root, not the skill installation folder.
+
+## GCW Mode
+
+When the `gcw` skill is active, create and update planning files under `.gcw/issues/<issue-id>/` in the issue worktree. This applies to every GCW issue, including small issues that would otherwise be skipped by the normal "When to Use" guidance.
+
+Use the same file purposes and update discipline:
+
+- `.gcw/issues/<issue-id>/task_plan.md` tracks goal, phases, acceptance criteria, and validation plan.
+- `.gcw/issues/<issue-id>/findings.md` stores issue facts, codebase discoveries, decisions, risks, and open questions.
+- `.gcw/issues/<issue-id>/progress.md` records progress, commands/checks run, errors, planning checkpoints, and local self-review.
+
+For GCW, these files are committed and pushed on the issue branch at planning checkpoints so the issue progress comment can link to the current branch files.
+
+### GCW Recovery
+
+When resuming GCW work or after `/clear`, do not rely only on root-level `task_plan.md` or `.planning/` discovery. Before continuing:
+
+1. Identify the issue from the user request, current branch name, or issue progress comment.
+2. Look for `.gcw/issues/<issue-id>/task_plan.md`, `.gcw/issues/<issue-id>/findings.md`, and `.gcw/issues/<issue-id>/progress.md`.
+3. If the issue is unknown, inspect `.gcw/issues/*/task_plan.md`; use the one matching the current branch or ask if multiple issue directories are plausible.
+4. Read all three files before deciding the next action.
+5. Update `.gcw/issues/<issue-id>/progress.md` with the resumed context before making new changes.
 
 ## The Core Pattern
 
@@ -187,11 +211,14 @@ If you can answer these, your context management is solid:
 - Building/creating projects
 - Tasks spanning many tool calls
 - Anything requiring organization
+- Any issue being processed by `gcw`
 
 **Skip for:**
 - Simple questions
 - Single-file edits
 - Quick lookups
+
+Do not skip planning files for `gcw` issue work.
 
 ## Templates
 

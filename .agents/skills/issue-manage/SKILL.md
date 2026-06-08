@@ -16,6 +16,7 @@ Do:
 - Read one existing remote issue from GitHub or GitLab.
 - Update issue title or body.
 - Add, update, or delete issue comments.
+- Create or update a GCW issue progress comment marked with `<!-- gcw-progress -->`.
 - Add or remove assignees.
 - Set or remove milestones.
 - Add or remove labels when the user requests a direct label change.
@@ -72,6 +73,7 @@ Use body files for non-trivial title/body/comment text. Do not paste user-, issu
    - `comment-create`
    - `comment-update`
    - `comment-delete`
+   - `gcw-progress-upsert`
    - `assign` or `unassign`
    - `milestone-set` or `milestone-remove`
    - `label-add` or `label-remove`
@@ -190,6 +192,16 @@ glab issue update "$issue" --repo "$repo" --unlock-discussion
 ```
 
 ## Comment Targeting
+
+For `gcw-progress-upsert`:
+
+- Use `<!-- gcw-progress -->` as the stable marker.
+- List issue comments or notes and find comments containing that marker.
+- If no marker exists, create a new comment containing the marker.
+- If exactly one marker exists and it was authored by the authenticated user, update that comment.
+- If the marker exists only on a comment authored by someone else, ask before editing it.
+- If multiple matching comments exist, ask which one to keep unless only one was authored by the authenticated user.
+- Preserve the marker when updating the comment.
 
 For comment update/delete:
 

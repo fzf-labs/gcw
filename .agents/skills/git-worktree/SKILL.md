@@ -15,10 +15,14 @@ Create a separate worktree without disturbing the current one, then use the new 
 - Do not copy current uncommitted changes.
 - Do not overwrite existing branches, worktrees, or directories.
 
-Fetch issue metadata only when an issue ID is given:
+Fetch issue metadata only when an issue ID is given. Detect the hosting platform from the issue URL or remote:
 
 ```bash
+# GitHub
 gh issue view <issueID> --json title,body,number
+
+# GitLab
+glab issue view <issueID> --repo <repo> --output json
 ```
 
 Validate:

@@ -59,6 +59,10 @@ Ask: "What should the public interface look like? Which behaviors are most impor
 
 **You can't test everything.** Confirm with the user exactly which behaviors matter most. Focus testing effort on critical paths and complex logic, not every possible edge case.
 
+### GCW mode
+
+When this skill is invoked by `gcw`, treat the actionable GitHub/GitLab issue and `.gcw/issues/<issue-id>/` planning files as the approved implementation context. Do not stop for another approval round unless the issue or planning files leave material interface, behavior, or test-priority questions unresolved.
+
 ### 2. Tracer Bullet
 
 Write ONE test that confirms ONE thing about the system:

@@ -15,13 +15,17 @@ Create a development branch with the fewest checks needed to avoid wrong names, 
 - Preserve a valid user type; otherwise infer from the task, defaulting to `chore`.
 - Normalize to short lowercase English words separated by `-`; remove punctuation, filler words, repeated separators, and non-branch characters.
 
-If the user gives an issue reference, run one `gh` call:
+If the user gives an issue reference, detect the hosting platform from the issue URL or remote and read the issue title:
 
 ```bash
+# GitHub
 gh issue view <issueID> --json title,body,number
+
+# GitLab
+glab issue view <issueID> --repo <repo> --output json
 ```
 
-Use the title for `short-desc`; fall back to body or user context only when needed. If no issue is mentioned, do not call `gh`. If `gh` fails but context is enough, continue and report that issue metadata was not verified.
+Use the title for `short-desc`; fall back to body or user context only when needed. If no issue is mentioned, do not call `gh` or `glab`. If issue metadata cannot be read but context is enough, continue and report that issue metadata was not verified.
 
 Validate:
 
