@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fzf-labs.local/gcw/readiness_evidence.schema.json",
+  "title": "GCW Readiness Evidence",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "issue",
+    "branch",
+    "base_branch",
+    "commit_range",
+    "review_request",
+    "validation",
+    "local_self_review",
+    "planning_links",
+    "progress_comment_url",
+    "risks"
+  ],
+  "properties": {
+    "issue": {
+      "oneOf": [
+        { "type": "integer" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commit_range": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_request": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["title", "summary", "issue_link"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "issue_link": { "type": "string", "minLength": 1 }
+      }
+    },
+    "validation": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["command", "result"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "result": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "local_self_review": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["recorded", "progress_section"],
+      "properties": {
+        "recorded": { "type": "boolean" },
+        "progress_section": { "type": "string", "minLength": 1 }
+      }
+    },
+    "planning_links": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["task_plan", "findings", "progress"],
+      "properties": {
+        "task_plan": { "type": "string", "minLength": 1 },
+        "findings": { "type": "string", "minLength": 1 },
+        "progress": { "type": "string", "minLength": 1 }
+      }
+    },
+    "progress_comment_url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "risks": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

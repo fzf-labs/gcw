@@ -59,7 +59,27 @@ Create these files under `.gcw/issues/<issue-id>/` in the issue worktree:
 .gcw/issues/<issue-id>/progress.md
 ```
 
+Initialize the machine-readable workflow snapshot:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py init-state \
+  --issue-dir .gcw/issues/<issue-id> \
+  --issue <issue-id> \
+  --platform <github|gitlab> \
+  --repository <owner/repo> \
+  --branch <branch> \
+  --owner-kind local \
+  --owner-id <agent-session-id>
+```
+
 Use the structure and discipline from `planning-with-files`, adapted to the GCW path. Even small issues require planning files. Explicitly read and update the `.gcw/issues/<issue-id>/` files; do not rely on root-level planning hooks to discover them.
+
+For scripted execution, prefer the unified step runner when it supports the step. It keeps check/apply terminology consistent while delegating to the validator and state manager:
+
+```bash
+python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
+```
 
 Minimum contents:
 
@@ -107,16 +127,47 @@ If the branch name contains `/`, use the hosting platform's copied file URL or U
 
 When updating the progress comment, target the comment containing `<!-- gcw-progress -->` that was authored by the authenticated user. If no such comment exists, create it. If a marker exists only on a comment authored by someone else, ask before editing it.
 
+Record the published planning evidence in `state.json`:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-publish-planning \
+  --issue-dir .gcw/issues/<issue-id> \
+  --progress-comment-url <issue-progress-comment-url>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
+
 ### 5. Pass the implementation gate
 
-Do not modify product code until:
+Do not modify product code until the Implementation Gate passes. Verify and record each gate item in `.gcw/issues/<issue-id>/progress.md`:
 
 - Planning files exist under `.gcw/issues/<issue-id>/`.
-- The planning commit has been pushed.
-- The issue progress comment links to the planning files.
+- The planning commit has been pushed to the issue branch.
+- The issue progress comment links to the branch versions of `task_plan.md`, `findings.md`, and `progress.md`.
+- The issue is still actionable; otherwise move to `clarifying` or `blocked`.
 - The progress snapshot status has moved from `planning` to `implementing`.
 
-Update the issue progress comment to `implementing` immediately before editing product code.
+Update the issue progress comment to `implementing` immediately before editing product code. If any gate item is missing, stop before implementation, update `progress.md` with the missing evidence, and update the issue progress comment with the current blocker.
+
+Write `.gcw/issues/<issue-id>/implementation_gate_result.json`, update `state.json` to `implementing`, and validate the gate before implementation:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-implementation-gate \
+  --issue-dir .gcw/issues/<issue-id> \
+  --progress-comment-url <issue-progress-comment-url> \
+  --issue-actionable true
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py implementation-gate --issue-dir .gcw/issues/<issue-id>
+```
+
+If the gate finds a missing decision, record the clarifying transition instead of beginning implementation:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-implementation-gate \
+  --issue-dir .gcw/issues/<issue-id> \
+  --progress-comment-url <issue-progress-comment-url> \
+  --issue-actionable false \
+  --clarifying-question <question-for-the-issue>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
 
 ### 6. Implement the issue
 
@@ -126,7 +177,16 @@ Update the issue progress comment to `implementing` immediately before editing p
 4. Use planning checkpoints at key stages instead of committing every small planning edit.
 5. Use `git-commit` for focused implementation commits and `git-push` to publish them.
 
-If blocked, update planning files and the issue progress comment with status `blocked` or `clarifying`, then stop with a concise blocker summary.
+If blocked, update planning files and the issue progress comment with status `blocked` or `clarifying`, record one matching state transition, then stop with a concise blocker summary:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-block \
+  --issue-dir .gcw/issues/<issue-id> \
+  --reason <blocker-summary>
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-clarify \
+  --issue-dir .gcw/issues/<issue-id> \
+  --question <clarifying-question>
+```
 
 ### 7. Perform local self-review
 
@@ -138,7 +198,22 @@ Before creating the review request:
 - Confirm commit boundaries are clear.
 - Prepare complete-on-create review request content.
 
-Record the self-review result in `progress.md`.
+Record the local self-review result in `.gcw/issues/<issue-id>/progress.md` with:
+
+- Diff reviewed: notable files and any excluded changes.
+- Validation: commands or checks run, with results.
+- Planning state: whether `task_plan.md`, `findings.md`, and `progress.md` reflect the final implementation.
+- Commit boundaries: why the current commits are reviewable.
+- Risks and reviewer notes to carry into the review request.
+
+Then record local self-review evidence in `state.json`:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-local-self-review \
+  --issue-dir .gcw/issues/<issue-id> \
+  --progress-section "## Local Self-Review"
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
 
 Then create a final planning checkpoint before the review request:
 
@@ -149,7 +224,42 @@ Then create a final planning checkpoint before the review request:
 
 ### 8. Create the review request
 
+Before invoking `pr-create`, assemble Readiness Evidence from the current branch:
+
+- Linked issue and intended closing/reference keyword.
+- Branch name, base branch, and commit range.
+- Summary of implementation scope and non-goals.
+- Validation performed, including any skipped validation and why.
+- Local self-review result from `progress.md`.
+- Links to planning files and the issue progress comment.
+- Known risks, migration notes, or reviewer notes.
+
+Write `.gcw/issues/<issue-id>/readiness_evidence.json` and validate it. This records readiness evidence but keeps `state.json` in `implementing`; only `create-review-request` moves the workflow to `ready-for-review`.
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-readiness-evidence \
+  --issue-dir .gcw/issues/<issue-id> \
+  --base-branch <base-branch> \
+  --commit-range <base-branch>...<branch> \
+  --title <review-request-title> \
+  --summary <summary> \
+  --issue-link "Closes #<issue-id>" \
+  --validation-command <validation-command> \
+  --validation-result <passed|failed|skipped> \
+  --risks <risks-or-reviewer-notes>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir .gcw/issues/<issue-id>
+```
+
 Use `pr-create` to create or update the GitHub Pull Request or GitLab Merge Request.
+
+After the review request exists, record the transition to `ready-for-review`:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-review-request \
+  --issue-dir .gcw/issues/<issue-id> \
+  --review-request-url <review-request-url>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
 
 The review request must be complete-on-create. Include:
 
@@ -166,6 +276,21 @@ After creation, update the issue progress comment:
 - Latest checkpoint: review request created.
 - Review Request: URL.
 
+## Ownership Handoff
+
+When a local agent, hosted workflow, or human is intentionally taking over future write operations, record the handoff in `state.json` and update the issue progress comment with the same reason:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-handoff \
+  --issue-dir .gcw/issues/<issue-id> \
+  --owner-kind <local|github-actions|gitlab-ci|manual> \
+  --owner-id <runner-or-session-id> \
+  --reason <handoff-reason>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
+
+Do not use handoff to bypass another active owner. If ownership is unclear, ask before allowing a runner to push branch changes or update hosted state.
+
 ## High-Risk Operations
 
 Ask for explicit approval before any high-risk operation:
@@ -178,4 +303,3 @@ Ask for explicit approval before any high-risk operation:
 - Publish content that may contain secrets, credentials, private customer data, or sensitive security details.
 
 Routine GCW steps do not require extra confirmation when the user has asked `/gcw` to process a specific issue.
-

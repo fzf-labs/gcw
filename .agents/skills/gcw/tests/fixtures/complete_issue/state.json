@@ -1,0 +1,23 @@
+{
+  "branch": "feat/example-42",
+  "evidence": {
+    "planning_commit_pushed": true,
+    "planning_files_exist": true,
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
+    "review_request_url": "",
+    "self_review_progress_section": "## Local Self-Review",
+    "self_review_recorded": true
+  },
+  "issue": 42,
+  "last_completed_step": "readiness-check",
+  "next_allowed_steps": [
+    "create-review-request"
+  ],
+  "owner": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "platform": "github",
+  "repository": "owner/repo",
+  "state": "implementing"
+}

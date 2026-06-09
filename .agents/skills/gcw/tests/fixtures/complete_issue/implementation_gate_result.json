@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "issue_actionable": true,
+    "planning_commit_pushed": true,
+    "planning_files_exist": true,
+    "progress_comment_linked": true
+  },
+  "errors": [],
+  "ok": true,
+  "state_transition": {
+    "from": "planning",
+    "to": "implementing"
+  },
+  "step": "implementation-gate"
+}

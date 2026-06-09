@@ -39,6 +39,18 @@ Create or update a review-ready PR/MR from the current branch after syncing the 
 3. **Build title, body, and issue link**
    Default the title from the issue title or the main commit subject.
    Infer issue links from the user request, branch name, or commits. Do not invent issue IDs.
+   If the branch contains `.gcw/issues/<issue-id>/`, treat it as a GCW branch before creating or updating the PR/MR:
+   - Read `.gcw/issues/<issue-id>/readiness_evidence.json`.
+   - Run `python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir .gcw/issues/<issue-id>`.
+   - Stop if the readiness check fails; this branch is not ready for a GCW review request.
+   - Use the readiness evidence as the source for planning links, progress comment link, validation, risks, and reviewer notes.
+   - Remember that `readiness-check` keeps `state.json` in `implementing`; after creating or updating the review request, update the GCW issue progress comment and run:
+     ```bash
+     python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-review-request \
+       --issue-dir .gcw/issues/<issue-id> \
+       --review-request-url <review-request-url>
+     python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+     ```
    Keep the body concise and complete-on-create. Include:
    - summary
    - validation performed

@@ -61,7 +61,7 @@ A key-stage update where changed planning files are committed or pushed with the
 _Avoid_: Progress spam, every-edit commit
 
 **Implementation Gate**:
-The requirement that planning files are published and linked from the issue progress comment before GCW begins implementation work.
+The enforceable checkpoint that answers whether implementation may begin. The gate passes only when planning files exist under `.gcw/issues/<issue-id>/`, the planning commit has been pushed, the issue progress comment links to the branch versions of those files, and the progress snapshot has moved to `implementing`.
 _Avoid_: Code-first start, unlinked planning
 
 **TDD Implementation**:
@@ -109,11 +109,11 @@ Optional workflow package activity after ready for review, such as reviewing a r
 _Avoid_: Required ready-for-review step, automatic self-review
 
 **Readiness Evidence**:
-The evidence a coding agent provides when creating a ready for review request, covering the linked issue, branch, diff, commits, validation, and review request summary.
+The evidence package proving a review request is ready for review. It covers the linked issue, branch, intended diff, commit boundaries, validation performed, planning file links, local self-review result, risks, and the complete-on-create review request summary.
 _Avoid_: Completion note, final message, status update
 
 **Local Self-Review**:
-The required pre-review-request check where the coding agent inspects the local diff, planning files, validation results, commit boundaries, and review request content.
+The required pre-review-request check where the coding agent inspects the local diff, planning files, validation results, commit boundaries, and review request content before creating or updating the review request. The result is recorded in `progress.md` as part of readiness evidence.
 _Avoid_: Remote code review, reviewer approval, casual final scan
 
 **High-Risk Operation**:

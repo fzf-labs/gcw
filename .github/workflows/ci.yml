@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run GCW unit tests
+        run: python3 -m unittest discover -s .agents/skills/gcw/tests
+
+      - name: Run repository workflow tests
+        run: python3 -m unittest discover -s .github/tests
+
+      - name: Compile GCW Python scripts
+        run: |
+          PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m py_compile \
+            .agents/skills/gcw/scripts/*.py
+
+      - name: Validate GCW schemas
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          for schema_path in sorted(Path(".agents/skills/gcw/schemas").glob("*.schema.json")):
+              schema = json.loads(schema_path.read_text(encoding="utf-8"))
+              assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema", schema_path
+              assert schema["type"] == "object", schema_path
+              assert "required" in schema, schema_path
+              assert "properties" in schema, schema_path
+          PY
+
+      - name: Validate skill frontmatter
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          pattern = re.compile(r"^---\s*\nname:\s*.+\ndescription:\s*.+\n---", re.MULTILINE)
+          missing = []
+          for skill in sorted(Path(".agents/skills").glob("*/SKILL.md")):
+              text = skill.read_text(encoding="utf-8")
+              if not pattern.search(text):
+                  missing.append(str(skill))
+          if missing:
+              print("Skills missing valid frontmatter:", ", ".join(missing))
+              sys.exit(1)
+          PY
+
+      - name: Validate GCW evidence
+        run: |
+          set -euo pipefail
+          found=0
+          for issue_dir in .gcw/issues/*/; do
+            [ -d "$issue_dir" ] || continue
+            found=1
+            echo "Validating GCW evidence in $issue_dir"
+            python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir "$issue_dir"
+            if [ -f "$issue_dir/implementation_gate_result.json" ]; then
+              python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py implementation-gate --issue-dir "$issue_dir"
+            fi
+            state="$(python3 -c "import json; print(json.load(open('$issue_dir/state.json'))['state'])" 2>/dev/null || true)"
+            if [ -f "$issue_dir/readiness_evidence.json" ] || [ "$state" = "ready-for-review" ]; then
+              python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir "$issue_dir"
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No .gcw/issues directories found; skipping GCW evidence validation."
+          fi

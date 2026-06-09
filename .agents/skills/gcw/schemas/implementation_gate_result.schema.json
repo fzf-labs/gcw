@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fzf-labs.local/gcw/implementation_gate_result.schema.json",
+  "title": "GCW Implementation Gate Result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "step",
+    "ok",
+    "state_transition",
+    "checks",
+    "errors"
+  ],
+  "properties": {
+    "step": {
+      "type": "string",
+      "const": "implementation-gate"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "state_transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {
+          "type": "string",
+          "enum": ["planning", "implementing"]
+        },
+        "to": {
+          "type": "string",
+          "enum": ["implementing", "clarifying", "blocked"]
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "planning_files_exist",
+        "planning_commit_pushed",
+        "progress_comment_linked",
+        "issue_actionable"
+      ],
+      "properties": {
+        "planning_files_exist": { "type": "boolean" },
+        "planning_commit_pushed": { "type": "boolean" },
+        "progress_comment_linked": { "type": "boolean" },
+        "issue_actionable": { "type": "boolean" }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

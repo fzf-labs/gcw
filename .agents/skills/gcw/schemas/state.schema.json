@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fzf-labs.local/gcw/state.schema.json",
+  "title": "GCW State",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "issue",
+    "platform",
+    "repository",
+    "state",
+    "branch",
+    "owner",
+    "last_completed_step",
+    "next_allowed_steps",
+    "evidence"
+  ],
+  "properties": {
+    "issue": {
+      "oneOf": [
+        { "type": "integer" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["github", "gitlab"]
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "type": "string",
+      "enum": ["planning", "clarifying", "implementing", "blocked", "ready-for-review"]
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["local", "github-actions", "gitlab-ci", "manual"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "last_completed_step": {
+      "type": "string"
+    },
+    "next_allowed_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "planning_files_exist",
+        "planning_commit_pushed",
+        "progress_comment_url",
+        "self_review_recorded",
+        "review_request_url"
+      ],
+      "properties": {
+        "planning_files_exist": { "type": "boolean" },
+        "planning_commit_pushed": { "type": "boolean" },
+        "progress_comment_url": { "type": "string" },
+        "self_review_recorded": { "type": "boolean" },
+        "self_review_progress_section": { "type": "string" },
+        "review_request_url": { "type": "string" },
+        "block_reason": { "type": "string" },
+        "clarifying_question": { "type": "string" },
+        "handoff_reason": { "type": "string" }
+      }
+    }
+  }
+}
