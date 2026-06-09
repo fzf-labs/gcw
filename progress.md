@@ -1,21 +1,28 @@
-# GCW Phase 1 Completion Progress
+# GCW Remaining Requirements Progress
 
 ## 2026-06-09
 
-- Started development for the remaining GCW Phase 1 local/checkable features.
-- Ran session catchup first with an incorrect global path; it failed because the global script path did not exist.
+- Created an active goal to complete all remaining documented GCW requirements.
+- Ran planning session catchup first with the global skill path; it failed because `/Users/fuzhifei/.agents/skills/planning-with-files/scripts/session-catchup.py` does not exist.
 - Re-ran session catchup through the repository skill path successfully.
-- Created root planning files for this development batch.
-- Confirmed current state-machine command tests were already present in the worktree.
-- Added v1 JSON Schema files for `state.json`, `implementation_gate_result.json`, and `readiness_evidence.json`.
-- Ran `python3 -m unittest discover -s .agents/skills/gcw/tests`: 26 tests passed.
-- Added explicit CI schema parsing and workflow test coverage.
-- Added a complete checked-in validator fixture under `.agents/skills/gcw/tests/fixtures/complete_issue/`.
-- Fixed implementation gate validation to accept valid `clarifying`/`blocked` pause evidence while preserving readiness' passing-gate requirement.
-- Ran `python3 -m unittest discover -s .agents/skills/gcw/tests -p test_validate_gcw_evidence.py`: 14 tests passed.
-- Added a regression test ensuring `readiness-check` rejects valid but non-passing gate evidence.
-- Ran `python3 -m unittest discover -s .agents/skills/gcw/tests -p test_validate_gcw_evidence.py`: 15 tests passed.
-- Ran final validation: GCW tests passed (29), workflow tests passed (4), and GCW Python scripts compiled successfully.
-- Continued development with a deterministic slice for unified step execution and GitLab CI parity.
-- Added `gcw_step.py` tests and implementation; `python3 -m unittest discover -s .agents/skills/gcw/tests -p test_gcw_step.py` passed.
-- Added `.gitlab-ci.yml` and workflow structure coverage; `python3 -m unittest discover -s .github/tests` passed.
+- Created branch `codex/complete-gcw-requirements` from the current local HEAD.
+- Refreshed root planning files for the remaining-requirements development batch.
+- Inspected `manage_gcw_state.py`, `validate_gcw_evidence.py`, `gcw_step.py`, existing GCW tests, GitHub Actions CI, and GitLab CI.
+- Identified the first TDD slice: add apply-mode ownership gating to `gcw_step.py` so hosted runners fail closed unless `state.json.owner.kind` matches the runner.
+- Added and passed `gcw_step.py` tests for non-owner apply rejection and remote progress comment check dispatch.
+- Added `verify_gcw_remote_evidence.py` with progress comment and review request body verification against local readiness evidence.
+- Added and passed `test_verify_gcw_remote_evidence.py`.
+- Added `render_gcw_hosted_artifacts.py` and tests for hosted progress comment and review request body rendering.
+- Added GitHub hosted apply workflow and GitLab manual hosted apply job with owner-gated `gcw_step.py` execution, hosted artifact updates, evidence commits, and no force push.
+- Updated `CONTEXT.md`, `.agents/skills/gcw/SKILL.md`, and `docs/gcw-executable-workflow.md` with hosted apply, remote verification, artifact rendering, and cloud `/fix` boundaries.
+- Added a renderer regression test so hosted progress comments preserve planning links before readiness evidence exists.
+- Ran final validation successfully.
+
+## Validation Log
+
+- `PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m unittest discover -s .agents/skills/gcw/tests -p test_gcw_step.py`: 5 passed.
+- `PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m unittest discover -s .agents/skills/gcw/tests -p test_verify_gcw_remote_evidence.py`: 2 passed.
+- `PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m unittest discover -s .agents/skills/gcw/tests -p test_render_gcw_hosted_artifacts.py`: 3 passed.
+- `PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m unittest discover -s .github/tests`: 7 passed.
+- `PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m unittest discover -s .agents/skills/gcw/tests`: 39 passed.
+- `PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m py_compile .agents/skills/gcw/scripts/*.py`: passed.

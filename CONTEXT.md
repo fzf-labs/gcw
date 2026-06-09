@@ -108,6 +108,14 @@ _Avoid_: Review-ready candidate, merge ready, draft
 Optional workflow package activity after ready for review, such as reviewing a review request, investigating CI failures, or helping respond to reviewer feedback.
 _Avoid_: Required ready-for-review step, automatic self-review
 
+**Hosted Apply Workflow**:
+A manually-triggered GitHub Actions or GitLab CI workflow that may apply GCW state transitions, update issue progress comments, update review request bodies, commit evidence changes, and push them only when `state.json.owner.kind` matches the hosted runner.
+_Avoid_: Unowned CI write, automatic remote mutation
+
+**Remote Artifact Verification**:
+The deterministic check that compares hosted issue progress comment text and review request body text fetched from GitHub or GitLab with local readiness evidence.
+_Avoid_: Assuming hosted state matches local files
+
 **Readiness Evidence**:
 The evidence package proving a review request is ready for review. It covers the linked issue, branch, intended diff, commit boundaries, validation performed, planning file links, local self-review result, risks, and the complete-on-create review request summary.
 _Avoid_: Completion note, final message, status update
@@ -119,5 +127,4 @@ _Avoid_: Remote code review, reviewer approval, casual final scan
 **High-Risk Operation**:
 A Git collaboration action that requires explicit human approval because it can destroy work, change shared history, merge code, close work, or alter someone else's authored content.
 _Avoid_: Normal review-ready step, routine operation
-
 

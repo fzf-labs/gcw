@@ -1,0 +1,208 @@
+name: GCW Hosted Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_dir:
+        description: GCW issue directory, such as .gcw/issues/42
+        required: true
+        type: string
+      step:
+        description: GCW step to apply
+        required: true
+        type: choice
+        options:
+          - implementation-gate
+          - local-self-review
+          - readiness-check
+          - create-review-request
+          - block
+          - clarify
+          - handoff
+      progress_comment_url:
+        description: Hosted issue progress comment URL
+        required: false
+        type: string
+      issue_actionable:
+        description: Whether the issue is actionable for implementation-gate
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      clarifying_question:
+        description: Clarifying question for non-actionable issues
+        required: false
+        type: string
+      progress_section:
+        description: Local self-review section heading
+        required: false
+        default: "## Local Self-Review"
+        type: string
+      base_branch:
+        description: Readiness base branch
+        required: false
+        type: string
+      commit_range:
+        description: Readiness commit range
+        required: false
+        type: string
+      title:
+        description: Review request title
+        required: false
+        type: string
+      summary:
+        description: Review request summary
+        required: false
+        type: string
+      issue_link:
+        description: Review request issue link
+        required: false
+        type: string
+      validation_command:
+        description: Validation command
+        required: false
+        type: string
+      validation_result:
+        description: Validation result
+        required: false
+        type: string
+      risks:
+        description: Risks or reviewer notes
+        required: false
+        type: string
+      review_request_url:
+        description: Hosted review request URL
+        required: false
+        type: string
+      reason:
+        description: Blocker, clarification, or handoff reason
+        required: false
+        type: string
+      owner_kind:
+        description: Handoff owner kind
+        required: false
+        type: choice
+        options:
+          - local
+          - github-actions
+          - gitlab-ci
+          - manual
+      owner_id:
+        description: Handoff owner id
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: gcw-hosted-apply-${{ github.ref }}-${{ inputs.issue_dir }}
+  cancel-in-progress: false
+
+jobs:
+  hosted-apply:
+    runs-on: ubuntu-latest
+    env:
+      GCW_ISSUE_DIR: ${{ inputs.issue_dir }}
+      GCW_STEP: ${{ inputs.step }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply GCW step
+        env:
+          INPUT_PROGRESS_COMMENT_URL: ${{ inputs.progress_comment_url }}
+          INPUT_ISSUE_ACTIONABLE: ${{ inputs.issue_actionable }}
+          INPUT_CLARIFYING_QUESTION: ${{ inputs.clarifying_question }}
+          INPUT_PROGRESS_SECTION: ${{ inputs.progress_section }}
+          INPUT_BASE_BRANCH: ${{ inputs.base_branch }}
+          INPUT_COMMIT_RANGE: ${{ inputs.commit_range }}
+          INPUT_TITLE: ${{ inputs.title }}
+          INPUT_SUMMARY: ${{ inputs.summary }}
+          INPUT_ISSUE_LINK: ${{ inputs.issue_link }}
+          INPUT_VALIDATION_COMMAND: ${{ inputs.validation_command }}
+          INPUT_VALIDATION_RESULT: ${{ inputs.validation_result }}
+          INPUT_RISKS: ${{ inputs.risks }}
+          INPUT_REVIEW_REQUEST_URL: ${{ inputs.review_request_url }}
+          INPUT_REASON: ${{ inputs.reason }}
+          INPUT_OWNER_KIND: ${{ inputs.owner_kind }}
+          INPUT_OWNER_ID: ${{ inputs.owner_id }}
+        run: |
+          set -euo pipefail
+          case "$GCW_STEP" in
+            implementation-gate)
+              python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --progress-comment-url "$INPUT_PROGRESS_COMMENT_URL" --issue-actionable "$INPUT_ISSUE_ACTIONABLE" --clarifying-question "$INPUT_CLARIFYING_QUESTION"
+              ;;
+            local-self-review)
+              python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --progress-section "$INPUT_PROGRESS_SECTION"
+              ;;
+            readiness-check)
+              python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --base-branch "$INPUT_BASE_BRANCH" --commit-range "$INPUT_COMMIT_RANGE" --title "$INPUT_TITLE" --summary "$INPUT_SUMMARY" --issue-link "$INPUT_ISSUE_LINK" --validation-command "$INPUT_VALIDATION_COMMAND" --validation-result "$INPUT_VALIDATION_RESULT" --risks "$INPUT_RISKS"
+              ;;
+            create-review-request)
+              python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$INPUT_REVIEW_REQUEST_URL"
+              ;;
+            block)
+              python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --reason "$INPUT_REASON"
+              ;;
+            clarify)
+              python3 .agents/skills/gcw/scripts/gcw_step.py clarify --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --question "$INPUT_REASON"
+              ;;
+            handoff)
+              python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --owner-kind "$INPUT_OWNER_KIND" --owner-id "$INPUT_OWNER_ID" --reason "$INPUT_REASON"
+              ;;
+          esac
+
+      - name: Render hosted artifacts
+        run: |
+          set -euo pipefail
+          python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comment --issue-dir "$GCW_ISSUE_DIR" > /tmp/gcw-progress-comment.md
+          python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request --issue-dir "$GCW_ISSUE_DIR" > /tmp/gcw-review-request.md
+
+      - name: Update issue progress comment
+        if: ${{ inputs.progress_comment_url != '' }}
+        env:
+          INPUT_PROGRESS_COMMENT_URL: ${{ inputs.progress_comment_url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          comment_id="${INPUT_PROGRESS_COMMENT_URL##*issuecomment-}"
+          if [ "$comment_id" = "$INPUT_PROGRESS_COMMENT_URL" ]; then
+            echo "progress_comment_url must include issuecomment-<id> for GitHub comment updates" >&2
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --method PATCH --field "body=$(cat /tmp/gcw-progress-comment.md)"
+
+      - name: Update review request body
+        if: ${{ inputs.review_request_url != '' }}
+        env:
+          INPUT_REVIEW_REQUEST_URL: ${{ inputs.review_request_url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          review_number="${INPUT_REVIEW_REQUEST_URL##*/}"
+          gh pr edit "$review_number" --body-file /tmp/gcw-review-request.md
+
+      - name: Commit GCW issue evidence
+        run: |
+          set -euo pipefail
+          git add "$GCW_ISSUE_DIR"
+          if git diff --cached --quiet; then
+            echo "No GCW issue evidence changes to commit."
+          else
+            git commit -m "Update GCW hosted apply evidence"
+            git push
+          fi

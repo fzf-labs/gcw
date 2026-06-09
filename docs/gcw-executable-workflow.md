@@ -622,6 +622,7 @@ Runner rules:
 - Local owning agents may perform check and apply steps inside the issue worktree.
 - GitHub Actions check mode must not mutate repository, issue, or review request state.
 - GitHub Actions apply mode must fail closed unless `state.json.owner.kind` is `github-actions` or an explicit ownership handoff has been recorded.
+- GitLab CI apply mode must fail closed unless `state.json.owner.kind` is `gitlab-ci` or an explicit ownership handoff has been recorded.
 - Non-owner runners may report blockers, but they must not push implementation changes.
 
 ## Local And Hosted Execution
@@ -697,9 +698,27 @@ It dispatches `check` mode to deterministic validators and `apply` mode to the l
 
 ```bash
 python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .gcw/issues/<issue-id>
-python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
+python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
 python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
-python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --issue-dir .gcw/issues/<issue-id> --review-request-url <review-request-url>
+python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind local --issue-dir .gcw/issues/<issue-id> --review-request-url <review-request-url>
+python3 .agents/skills/gcw/scripts/gcw_step.py remote-progress-comment --mode check --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/progress-comment.md
+python3 .agents/skills/gcw/scripts/gcw_step.py remote-review-request --mode check --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/review-request.md
+```
+
+`apply` mode requires owner alignment. The runner defaults to `local`; hosted runners pass `--runner-kind github-actions` or `--runner-kind gitlab-ci`. If `state.json.owner.kind` does not match, the step fails closed before writing state files or hosted artifacts.
+
+Remote artifact checks use fetched hosted text as input. Fetching may happen through `gh`, `glab`, curl, or another platform client, but the comparison is deterministic and local:
+
+```bash
+python3 .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py progress-comment --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/progress-comment.md
+python3 .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py review-request --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/review-request.md
+```
+
+Hosted workflows render update bodies from local evidence before mutating issue comments or review request descriptions:
+
+```bash
+python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comment --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request --issue-dir .gcw/issues/<issue-id>
 ```
 
 The first helper for writing v1 records lives at:
@@ -727,9 +746,19 @@ The first hosted check workflows live at:
 ```text
 .github/workflows/ci.yml
 .gitlab-ci.yml
+.gitlab/ci/gcw-validate.yml
 ```
 
 They run in read-only check mode. They validate `state.json` for each `.gcw/issues/<issue-id>/` directory, then validate implementation gate and readiness evidence only when those files or states are present. They also parse the v1 JSON Schema files and run unit tests against a checked-in complete evidence fixture at `.agents/skills/gcw/tests/fixtures/complete_issue/`.
+
+The first hosted apply entry points live at:
+
+```text
+.github/workflows/gcw-hosted-apply.yml
+.gitlab/ci/gcw-hosted-apply.yml
+```
+
+They are manually triggered and owner-gated. When the hosted runner owns the issue branch, they can apply state transitions, render the issue progress comment and review request body, update hosted artifacts, commit changed `.gcw/issues/<issue-id>/` evidence, and push the branch. They do not force-push, delete branches, merge review requests, or close issues.
 
 After that is stable, hosted workflows can progressively execute more steps:
 
@@ -741,8 +770,10 @@ Phase 2:
   Hosted workflow can apply state transitions.
 
 Phase 3:
-  Hosted workflow can implement or fix code with explicit branch ownership.
+  A cloud coding agent can implement or fix code with explicit branch ownership.
 ```
+
+Phase 3 requires a real cloud coding agent or `/fix` execution primitive. This repository now exposes the ownership handoff, hosted apply, artifact rendering, and validation contracts that such a runner must use, but it does not invent an autonomous code-modifying runner when no platform primitive is configured.
 
 ## Summary
 

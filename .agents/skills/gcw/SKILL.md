@@ -79,7 +79,12 @@ For scripted execution, prefer the unified step runner when it supports the step
 ```bash
 python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/gcw_step.py remote-progress-comment --mode check --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/progress-comment.md
+python3 .agents/skills/gcw/scripts/gcw_step.py remote-review-request --mode check --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/review-request.md
+python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
 ```
+
+`apply` mode is ownership-gated. Hosted runners must pass `--runner-kind github-actions` or `--runner-kind gitlab-ci`, and `state.json.owner.kind` must match that runner. Use `record-handoff` before a hosted workflow takes over writes.
 
 Minimum contents:
 

@@ -70,6 +70,35 @@ class GcwStepTest(unittest.TestCase):
         self.assertEqual(output["step"], "state")
         self.assertTrue(output["ok"])
 
+    def test_check_mode_dispatches_remote_progress_verification(self) -> None:
+        remote_file = self.issue_dir / "progress-comment.md"
+        remote_file.write_text(
+            "\n".join(
+                [
+                    "Planning files:",
+                    "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md",
+                    "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md",
+                    "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = self.run_step(
+            "remote-progress-comment",
+            "--mode",
+            "check",
+            "--issue-dir",
+            str(COMPLETE_FIXTURE),
+            "--remote-file",
+            str(remote_file),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["step"], "remote-progress-comment")
+        self.assertTrue(output["ok"])
+
     def test_apply_mode_dispatches_to_state_manager(self) -> None:
         self.write_initial_state_and_planning_files()
 
@@ -87,6 +116,27 @@ class GcwStepTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertTrue(output["ok"])
         self.assertEqual(output["state"]["state"], "implementing")
+
+    def test_apply_mode_rejects_non_owner_runner(self) -> None:
+        self.write_initial_state_and_planning_files()
+
+        result = self.run_step(
+            "implementation-gate",
+            "--mode",
+            "apply",
+            "--runner-kind",
+            "github-actions",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--progress-comment-url",
+            "https://github.com/owner/repo/issues/42#issuecomment-1",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertEqual(output["step"], "implementation-gate")
+        self.assertIn("owner.kind local does not match runner github-actions", output["errors"])
 
     def test_unsupported_apply_mode_fails_closed(self) -> None:
         result = self.run_step("state", "--mode", "apply", "--issue-dir", str(COMPLETE_FIXTURE))

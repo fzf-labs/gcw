@@ -1,0 +1,66 @@
+gcw:hosted-apply:
+  stage: apply
+  image: python:3.12
+  variables:
+    PYTHONPYCACHEPREFIX: /tmp/gcw-pycache
+  rules:
+    - if: '$GCW_APPLY == "true"'
+      when: manual
+    - when: never
+  script:
+    - |
+      set -euo pipefail
+      case "$GCW_STEP" in
+        implementation-gate)
+          python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --progress-comment-url "$GCW_PROGRESS_COMMENT_URL" --issue-actionable "${GCW_ISSUE_ACTIONABLE:-true}" --clarifying-question "${GCW_CLARIFYING_QUESTION:-}"
+          ;;
+        local-self-review)
+          python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --progress-section "${GCW_PROGRESS_SECTION:-## Local Self-Review}"
+          ;;
+        readiness-check)
+          python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --base-branch "$GCW_BASE_BRANCH" --commit-range "$GCW_COMMIT_RANGE" --title "$GCW_TITLE" --summary "$GCW_SUMMARY" --issue-link "$GCW_ISSUE_LINK" --validation-command "$GCW_VALIDATION_COMMAND" --validation-result "$GCW_VALIDATION_RESULT" --risks "$GCW_RISKS"
+          ;;
+        create-review-request)
+          python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$GCW_REVIEW_REQUEST_URL"
+          ;;
+        block)
+          python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --reason "$GCW_REASON"
+          ;;
+        clarify)
+          python3 .agents/skills/gcw/scripts/gcw_step.py clarify --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --question "$GCW_REASON"
+          ;;
+        handoff)
+          python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --owner-kind "$GCW_OWNER_KIND" --owner-id "$GCW_OWNER_ID" --reason "$GCW_REASON"
+          ;;
+        *)
+          echo "Unsupported GCW_STEP: $GCW_STEP" >&2
+          exit 1
+          ;;
+      esac
+    - |
+      set -euo pipefail
+      python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comment --issue-dir "$GCW_ISSUE_DIR" > /tmp/gcw-progress-comment.md
+      python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request --issue-dir "$GCW_ISSUE_DIR" > /tmp/gcw-review-request.md
+    - |
+      set -euo pipefail
+      auth_header="JOB-TOKEN: $CI_JOB_TOKEN"
+      if [ -n "${GITLAB_TOKEN:-}" ]; then
+        auth_header="PRIVATE-TOKEN: $GITLAB_TOKEN"
+      fi
+      if [ -n "${GCW_PROGRESS_NOTE_ID:-}" ] && [ -n "${GCW_ISSUE_IID:-}" ]; then
+        curl --request PUT --fail --header "$auth_header" --data-urlencode "body@/tmp/gcw-progress-comment.md" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues/$GCW_ISSUE_IID/notes/$GCW_PROGRESS_NOTE_ID"
+      fi
+      if [ -n "${GCW_MERGE_REQUEST_IID:-}" ]; then
+        curl --request PUT --fail --header "$auth_header" --data-urlencode "description@/tmp/gcw-review-request.md" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$GCW_MERGE_REQUEST_IID"
+      fi
+    - |
+      set -euo pipefail
+      git add "$GCW_ISSUE_DIR"
+      if git diff --cached --quiet; then
+        echo "No GCW issue evidence changes to commit."
+      else
+        git config user.name "gitlab-ci"
+        git config user.email "gitlab-ci@example.invalid"
+        git commit -m "Update GCW hosted apply evidence"
+        git push origin "HEAD:$CI_COMMIT_REF_NAME"
+      fi
