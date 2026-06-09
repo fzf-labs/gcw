@@ -1,130 +1,129 @@
 # Git Collaboration Workflow
 
-Git Collaboration Workflow defines the language for coordinating local Git development with hosted GitHub or GitLab collaboration workflows through agent-facing workflow packages.
+Git Collaboration Workflow 定义了本地 Git 开发与 GitHub/GitLab 托管协作流程之间的协调语言。它通过面向 agent 的 workflow packages，让 coding agent 能稳定地推进 Issue 工作。
 
-## Language
+## 术语
 
 **Git Collaboration Workflow**:
-The product context for agent-assisted development that can run through local Git operations or hosted GitHub/GitLab review workflows.
-_Avoid_: Git workflow, Git collaboration, GCW workflow
+面向 agent-assisted development 的产品上下文。它可以通过本地 Git 操作，也可以通过 GitHub/GitLab 托管 review workflow 运行。
+_避免_: Git workflow, Git collaboration, GCW workflow
 
 **Workflow Kit**:
-A distributable set of workflow packages that equips coding agents to carry Git collaboration work from task intake through review readiness.
-_Avoid_: Skill, plugin, toolkit
+可分发的 workflow package 集合，用于装备 coding agent，让它能从任务接入推进到 ready for review。
+_避免_: Skill, plugin, toolkit
 
 **Workflow Package**:
-A named capability within the workflow kit. The top-level orchestration package is `gcw`, while focused packages use explicit prefixes such as `issue-`, `git-`, and `pr-`.
-_Avoid_: Renamed domain concept, generic skill name
+Workflow kit 中的具名能力。顶层编排包是 `gcw`，聚焦包使用 `issue-`、`git-`、`pr-` 等明确前缀。
+_避免_: 重命名领域概念、泛化 skill 名称
 
 **Agent-Assisted Developer**:
-The person who owns the development intent and delegates Git collaboration work to coding agents.
-_Avoid_: End user, operator
+拥有开发意图，并将 Git collaboration 工作委托给 coding agent 的人。
+_避免_: end user, operator
 
 **Coding Agent**:
-An AI coding system that performs delegated Git collaboration steps on behalf of an agent-assisted developer.
-_Avoid_: Autonomous agent, bot
+代表 agent-assisted developer 执行 Git collaboration 步骤的 AI coding system。
+_避免_: autonomous agent, bot
 
 **Owning Agent**:
-The single coding agent responsible for write operations in an issue worktree during the review-ready loop.
-_Avoid_: Agent pool, shared writer, parallel writer
+在一个 issue worktree 中负责写操作的唯一 coding agent。
+_避免_: agent pool, shared writer, parallel writer
 
 **Review-Ready Loop**:
-The v1 collaboration loop that carries an issue from intake through branch, implementation, commit, push, and ready for review.
-_Avoid_: Full SDLC, release workflow
+v1 协作闭环，从 Issue 接入开始，经过分支、实现、提交、推送，直到 ready for review。
+_避免_: full SDLC, release workflow
 
 **Issue to Ready for Review**:
-The main `gcw` workflow that starts from a GitHub or GitLab issue and ends with a complete-on-create review request ready for code review.
-_Avoid_: Issue to PR, task to done, implementation workflow
+主 `gcw` 工作流，从 GitHub/GitLab Issue 开始，到创建 complete-on-create review request 并准备好 code review 结束。
+_避免_: Issue to PR, task to done, implementation workflow
 
 **Issue**:
-The required work entry point for GCW, representing a GitHub or GitLab collaboration item that can be developed, linked, reviewed, and closed through the review-ready loop. Local-only work items are not issues in GCW.
-_Avoid_: Task, request, ticket, local issue
+GCW 必需的工作入口，代表 GitHub 或 GitLab 上可开发、可链接、可 review、可关闭的协作项。纯本地工作项不是 GCW 中的 Issue。
+_避免_: task, request, ticket, local issue
 
 **Issue Clarification**:
-The state where GCW pauses implementation because an issue lacks material information needed for safe development. Before planning exists this is a normal issue comment; after planning exists it is reflected in the issue progress comment.
-_Avoid_: Guessing, speculative implementation
+当 Issue 缺少安全开发所需的重要信息时，GCW 暂停实现的状态。规划文件存在前，这是普通 Issue clarification comment；规划文件存在后，它会体现在 issue progress comment 中。
+_避免_: guessing, speculative implementation
 
 **Planning Files**:
-The required file-based working memory created under `.gcw/issues/<issue-id>/` inside the issue worktree, capturing the plan, findings, and progress from intake through ready for review. Planning files are part of the review request diff and may be merged to the base branch.
-_Avoid_: Optional plan, complex-task plan, chat-only plan
+在 issue worktree 的 `.gcw/issues/<issue-id>/` 下创建的必需文件型工作记忆。它们记录 plan、findings 和 progress，并会作为 review request diff 的一部分进入分支。
+_避免_: optional plan, complex-task plan, chat-only plan
 
 **Planning Recovery**:
-The resume behavior where GCW reads `.gcw/issues/<issue-id>/task_plan.md`, `findings.md`, and `progress.md` before continuing issue work after interruption or context loss.
-_Avoid_: Chat-only recovery, root-only plan discovery
+中断或上下文丢失后，GCW 通过读取 `.gcw/issues/<issue-id>/task_plan.md`、`findings.md`、`progress.md` 恢复工作的行为。
+_避免_: chat-only recovery, root-only plan discovery
 
 **Planning Commit**:
-The first standalone commit on an issue branch, publishing planning files so the issue progress comment can link to them on the Git hosting platform.
-_Avoid_: Local-only plan, uncommitted planning files
+Issue 分支上的第一个独立提交，用于发布 planning files，让 issue progress comment 可以链接到托管平台上的文件。
+_避免_: local-only plan, uncommitted planning files
 
 **Planning Checkpoint**:
-A key-stage update where changed planning files are committed or pushed with the issue work, rather than after every minor progress edit.
-_Avoid_: Progress spam, every-edit commit
+关键阶段更新。变化后的 planning files 会随 Issue 工作提交或推送，而不是每次微小 progress 编辑都提交。
+_避免_: progress spam, every-edit commit
 
 **Implementation Gate**:
-The enforceable checkpoint that answers whether implementation may begin. The gate passes only when planning files exist under `.gcw/issues/<issue-id>/`, the planning commit has been pushed, the issue progress comment links to the branch versions of those files, and the progress snapshot has moved to `implementing`.
-_Avoid_: Code-first start, unlinked planning
+判断是否可以开始实现的强制检查点。只有当 planning files 存在于 `.gcw/issues/<issue-id>/`、planning commit 已推送、issue progress comment 链接到分支文件、progress snapshot 已进入 `implementing` 时，gate 才通过。
+_避免_: code-first start, unlinked planning
 
 **TDD Implementation**:
-The default implementation discipline for GCW behavior changes, using test-first cycles and recording why TDD is not applicable for non-behavior changes.
-_Avoid_: Test-after implementation, unvalidated behavior change
+GCW 行为变更的默认实现纪律，使用 test-first cycle。非行为变更需要记录为什么 TDD 不适用。
+_避免_: test-after implementation, unvalidated behavior change
 
 **Issue Progress Comment**:
-A single updatable issue comment that records the coding agent's GCW progress and links to the current planning files on the issue branch.
-_Avoid_: Hidden local plan, chat-only progress, unlinked planning files, progress comment stream
+一个可更新的 Issue comment，用于记录 coding agent 的 GCW 进度，并链接到 issue branch 上的当前 planning files。
+_避免_: hidden local plan, chat-only progress, unlinked planning files, progress comment stream
 
 **Progress Snapshot**:
-The current status summary inside an issue progress comment, including status, branch, planning file links, latest checkpoint, and review request link when available.
-_Avoid_: Full progress log, comment history, ad hoc update
+Issue progress comment 中的当前状态摘要，包含 status、branch、planning file links、latest checkpoint，以及可用时的 review request link。
+_避免_: full progress log, comment history, ad hoc update
 
 **GCW Status**:
-The stable stage shown in a progress snapshot. The v1 statuses are `planning`, `clarifying`, `implementing`, `blocked`, and `ready-for-review`.
-_Avoid_: Command state, transient step, detailed progress log
+Progress snapshot 中展示的稳定阶段。v1 状态为 `planning`、`clarifying`、`implementing`、`blocked`、`ready-for-review`。
+_避免_: command state, transient step, detailed progress log
 
 **Issue Worktree**:
-The isolated worktree GCW creates by default for developing one issue without disturbing the developer's current workspace or other issue work.
-_Avoid_: Shared checkout, current workspace by default
+GCW 默认为一个 Issue 创建的隔离 worktree，用于避免干扰开发者当前工作区或其他 Issue 工作。
+_避免_: shared checkout, current workspace by default
 
 **Agent Workspace**:
-The repository root where a coding agent performs commands and edits files. In Cursor, GCW moves the agent workspace to the issue worktree after creating it.
-_Avoid_: Original checkout, terminal cwd only
+coding agent 执行命令和编辑文件的仓库根目录。在 Cursor 中，GCW 创建 issue worktree 后会将 agent workspace 移到该 worktree。
+_避免_: original checkout, terminal cwd only
 
 **Git Hosting Platform**:
-A hosted Git collaboration service that supplies issues and code review objects for GCW. GitHub and GitLab are the v1 platforms, with GitHub as the first complete implementation path.
-_Avoid_: Git server, remote, forge
+提供 Issue 和 code review 对象的托管 Git 协作服务。v1 平台是 GitHub 和 GitLab，其中 GitHub 是第一条完整实现路径。
+_避免_: Git server, remote, forge
 
 **Review Request**:
-The hosted code review object created from a branch to make issue work ready for review. A GitHub Pull Request and a GitLab Merge Request are platform-specific review requests.
-_Avoid_: PR/MR, pull request, merge request
+从分支创建的托管 code review 对象，用于让 Issue 工作进入 ready for review。GitHub Pull Request 和 GitLab Merge Request 是平台特定的 review request。
+_避免_: PR/MR, pull request, merge request
 
 **Complete-on-Create**:
-The quality rule that a review request should be created with the issue link, summary, validation, scope, risks, and reviewer notes needed for effective review.
-_Avoid_: Empty review request, placeholder PR, placeholder MR
+Review request 创建时应直接包含有效 review 所需的 Issue link、summary、validation、scope、risks 和 reviewer notes。
+_避免_: empty review request, placeholder PR, placeholder MR
 
 **Ready for Review**:
-The target state where an issue's review request is prepared for code review on its Git hosting platform.
-_Avoid_: Review-ready candidate, merge ready, draft
+Issue 的 review request 已经准备好进行 code review 的目标状态。
+_避免_: review-ready candidate, merge ready, draft
 
 **Review Support**:
-Optional workflow package activity after ready for review, such as reviewing a review request, investigating CI failures, or helping respond to reviewer feedback.
-_Avoid_: Required ready-for-review step, automatic self-review
+Ready for review 之后的可选 workflow package 活动，例如 review review request、调查 CI 失败、协助响应 reviewer feedback。
+_避免_: required ready-for-review step, automatic self-review
 
 **Hosted Apply Workflow**:
-A manually-triggered GitHub Actions or GitLab CI workflow that may apply GCW state transitions, update issue progress comments, update review request bodies, commit evidence changes, and push them only when `state.json.owner.kind` matches the hosted runner.
-_Avoid_: Unowned CI write, automatic remote mutation
+手动触发的 GitHub Actions 或 GitLab CI workflow。只有当 `state.json.owner.kind` 与 hosted runner 匹配时，它才可以 apply GCW 状态转换、更新 issue progress comment、更新 review request body、提交 evidence changes 并推送。
+_避免_: unowned CI write, automatic remote mutation
 
 **Remote Artifact Verification**:
-The deterministic check that compares hosted issue progress comment text and review request body text fetched from GitHub or GitLab with local readiness evidence.
-_Avoid_: Assuming hosted state matches local files
+确定性检查。它将从 GitHub/GitLab 抓取的 hosted issue progress comment 文本和 review request body 文本，与本地 readiness evidence 进行比较。
+_避免_: assuming hosted state matches local files
 
 **Readiness Evidence**:
-The evidence package proving a review request is ready for review. It covers the linked issue, branch, intended diff, commit boundaries, validation performed, planning file links, local self-review result, risks, and the complete-on-create review request summary.
-_Avoid_: Completion note, final message, status update
+证明 review request 已准备好进入 review 的证据包。它覆盖 linked issue、branch、intended diff、commit boundaries、validation、planning file links、local self-review result、risks，以及 complete-on-create review request summary。
+_避免_: completion note, final message, status update
 
 **Local Self-Review**:
-The required pre-review-request check where the coding agent inspects the local diff, planning files, validation results, commit boundaries, and review request content before creating or updating the review request. The result is recorded in `progress.md` as part of readiness evidence.
-_Avoid_: Remote code review, reviewer approval, casual final scan
+创建或更新 review request 前必需的检查。coding agent 会检查 local diff、planning files、validation results、commit boundaries 和 review request content，并将结果作为 readiness evidence 记录在 `progress.md`。
+_避免_: remote code review, reviewer approval, casual final scan
 
 **High-Risk Operation**:
-A Git collaboration action that requires explicit human approval because it can destroy work, change shared history, merge code, close work, or alter someone else's authored content.
-_Avoid_: Normal review-ready step, routine operation
-
+可能破坏工作、改变共享历史、合并代码、关闭工作项或修改他人 authored content 的 Git collaboration 操作。它需要明确的人类批准。
+_避免_: normal review-ready step, routine operation

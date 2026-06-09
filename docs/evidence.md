@@ -1,0 +1,59 @@
+# GCW 证据
+
+每个 Issue 分支都会在以下目录保存持久化的人类记录和机器记录：
+
+```text
+.gcw/issues/<issue-id>/
+```
+
+## 人类记录
+
+```text
+.gcw/issues/<issue-id>/task_plan.md
+.gcw/issues/<issue-id>/findings.md
+.gcw/issues/<issue-id>/progress.md
+```
+
+- `task_plan.md` 记录目标、阶段、验收条件和验证计划。
+- `findings.md` 记录 Issue facts、发现、决策、风险和开放问题。
+- `progress.md` 记录命令、错误、checkpoint 和 local self-review。
+
+## 机器记录
+
+```text
+.gcw/issues/<issue-id>/state.json
+.gcw/issues/<issue-id>/implementation_gate_result.json
+.gcw/issues/<issue-id>/readiness_evidence.json
+```
+
+v1 JSON schemas 位于：
+
+```text
+.agents/skills/gcw/schemas/state.schema.json
+.agents/skills/gcw/schemas/implementation_gate_result.schema.json
+.agents/skills/gcw/schemas/readiness_evidence.schema.json
+```
+
+## State Snapshot
+
+`state.json` 记录当前 issue、platform、repository、branch、owner、GCW state、last completed step、next allowed steps 和 evidence flags。
+
+`ready-for-review` 要求 `evidence.review_request_url` 非空，并且 `last_completed_step` 为 `create-review-request`。
+
+## Implementation Gate
+
+`implementation_gate_result.json` 记录是否可以开始实现：
+
+- `ok: true` transition 到 `implementing`。
+- `ok: false` transition 到 `clarifying` 或 `blocked`。
+- 通过的 gate 需要 planning files、已推送的 planning commit、已链接的 progress comment，以及 actionable issue 信息。
+
+## Readiness Evidence
+
+`readiness_evidence.json` 记录 issue、branch、base branch、commit range、review request title/summary/issue link、validation results、local self-review、planning links、progress comment URL 和 risks。
+
+创建或更新 review request 前运行 validator：
+
+```bash
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir .gcw/issues/<issue-id>
+```
