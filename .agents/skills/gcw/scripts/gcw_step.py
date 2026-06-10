@@ -15,6 +15,11 @@ REMOTE_VERIFIER = SCRIPT_DIR / "verify_gcw_remote_evidence.py"
 
 CHECK_COMMANDS = {
     "state": (VALIDATOR, ["state"]),
+    "triage-issue": (VALIDATOR, ["state"]),
+    "discuss-issue": (VALIDATOR, ["state"]),
+    "mark-issue-actionable": (VALIDATOR, ["state"]),
+    "create-issue-worktree": (VALIDATOR, ["state"]),
+    "create-planning-files": (VALIDATOR, ["state"]),
     "implementation-gate": (VALIDATOR, ["implementation-gate"]),
     "readiness-check": (VALIDATOR, ["readiness-check"]),
     "create-review-request": (VALIDATOR, ["create-review-request"]),
@@ -23,6 +28,11 @@ CHECK_COMMANDS = {
 }
 
 APPLY_COMMANDS = {
+    "triage-issue": ["record-triage-issue"],
+    "discuss-issue": ["record-discuss-issue"],
+    "mark-issue-actionable": ["record-mark-issue-actionable"],
+    "create-issue-worktree": ["record-create-issue-worktree"],
+    "create-planning-files": ["record-create-planning-files"],
     "publish-planning": ["record-publish-planning"],
     "implementation-gate": ["record-implementation-gate"],
     "implement": ["record-implement"],
@@ -40,6 +50,14 @@ APPLY_COMMANDS = {
     "handoff": ["record-handoff"],
 }
 
+EARLY_CHECK_STEPS = {
+    "triage-issue",
+    "discuss-issue",
+    "mark-issue-actionable",
+    "create-issue-worktree",
+    "create-planning-files",
+}
+
 
 def emit_json(data: dict[str, Any]) -> None:
     print(json.dumps(data, indent=2, sort_keys=True))
@@ -55,6 +73,28 @@ def run_child(script: Path, args: list[str]) -> int:
     )
     if result.stdout:
         print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    return result.returncode
+
+
+def run_json_child(script: Path, args: list[str], step_name: str | None = None) -> int:
+    result = subprocess.run(
+        [sys.executable, str(script), *args],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.stdout:
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            print(result.stdout, end="")
+        else:
+            if step_name is not None and isinstance(data, dict):
+                data["step"] = step_name
+            emit_json(data)
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
     return result.returncode
@@ -187,6 +227,8 @@ def main(argv: list[str] | None = None) -> int:
         if command is None:
             return unsupported(args.step, args.mode)
         script, child_args = command
+        if args.step in EARLY_CHECK_STEPS:
+            return run_json_child(script, [*child_args, *passthrough], step_name=args.step)
         return run_child(script, [*child_args, *passthrough])
 
     command = APPLY_COMMANDS.get(args.step)

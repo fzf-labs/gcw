@@ -44,7 +44,7 @@ def normalize_body(text: str) -> str:
 
 def extract_marked_body(remote_text: str, start_marker: str, end_marker: str) -> str | None:
     start = remote_text.find(start_marker)
-    end = remote_text.find(end_marker)
+    end = remote_text.find(end_marker, start + len(start_marker)) if start != -1 else -1
     if start == -1 or end == -1 or end < start:
         return None
     return remote_text[start : end + len(end_marker)]
@@ -54,8 +54,15 @@ def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
     _ = load_json(args.issue_dir / "readiness_evidence.json", errors)
     remote_text = read_remote_text(args.remote_file, errors, "progress comment")
-    expected_text = render_progress_comment(argparse.Namespace(issue_dir=args.issue_dir))
-    if normalize_body(remote_text) != normalize_body(expected_text):
+    can_compare = not errors
+    expected_text = ""
+    if can_compare:
+        try:
+            expected_text = render_progress_comment(argparse.Namespace(issue_dir=args.issue_dir))
+        except ValueError as exc:
+            errors.append(str(exc))
+            can_compare = False
+    if can_compare and normalize_body(remote_text) != normalize_body(expected_text):
         errors.append("remote progress comment does not match rendered body")
 
     return {
@@ -69,11 +76,18 @@ def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
     _ = load_json(args.issue_dir / "readiness_evidence.json", errors)
     remote_text = read_remote_text(args.remote_file, errors, "review request")
-    expected_text = render_review_request(argparse.Namespace(issue_dir=args.issue_dir))
+    can_compare = not errors
+    expected_text = ""
+    if can_compare:
+        try:
+            expected_text = render_review_request(argparse.Namespace(issue_dir=args.issue_dir))
+        except ValueError as exc:
+            errors.append(str(exc))
+            can_compare = False
     rendered_section = extract_marked_body(remote_text, REVIEW_REQUEST_START, REVIEW_REQUEST_END)
     if rendered_section is None:
         errors.append("remote review request is missing gcw review request markers")
-    elif normalize_body(rendered_section) != normalize_body(expected_text):
+    elif can_compare and normalize_body(rendered_section) != normalize_body(expected_text):
         errors.append("remote review request body does not match rendered body")
 
     return {

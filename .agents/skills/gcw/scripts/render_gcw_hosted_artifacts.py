@@ -15,7 +15,10 @@ REVIEW_REQUEST_END = "<!-- gcw-review-request:end -->"
 def load_json(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {}
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path.name} is not valid JSON: {exc.msg}") from exc
     if not isinstance(data, dict):
         return {}
     return data
@@ -132,7 +135,7 @@ def merge_review_request_body(existing: str, rendered: str) -> str:
     """Replace the generated section between markers, preserving hand-written content outside it."""
     rendered = rendered.strip("\n")
     start = existing.find(REVIEW_REQUEST_START)
-    end = existing.find(REVIEW_REQUEST_END)
+    end = existing.find(REVIEW_REQUEST_END, start + len(REVIEW_REQUEST_START)) if start != -1 else -1
     if start != -1 and end != -1 and end >= start:
         end_index = end + len(REVIEW_REQUEST_END)
         merged = existing[:start] + rendered + existing[end_index:]
@@ -174,7 +177,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    print(args.handler(args), end="")
+    try:
+        print(args.handler(args), end="")
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     return 0
 
 

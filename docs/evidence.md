@@ -42,7 +42,7 @@ JSON schemas 位于：
 
 `ready-for-review` 要求 `evidence.review_request_url` 非空，并且 `last_completed_step` 为 `create-review-request`。机审和人审结论继续记录在 `state.json` 的 evidence 中，而不是只留在 CI 日志或聊天记录里。
 
-state manager 与 validator 覆盖从 `planning` 到 `review-complete` 的完整状态机，包括 `planned`、`ready-for-implementation`、`implementing`、`issue-clarifying`、`ready-for-review-request`、`ready-for-review`、`machine-reviewing`、`machine-review-failed`、`human-reviewing`、`changes-requested`、`approved`、`blocked` 和 `review-complete`。`issue-opened`、`issue-triaging`、`ready-for-planning` 发生在 issue worktree 和 `state.json` 创建之前，由 issue progress comment 跟踪，因此不写入本地 `state.json`。
+state manager 与 validator 覆盖从 `issue-opened` 到 `review-complete` 的完整状态机，包括 `issue-opened`、`issue-triaging`、`issue-clarifying`、`ready-for-planning`、`planning`、`planned`、`ready-for-implementation`、`implementing`、`ready-for-review-request`、`ready-for-review`、`machine-reviewing`、`machine-review-failed`、`human-reviewing`、`changes-requested`、`approved`、`blocked` 和 `review-complete`。早期 intake 状态现在也可以直接写入本地 `state.json`，并通过 `init-state --state ...`、`triage-issue`、`discuss-issue`、`mark-issue-actionable`、`create-issue-worktree` 和 `create-planning-files` 推进。
 
 ## Implementation Gate
 

@@ -13,12 +13,12 @@
 - GitHub Actions 和 GitLab CI 的只读 validation。
 - GitHub Actions 和 GitLab CI 中手动触发、受 ownership gate 保护的 hosted apply。
 - Remote artifact 渲染与校验。
+- `issue-opened`、`issue-triaging`、`issue-clarifying`、`ready-for-planning` 的本地 state.json 初始化和状态推进。
 - state manager 与 validator 覆盖从 `planning` 到 `review-complete` 的完整状态机，包括 implementation gate、`implement`、readiness、机审、人审、反馈回环和 review-complete。
 - 从 Issue 创建、分类、评论讨论到人类审查结束的目标流程、状态和 Action 流水线拆解。
 
 ## 未来工作
 
-- 将 `issue-opened`、`issue-triaging`、`ready-for-planning` 等 issue worktree 创建前的状态接入统一状态存储；它们目前由 issue progress comment 跟踪，不写入 worktree 本地 `state.json`。
 - 实现 `gcw-issue-intake`、`gcw-issue-clarify`、`gcw-planning`、`gcw-machine-review`、`gcw-feedback-loop`、`gcw-review-complete` 等 Action 流水线。
 - 接入真正的 cloud coding agent 或 `/fix` runner，在显式 ownership handoff 后执行代码改动。
 - 增加通过 remote API 直接抓取 hosted artifacts 的检查，不再只依赖已抓取的文本文件。

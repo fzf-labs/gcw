@@ -16,9 +16,17 @@ HUMAN_REVIEW_TRANSITIONS = {
     "changes-requested": ("changes-requested", ["address-human-feedback"]),
     "blocked": ("blocked", []),
     "closed": ("review-complete", []),
+    "rejected": ("review-complete", []),
 }
 PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
 TERMINAL_STATE = "review-complete"
+INITIAL_STATE_CONFIG = {
+    "issue-opened": {"last_completed_step": "", "next_allowed_steps": ["triage-issue"]},
+    "issue-triaging": {"last_completed_step": "triage-issue", "next_allowed_steps": ["discuss-issue", "mark-issue-actionable"]},
+    "issue-clarifying": {"last_completed_step": "discuss-issue", "next_allowed_steps": ["discuss-issue", "mark-issue-actionable"]},
+    "ready-for-planning": {"last_completed_step": "mark-issue-actionable", "next_allowed_steps": ["create-issue-worktree", "create-planning-files"]},
+    "planning": {"last_completed_step": "", "next_allowed_steps": PLANNING_NEXT_STEPS},
+}
 
 
 def parse_bool(value: str) -> bool:
@@ -54,18 +62,20 @@ def require_not_terminal(state: dict[str, Any], action: str) -> list[str]:
 
 
 def init_state(args: argparse.Namespace) -> dict[str, Any]:
+    initial_state = args.state
+    initial_config = INITIAL_STATE_CONFIG[initial_state]
     state = {
         "issue": args.issue,
         "platform": args.platform,
         "repository": args.repository,
-        "state": "planning",
+        "state": initial_state,
         "branch": args.branch,
         "owner": {
             "kind": args.owner_kind,
             "id": args.owner_id,
         },
-        "last_completed_step": "",
-        "next_allowed_steps": PLANNING_NEXT_STEPS,
+        "last_completed_step": initial_config["last_completed_step"],
+        "next_allowed_steps": initial_config["next_allowed_steps"],
         "evidence": {
             "planning_files_exist": False,
             "planning_commit_pushed": False,
@@ -98,6 +108,104 @@ def record_publish_planning(args: argparse.Namespace) -> dict[str, Any]:
     state["state"] = "planned"
     state["last_completed_step"] = "publish-planning"
     state["next_allowed_steps"] = ["implementation-gate"]
+    write_json(state_path, state)
+    return {"ok": True, "path": str(state_path), "state": state}
+
+
+def record_triage_issue(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    errors = require_state(state, {"issue-opened"}, "triage-issue")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
+    evidence = state.setdefault("evidence", {})
+    evidence["triage_recorded"] = True
+    if args.priority:
+        evidence["triage_priority"] = args.priority
+    if args.summary:
+        evidence["triage_summary"] = args.summary
+    state["state"] = "issue-triaging"
+    state["last_completed_step"] = "triage-issue"
+    state["next_allowed_steps"] = ["discuss-issue", "mark-issue-actionable"]
+    write_json(state_path, state)
+    return {"ok": True, "path": str(state_path), "state": state}
+
+
+def record_discuss_issue(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    errors = require_state(state, {"issue-triaging", "issue-clarifying"}, "discuss-issue")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
+    evidence = state.setdefault("evidence", {})
+    evidence["discussion_recorded"] = True
+    evidence["clarifying_question"] = args.question
+    state["state"] = "issue-clarifying"
+    state["last_completed_step"] = "discuss-issue"
+    state["next_allowed_steps"] = ["discuss-issue", "mark-issue-actionable"]
+    write_json(state_path, state)
+    return {"ok": True, "path": str(state_path), "state": state}
+
+
+def record_mark_issue_actionable(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    errors = require_state(state, {"issue-triaging", "issue-clarifying"}, "mark-issue-actionable")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
+    evidence = state.setdefault("evidence", {})
+    evidence["issue_actionable"] = args.issue_actionable
+    if not args.issue_actionable:
+        if not args.clarifying_question:
+            return {
+                "ok": False,
+                "path": str(state_path),
+                "state": state,
+                "errors": ["clarifying question is required when the issue is not actionable"],
+            }
+        evidence["clarifying_question"] = args.clarifying_question
+        state["state"] = "issue-clarifying"
+        state["last_completed_step"] = "mark-issue-actionable"
+        state["next_allowed_steps"] = ["discuss-issue", "mark-issue-actionable"]
+    else:
+        state["state"] = "ready-for-planning"
+        state["last_completed_step"] = "mark-issue-actionable"
+        state["next_allowed_steps"] = ["create-issue-worktree", "create-planning-files"]
+    write_json(state_path, state)
+    return {"ok": True, "path": str(state_path), "state": state}
+
+
+def record_create_issue_worktree(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    errors = require_state(state, {"ready-for-planning"}, "create-issue-worktree")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
+    evidence = state.setdefault("evidence", {})
+    evidence["issue_worktree_created"] = True
+    if args.worktree_path:
+        evidence["issue_worktree_path"] = args.worktree_path
+    state["last_completed_step"] = "create-issue-worktree"
+    state["next_allowed_steps"] = ["create-planning-files"]
+    write_json(state_path, state)
+    return {"ok": True, "path": str(state_path), "state": state}
+
+
+def record_create_planning_files(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    errors = require_state(state, {"ready-for-planning"}, "create-planning-files")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
+    planning_files_exist = all((args.issue_dir / name).is_file() for name in PLANNING_FILES)
+    if not planning_files_exist:
+        errors.append("planning files are missing")
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
+    evidence = state.setdefault("evidence", {})
+    evidence["planning_files_exist"] = True
+    state["state"] = "planning"
+    state["last_completed_step"] = "create-planning-files"
+    state["next_allowed_steps"] = PLANNING_NEXT_STEPS
     write_json(state_path, state)
     return {"ok": True, "path": str(state_path), "state": state}
 
@@ -188,6 +296,13 @@ def record_readiness_evidence(args: argparse.Namespace) -> dict[str, Any]:
     state_evidence = state.get("evidence", {}) if isinstance(state.get("evidence"), dict) else {}
     progress_comment_url = state_evidence.get("progress_comment_url", "")
     progress_section = state_evidence.get("self_review_progress_section", "## Local Self-Review")
+    if not progress_comment_url:
+        return {
+            "ok": False,
+            "path": str(args.issue_dir / "readiness_evidence.json"),
+            "state": state,
+            "errors": ["readiness evidence requires linked progress comment"],
+        }
     if state_evidence.get("self_review_recorded") is not True:
         return {
             "ok": False,
@@ -456,6 +571,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--branch", required=True)
     init_parser.add_argument("--owner-kind", required=True, choices=("local", "github-actions", "gitlab-ci", "manual"))
     init_parser.add_argument("--owner-id", required=True)
+    init_parser.add_argument("--state", default="planning", choices=tuple(INITIAL_STATE_CONFIG))
     init_parser.set_defaults(handler=init_state)
 
     publish_parser = subparsers.add_parser(
@@ -471,6 +587,47 @@ def build_parser() -> argparse.ArgumentParser:
         help="Whether the planning commit has actually been pushed to the issue branch.",
     )
     publish_parser.set_defaults(handler=record_publish_planning)
+
+    triage_parser = subparsers.add_parser(
+        "record-triage-issue",
+        help="Move state.json from issue-opened to issue-triaging.",
+    )
+    triage_parser.add_argument("--issue-dir", required=True, type=Path)
+    triage_parser.add_argument("--priority", default="")
+    triage_parser.add_argument("--summary", default="")
+    triage_parser.set_defaults(handler=record_triage_issue)
+
+    discuss_parser = subparsers.add_parser(
+        "record-discuss-issue",
+        help="Move state.json from issue-triaging or issue-clarifying to issue-clarifying.",
+    )
+    discuss_parser.add_argument("--issue-dir", required=True, type=Path)
+    discuss_parser.add_argument("--question", required=True)
+    discuss_parser.set_defaults(handler=record_discuss_issue)
+
+    actionable_parser = subparsers.add_parser(
+        "record-mark-issue-actionable",
+        help="Move state.json from issue-triaging or issue-clarifying to ready-for-planning or issue-clarifying.",
+    )
+    actionable_parser.add_argument("--issue-dir", required=True, type=Path)
+    actionable_parser.add_argument("--issue-actionable", type=parse_bool, default=True)
+    actionable_parser.add_argument("--clarifying-question", default="")
+    actionable_parser.set_defaults(handler=record_mark_issue_actionable)
+
+    worktree_parser = subparsers.add_parser(
+        "record-create-issue-worktree",
+        help="Record issue worktree creation while remaining in ready-for-planning.",
+    )
+    worktree_parser.add_argument("--issue-dir", required=True, type=Path)
+    worktree_parser.add_argument("--worktree-path", default="")
+    worktree_parser.set_defaults(handler=record_create_issue_worktree)
+
+    planning_files_parser = subparsers.add_parser(
+        "record-create-planning-files",
+        help="Move state.json from ready-for-planning to planning after planning files are present.",
+    )
+    planning_files_parser.add_argument("--issue-dir", required=True, type=Path)
+    planning_files_parser.set_defaults(handler=record_create_planning_files)
 
     gate_parser = subparsers.add_parser(
         "record-implementation-gate",
@@ -544,7 +701,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_result_parser.add_argument(
         "--result",
         required=True,
-        choices=("approved", "changes-requested", "blocked", "closed"),
+        choices=("approved", "changes-requested", "blocked", "closed", "rejected"),
     )
     human_result_parser.set_defaults(handler=record_human_review_result)
 

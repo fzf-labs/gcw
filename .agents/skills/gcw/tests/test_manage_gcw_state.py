@@ -380,6 +380,21 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertEqual(state["state"], "implementing")
         self.assertEqual(state["last_completed_step"], "implement")
 
+    def test_record_readiness_evidence_requires_linked_progress_comment(self) -> None:
+        self.prepare_implementing_issue()
+        state = self.state_now()
+        state["evidence"]["progress_comment_url"] = ""
+        (self.issue_dir / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+        result = self.readiness_evidence()
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("readiness evidence requires linked progress comment", output["errors"])
+        state = self.state_now()
+        self.assertEqual(state["state"], "implementing")
+
     def test_record_review_request_moves_state_to_ready_for_review(self) -> None:
         self.prepare_implementing_issue()
         self.assert_ok(self.readiness_evidence())
@@ -513,6 +528,15 @@ class ManageGcwStateTest(unittest.TestCase):
         self.reach_human_reviewing()
 
         self.assert_ok(self.human_review_result("closed"))
+
+        state = self.state_now()
+        self.assertEqual(state["state"], "review-complete")
+        self.assertEqual(state["next_allowed_steps"], [])
+
+    def test_human_review_rejected_moves_to_review_complete(self) -> None:
+        self.reach_human_reviewing()
+
+        self.assert_ok(self.human_review_result("rejected"))
 
         state = self.state_now()
         self.assertEqual(state["state"], "review-complete")
