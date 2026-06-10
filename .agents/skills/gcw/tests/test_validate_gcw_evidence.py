@@ -121,6 +121,18 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(output["ok"])
         self.assertEqual(output["step"], "state")
 
+    def test_state_check_requires_owner_id(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        del state["owner"]["id"]
+        self.write_json("state.json", state)
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("owner.id is missing", output["errors"])
+
     def test_state_check_rejects_next_steps_outside_transition_table(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
         state["state"] = "ready-for-review"
@@ -310,6 +322,18 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertIn("readiness-check must leave state.json state as ready-for-review-request", output["errors"])
+
+    def test_readiness_check_requires_readiness_check_completion(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["last_completed_step"] = "something-else"
+        self.write_json("state.json", state)
+
+        result = self.run_validator("readiness-check")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("ready-for-review-request requires last_completed_step readiness-check", output["errors"])
 
     def test_implementation_gate_rejects_ready_for_review_without_review_request(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))

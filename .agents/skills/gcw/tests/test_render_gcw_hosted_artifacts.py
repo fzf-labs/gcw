@@ -35,6 +35,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertTrue(result.stdout.startswith("<!-- gcw-progress -->\n"))
         self.assertIn("GCW Status: ready-for-review-request", result.stdout)
         self.assertIn("Last completed step: readiness-check", result.stdout)
+        self.assertIn("- Review request: Not created yet", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md", result.stdout)
@@ -84,6 +85,18 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/task_plan.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/findings.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/progress.md", result.stdout)
+
+    def test_render_progress_comment_includes_handoff_reason_when_present(self) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        state = json.loads((issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["evidence"]["handoff_reason"] = "Hosted apply workflow owns the next transition."
+        (issue_dir / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+        result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Handoff reason: Hosted apply workflow owns the next transition.", result.stdout)
 
 
     def test_render_review_request_includes_optional_scope_and_reviewer_notes(self) -> None:

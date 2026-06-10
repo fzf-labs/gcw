@@ -135,7 +135,7 @@ flowchart TD
 ```bash
 python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
-python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
+python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --runner-id <agent-session-id> --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
 ```
 
-Apply mode 是会写入状态或更新远程内容的执行模式，受 ownership gate 保护。Hosted runner 需要传入 `--runner-kind github-actions` 或 `--runner-kind gitlab-ci`；本地 agent 使用默认值 `local`。
+Apply mode 是会写入状态或更新远程内容的执行模式，受 ownership gate 保护。Hosted runner 需要传入 `--runner-kind github-actions` 或 `--runner-kind gitlab-ci`，并提供匹配的 `--runner-id`；本地 agent 使用默认值 `local`。

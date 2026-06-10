@@ -14,7 +14,7 @@
 
 ## Hosted Apply
 
-这些入口需要手动触发，并受 ownership gate 保护。ownership gate 会检查当前 runner 是否拥有写入权：
+这些入口需要手动触发，并受 ownership gate 保护。workflow 会先用 `record-handoff` 认领当前 run 的 ownership，然后 ownership gate 再检查当前 runner 是否拥有写入权，以及 runner 身份是否与 `state.json` 中记录的一致：
 
 ```text
 .github/workflows/gcw-hosted-apply.yml
@@ -40,7 +40,7 @@ Hosted apply 不可以：
 
 ## Ownership 规则
 
-除非 `state.json.owner.kind` 与 runner 匹配，否则 hosted apply 必须 fail closed，也就是直接失败并拒绝写入：
+除非 `state.json.owner.kind` 和 `state.json.owner.id` 都与 runner 匹配，否则 hosted apply 必须 fail closed，也就是直接失败并拒绝写入：
 
 - GitHub Actions 使用 `github-actions`。
 - GitLab CI 使用 `gitlab-ci`。

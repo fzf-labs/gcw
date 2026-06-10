@@ -17,7 +17,7 @@ CHECK_COMMANDS = {
     "state": (VALIDATOR, ["state"]),
     "implementation-gate": (VALIDATOR, ["implementation-gate"]),
     "readiness-check": (VALIDATOR, ["readiness-check"]),
-    "create-review-request": (VALIDATOR, ["readiness-check"]),
+    "create-review-request": (VALIDATOR, ["create-review-request"]),
     "remote-progress-comment": (REMOTE_VERIFIER, ["progress-comment"]),
     "remote-review-request": (REMOTE_VERIFIER, ["review-request"]),
 }
@@ -81,7 +81,7 @@ def issue_dir_from_args(args: list[str]) -> Path | None:
     return None
 
 
-def verify_apply_owner(step: str, runner_kind: str, passthrough: list[str]) -> int | None:
+def verify_apply_owner(step: str, runner_kind: str, runner_id: str, passthrough: list[str]) -> int | None:
     issue_dir = issue_dir_from_args(passthrough)
     if issue_dir is None:
         emit_json(
@@ -91,6 +91,17 @@ def verify_apply_owner(step: str, runner_kind: str, passthrough: list[str]) -> i
                 "mode": "apply",
                 "runner_kind": runner_kind,
                 "errors": ["apply mode requires --issue-dir for ownership verification"],
+            }
+        )
+        return 1
+    if not runner_id:
+        emit_json(
+            {
+                "ok": False,
+                "step": step,
+                "mode": "apply",
+                "runner_kind": runner_kind,
+                "errors": ["apply mode requires --runner-id for ownership verification"],
             }
         )
         return 1
@@ -123,14 +134,21 @@ def verify_apply_owner(step: str, runner_kind: str, passthrough: list[str]) -> i
 
     owner = state.get("owner") if isinstance(state, dict) else {}
     owner_kind = owner.get("kind") if isinstance(owner, dict) else None
+    owner_id = owner.get("id") if isinstance(owner, dict) else None
+    errors: list[str] = []
     if owner_kind != runner_kind:
+        errors.append(f"owner.kind {owner_kind or '<missing>'} does not match runner {runner_kind}")
+    if owner_id != runner_id:
+        errors.append(f"owner.id {owner_id or '<missing>'} does not match runner {runner_id}")
+    if errors:
         emit_json(
             {
                 "ok": False,
                 "step": step,
                 "mode": "apply",
                 "runner_kind": runner_kind,
-                "errors": [f"owner.kind {owner_kind or '<missing>'} does not match runner {runner_kind}"],
+                "runner_id": runner_id,
+                "errors": errors,
             }
         )
         return 1
@@ -152,6 +170,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="local",
         help="Runner requesting apply mode. Defaults to local.",
     )
+    parser.add_argument(
+        "--runner-id",
+        default="",
+        help="Runner/session identifier requesting apply mode.",
+    )
     return parser
 
 
@@ -169,9 +192,21 @@ def main(argv: list[str] | None = None) -> int:
     command = APPLY_COMMANDS.get(args.step)
     if command is None:
         return unsupported(args.step, args.mode)
-    owner_error = verify_apply_owner(args.step, args.runner_kind, passthrough)
-    if owner_error is not None:
-        return owner_error
+    if not args.runner_id:
+        emit_json(
+            {
+                "ok": False,
+                "step": args.step,
+                "mode": "apply",
+                "runner_kind": args.runner_kind,
+                "errors": ["apply mode requires --runner-id for ownership verification"],
+            }
+        )
+        return 1
+    if args.step != "handoff":
+        owner_error = verify_apply_owner(args.step, args.runner_kind, args.runner_id, passthrough)
+        if owner_error is not None:
+            return owner_error
     return run_child(MANAGER, [*command, *passthrough])
 
 

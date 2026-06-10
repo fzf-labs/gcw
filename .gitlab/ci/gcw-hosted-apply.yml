@@ -10,27 +10,30 @@ gcw:hosted-apply:
   script:
     - |
       set -euo pipefail
+      python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --owner-kind gitlab-ci --owner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --reason "GitLab CI hosted apply workflow taking ownership."
+    - |
+      set -euo pipefail
       case "$GCW_STEP" in
         implementation-gate)
-          python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --progress-comment-url "$GCW_PROGRESS_COMMENT_URL" --issue-actionable "${GCW_ISSUE_ACTIONABLE:-true}" --clarifying-question "${GCW_CLARIFYING_QUESTION:-}"
+          python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --progress-comment-url "$GCW_PROGRESS_COMMENT_URL" --issue-actionable "${GCW_ISSUE_ACTIONABLE:-true}" --clarifying-question "${GCW_CLARIFYING_QUESTION:-}"
           ;;
         local-self-review)
-          python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --progress-section "${GCW_PROGRESS_SECTION:-## Local Self-Review}"
+          python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --progress-section "${GCW_PROGRESS_SECTION:-## Local Self-Review}"
           ;;
         readiness-check)
-          python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --base-branch "$GCW_BASE_BRANCH" --commit-range "$GCW_COMMIT_RANGE" --title "$GCW_TITLE" --summary "$GCW_SUMMARY" --issue-link "$GCW_ISSUE_LINK" --validation-command "$GCW_VALIDATION_COMMAND" --validation-result "$GCW_VALIDATION_RESULT" --risks "$GCW_RISKS"
+          python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --base-branch "$GCW_BASE_BRANCH" --commit-range "$GCW_COMMIT_RANGE" --title "$GCW_TITLE" --summary "$GCW_SUMMARY" --issue-link "$GCW_ISSUE_LINK" --validation-command "$GCW_VALIDATION_COMMAND" --validation-result "$GCW_VALIDATION_RESULT" --risks "$GCW_RISKS"
           ;;
         create-review-request)
-          python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$GCW_REVIEW_REQUEST_URL"
+          python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$GCW_REVIEW_REQUEST_URL"
           ;;
         block)
-          python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --reason "$GCW_REASON"
+          python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --reason "$GCW_REASON"
           ;;
         clarify)
-          python3 .agents/skills/gcw/scripts/gcw_step.py clarify --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --question "$GCW_REASON"
+          python3 .agents/skills/gcw/scripts/gcw_step.py clarify --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --question "$GCW_REASON"
           ;;
         handoff)
-          python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind gitlab-ci --issue-dir "$GCW_ISSUE_DIR" --owner-kind "$GCW_OWNER_KIND" --owner-id "$GCW_OWNER_ID" --reason "$GCW_REASON"
+          python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --owner-kind "$GCW_OWNER_KIND" --owner-id "$GCW_OWNER_ID" --reason "$GCW_REASON"
           ;;
         *)
           echo "Unsupported GCW_STEP: $GCW_STEP" >&2

@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 STEP = ROOT / ".agents/skills/gcw/scripts/gcw_step.py"
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_state.py"
+RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
 
 
@@ -82,17 +83,20 @@ class GcwStepTest(unittest.TestCase):
 
     def test_check_mode_dispatches_remote_progress_verification(self) -> None:
         remote_file = self.issue_dir / "progress-comment.md"
-        remote_file.write_text(
-            "\n".join(
-                [
-                    "Planning files:",
-                    "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md",
-                    "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md",
-                    "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md",
-                ]
-            ),
-            encoding="utf-8",
+        rendered = subprocess.run(
+            [
+                sys.executable,
+                str(RENDER),
+                "progress-comment",
+                "--issue-dir",
+                str(COMPLETE_FIXTURE),
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
+        remote_file.write_text(rendered.stdout, encoding="utf-8")
 
         result = self.run_step(
             "remote-progress-comment",
@@ -109,6 +113,20 @@ class GcwStepTest(unittest.TestCase):
         self.assertEqual(output["step"], "remote-progress-comment")
         self.assertTrue(output["ok"])
 
+    def test_check_mode_dispatches_create_review_request_verification(self) -> None:
+        result = self.run_step(
+            "create-review-request",
+            "--mode",
+            "check",
+            "--issue-dir",
+            str(COMPLETE_FIXTURE),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["step"], "create-review-request")
+        self.assertTrue(output["ok"])
+
     def test_apply_mode_dispatches_to_state_manager(self) -> None:
         self.write_initial_state_and_planning_files()
 
@@ -116,6 +134,8 @@ class GcwStepTest(unittest.TestCase):
             "implementation-gate",
             "--mode",
             "apply",
+            "--runner-id",
+            "cursor-session",
             "--issue-dir",
             str(self.issue_dir),
             "--progress-comment-url",
@@ -127,13 +147,37 @@ class GcwStepTest(unittest.TestCase):
         self.assertTrue(output["ok"])
         self.assertEqual(output["state"]["state"], "ready-for-implementation")
 
-    def test_apply_mode_rejects_non_owner_runner(self) -> None:
+    def test_apply_mode_rejects_non_owner_runner_id(self) -> None:
         self.write_initial_state_and_planning_files()
 
         result = self.run_step(
             "implementation-gate",
             "--mode",
             "apply",
+            "--runner-id",
+            "workflow-run-999",
+            "--runner-kind",
+            "local",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--progress-comment-url",
+            "https://github.com/owner/repo/issues/42#issuecomment-1",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("owner.id cursor-session does not match runner workflow-run-999", output["errors"])
+
+    def test_apply_mode_rejects_non_owner_runner_kind(self) -> None:
+        self.write_initial_state_and_planning_files()
+
+        result = self.run_step(
+            "implementation-gate",
+            "--mode",
+            "apply",
+            "--runner-id",
+            "cursor-session",
             "--runner-kind",
             "github-actions",
             "--issue-dir",
@@ -145,8 +189,35 @@ class GcwStepTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
-        self.assertEqual(output["step"], "implementation-gate")
         self.assertIn("owner.kind local does not match runner github-actions", output["errors"])
+
+    def test_apply_mode_handoff_can_take_ownership(self) -> None:
+        self.write_initial_state_and_planning_files()
+
+        result = self.run_step(
+            "handoff",
+            "--mode",
+            "apply",
+            "--runner-id",
+            "workflow-run-123",
+            "--runner-kind",
+            "github-actions",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--owner-kind",
+            "github-actions",
+            "--owner-id",
+            "workflow-run-123",
+            "--reason",
+            "Hosted apply workflow owns the next transition.",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertTrue(output["ok"])
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["owner"], {"kind": "github-actions", "id": "workflow-run-123"})
+        self.assertEqual(state["evidence"]["handoff_reason"], "Hosted apply workflow owns the next transition.")
 
     def test_unsupported_apply_mode_fails_closed(self) -> None:
         result = self.run_step("state", "--mode", "apply", "--issue-dir", str(COMPLETE_FIXTURE))
@@ -163,6 +234,8 @@ class GcwStepTest(unittest.TestCase):
             "review-complete",
             "--mode",
             "apply",
+            "--runner-id",
+            "cursor-session",
             "--issue-dir",
             str(self.issue_dir),
         )

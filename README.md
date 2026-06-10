@@ -35,6 +35,6 @@ PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m py_compile .agents/skills/gcw/sc
 
 ## 安全边界
 
-GCW 的托管写操作受 ownership gate 保护，也就是先检查谁拥有当前分支的写入权。只有当 `state.json.owner.kind` 与 hosted runner 匹配，或已经完成显式 handoff 后，hosted runner 才能执行状态转换。
+GCW 的托管写操作受 ownership gate 保护，也就是先检查谁拥有当前分支的写入权。只有当 `state.json.owner.kind` 和 `state.json.owner.id` 都与 hosted runner 的 `--runner-kind` / `--runner-id` 匹配，或已经完成显式 handoff 后，hosted runner 才能执行状态转换。
 
 Force-push、删除分支、合并、关闭 Issue、编辑他人创建的内容，都必须先获得明确的人类批准。

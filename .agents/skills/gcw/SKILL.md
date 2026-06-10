@@ -79,12 +79,13 @@ For scripted execution, prefer the unified step runner when it supports the step
 ```bash
 python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode check --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/gcw_step.py remote-progress-comment --mode check --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/progress-comment.md
 python3 .agents/skills/gcw/scripts/gcw_step.py remote-review-request --mode check --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/review-request.md
-python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
+python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --runner-id <agent-session-id> --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
 ```
 
-`apply` mode is ownership-gated. Hosted runners must pass `--runner-kind github-actions` or `--runner-kind gitlab-ci`, and `state.json.owner.kind` must match that runner. Use `record-handoff` before a hosted workflow takes over writes.
+`apply` mode is ownership-gated. Hosted runners must pass `--runner-kind github-actions` or `--runner-kind gitlab-ci`, plus a matching `--runner-id`; `state.json.owner.kind` and `state.json.owner.id` must both match that runner. Use `record-handoff` before a hosted workflow takes over writes.
 
 Minimum contents:
 
@@ -99,24 +100,25 @@ Minimum contents:
 2. Push the issue branch using `git-push`.
 3. Create or update one issue progress comment using `issue-manage`.
 
-The progress comment is a current-state dashboard, not a comment stream. Include:
+The progress comment is a current-state dashboard, not a comment stream. The rendered body currently looks like this, with the handoff reason line appearing only after a handoff has been recorded:
 
 ```markdown
 <!-- gcw-progress -->
-## GCW Progress
+GCW Status: planning
 
-Status: planning
-Branch: <branch>
+- Issue: <issue-id>
+- Branch: <branch>
+- Owner: <kind>/<id>
+- Last completed step: publish-planning
+- Review request: Not created yet
+- Handoff reason: <reason>
 
-Planning Files:
-- task_plan.md: <branch file URL>
-- findings.md: <branch file URL>
-- progress.md: <branch file URL>
+Planning files:
+- Task plan: <branch file URL>
+- Findings: <branch file URL>
+- Progress: <branch file URL>
 
-Latest Checkpoint:
-- Planning files created and published.
-
-Review Request: Not created yet.
+Risks: <risk summary>
 ```
 
 Use branch file URLs, not commit-SHA URLs, so links point to the latest planning files on the issue branch.

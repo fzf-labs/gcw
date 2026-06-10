@@ -16,6 +16,7 @@ PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m py_compile .agents/skills/gcw/sc
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py implementation-gate --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py create-review-request --issue-dir .gcw/issues/<issue-id>
 ```
 
 统一 runner 也提供同样的检查：

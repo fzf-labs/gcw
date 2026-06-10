@@ -58,6 +58,8 @@ def render_progress_comment(args: argparse.Namespace) -> str:
     readiness = load_json(args.issue_dir / "readiness_evidence.json")
     evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
     owner = state.get("owner") if isinstance(state.get("owner"), dict) else {}
+    handoff_reason = evidence.get("handoff_reason", "")
+    review_request_url = str(evidence.get("review_request_url", "")).strip()
     lines = [
         PROGRESS_MARKER,
         f"GCW Status: {state.get('state', 'unknown')}",
@@ -66,10 +68,11 @@ def render_progress_comment(args: argparse.Namespace) -> str:
         f"- Branch: {state.get('branch', '')}",
         f"- Owner: {owner.get('kind', '')}/{owner.get('id', '')}",
         f"- Last completed step: {state.get('last_completed_step', '')}",
-        f"- Review request: {evidence.get('review_request_url', '')}",
-        "",
-        "Planning files:",
+        f"- Review request: {review_request_url or 'Not created yet'}",
     ]
+    if handoff_reason:
+        lines.append(f"- Handoff reason: {handoff_reason}")
+    lines.extend(["", "Planning files:"])
     links = planning_links_markdown(readiness, state)
     lines.extend(links if links else ["- Not recorded yet."])
     if readiness.get("risks"):

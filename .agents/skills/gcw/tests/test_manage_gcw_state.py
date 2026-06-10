@@ -394,6 +394,26 @@ class ManageGcwStateTest(unittest.TestCase):
         validator = self.run_validator("state")
         self.assertEqual(validator.returncode, 0, validator.stdout)
 
+    def test_record_review_request_rejects_empty_review_request_url(self) -> None:
+        self.prepare_implementing_issue()
+        self.assert_ok(self.readiness_evidence())
+
+        result = self.run_manager(
+            "record-review-request",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--review-request-url",
+            "",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertIn("review request URL is missing", output["errors"])
+        state = self.state_now()
+        self.assertEqual(state["state"], "ready-for-review-request")
+        self.assertEqual(state["last_completed_step"], "readiness-check")
+        self.assertEqual(state["evidence"]["review_request_url"], "")
+
     def test_record_review_request_fails_without_readiness_check(self) -> None:
         self.prepare_implementing_issue()
 
@@ -401,6 +421,16 @@ class ManageGcwStateTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.state_now()["state"], "implementing")
+
+    def test_record_review_request_does_not_write_url_when_validation_fails(self) -> None:
+        self.prepare_implementing_issue()
+
+        result = self.review_request()
+
+        self.assertNotEqual(result.returncode, 0)
+        state = self.state_now()
+        self.assertEqual(state["state"], "implementing")
+        self.assertEqual(state["evidence"]["review_request_url"], "")
 
     # -- machine review ---------------------------------------------------
 
@@ -496,6 +526,59 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.state_now()["state"], "human-reviewing")
 
+    def test_terminal_state_rejects_backfill_mutations(self) -> None:
+        self.reach_approved()
+        self.assert_ok(self.run_manager("record-review-complete", "--issue-dir", str(self.issue_dir)))
+        self.assertEqual(self.state_now()["state"], "review-complete")
+
+        block_result = self.run_manager(
+            "record-block",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--reason",
+            "should not reopen terminal state",
+        )
+
+        self.assertNotEqual(block_result.returncode, 0)
+        state = self.state_now()
+        self.assertEqual(state["state"], "review-complete")
+        self.assertNotIn("block_reason", state["evidence"])
+
+        review_result = self.run_manager(
+            "record-local-self-review",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--progress-section",
+            "## Local Self-Review",
+        )
+
+        self.assertNotEqual(review_result.returncode, 0)
+        self.assertEqual(self.state_now()["state"], "review-complete")
+
+    def test_record_handoff_updates_owner_without_changing_state(self) -> None:
+        self.prepare_implementing_issue()
+
+        result = self.run_manager(
+            "record-handoff",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--owner-kind",
+            "github-actions",
+            "--owner-id",
+            "workflow-run-123",
+            "--reason",
+            "Hosted apply workflow owns the next transition.",
+        )
+
+        self.assert_ok(result)
+        state = self.state_now()
+        self.assertEqual(state["state"], "implementing")
+        self.assertEqual(state["owner"], {"kind": "github-actions", "id": "workflow-run-123"})
+        self.assertEqual(state["last_completed_step"], "ownership-handoff")
+        self.assertEqual(state["evidence"]["handoff_reason"], "Hosted apply workflow owns the next transition.")
+        validator = self.run_validator("state")
+        self.assertEqual(validator.returncode, 0, validator.stdout)
+
     # -- escape transitions ----------------------------------------------
 
     def test_record_block_moves_current_issue_to_blocked(self) -> None:
@@ -549,30 +632,6 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertIn("readiness-check", state["next_allowed_steps"])
         self.assertTrue(state["evidence"]["self_review_recorded"])
         self.assertEqual(state["evidence"]["self_review_progress_section"], "## Local Self-Review")
-        validator = self.run_validator("state")
-        self.assertEqual(validator.returncode, 0, validator.stdout)
-
-    def test_record_handoff_updates_owner_without_changing_state(self) -> None:
-        self.prepare_implementing_issue()
-
-        result = self.run_manager(
-            "record-handoff",
-            "--issue-dir",
-            str(self.issue_dir),
-            "--owner-kind",
-            "github-actions",
-            "--owner-id",
-            "workflow-run-123",
-            "--reason",
-            "Hosted apply workflow owns the next transition.",
-        )
-
-        self.assert_ok(result)
-        state = self.state_now()
-        self.assertEqual(state["state"], "implementing")
-        self.assertEqual(state["owner"], {"kind": "github-actions", "id": "workflow-run-123"})
-        self.assertEqual(state["last_completed_step"], "ownership-handoff")
-        self.assertEqual(state["evidence"]["handoff_reason"], "Hosted apply workflow owns the next transition.")
         validator = self.run_validator("state")
         self.assertEqual(validator.returncode, 0, validator.stdout)
 

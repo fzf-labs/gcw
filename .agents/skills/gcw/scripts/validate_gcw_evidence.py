@@ -102,6 +102,7 @@ def validate_state(issue_dir: Path, errors: list[str]) -> dict[str, Any]:
     require_non_empty(state, "issue", errors)
     require_non_empty(state, "branch", errors)
     require_non_empty(state, "owner.kind", errors)
+    require_non_empty(state, "owner.id", errors)
     next_allowed_steps = state.get("next_allowed_steps")
     if not isinstance(next_allowed_steps, list):
         errors.append("next_allowed_steps must be an array")
@@ -122,6 +123,8 @@ def validate_state(issue_dir: Path, errors: list[str]) -> dict[str, Any]:
             errors.append("ready-for-review requires state.json evidence.review_request_url")
         if state.get("last_completed_step") != "create-review-request":
             errors.append("ready-for-review requires last_completed_step create-review-request")
+    if current_state == "ready-for-review-request" and state.get("last_completed_step") != "readiness-check":
+        errors.append("ready-for-review-request requires last_completed_step readiness-check")
     return state
 
 
@@ -153,7 +156,7 @@ def validate_implementation_gate(issue_dir: Path) -> dict[str, Any]:
     gate_ok = require_boolean(gate, "ok", errors)
     transition_from = require_non_empty(gate, "state_transition.from", errors)
     transition_to = require_non_empty(gate, "state_transition.to", errors)
-    if transition_from not in {"planned", "implementing"}:
+    if transition_from != "planned":
         errors.append("implementation gate transition source is invalid")
     if transition_to not in {"ready-for-implementation", "issue-clarifying", "blocked"}:
         errors.append("implementation gate transition target is invalid")
@@ -196,12 +199,12 @@ def validate_implementation_gate(issue_dir: Path) -> dict[str, Any]:
     return {"step": "implementation-gate", "ok": not errors, "errors": errors}
 
 
-def validate_readiness(issue_dir: Path) -> dict[str, Any]:
+def validate_readiness(issue_dir: Path, step_name: str = "readiness-check") -> dict[str, Any]:
     errors: list[str] = []
     validate_planning_files(issue_dir, errors)
     state = validate_state(issue_dir, errors)
     if state.get("state") != "ready-for-review-request":
-        errors.append("readiness-check must leave state.json state as ready-for-review-request")
+        errors.append(f"{step_name} must leave state.json state as ready-for-review-request")
     gate_result = validate_implementation_gate(issue_dir)
     if not gate_result["ok"]:
         errors.extend(f"implementation gate: {error}" for error in gate_result["errors"])
@@ -233,12 +236,12 @@ def validate_readiness(issue_dir: Path) -> dict[str, Any]:
         if progress_section not in progress_text:
             errors.append("local self-review progress section is not present in progress.md")
 
-    return {"step": "readiness-check", "ok": not errors, "errors": errors}
+    return {"step": step_name, "ok": not errors, "errors": errors}
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate GCW issue workflow evidence.")
-    parser.add_argument("command", choices=("state", "implementation-gate", "readiness-check"))
+    parser.add_argument("command", choices=("state", "implementation-gate", "readiness-check", "create-review-request"))
     parser.add_argument("--issue-dir", required=True, type=Path)
     args = parser.parse_args(argv)
 
@@ -248,7 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "implementation-gate":
         result = validate_implementation_gate(issue_dir)
     else:
-        result = validate_readiness(issue_dir)
+        result = validate_readiness(issue_dir, step_name=args.command)
 
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["ok"] else 1

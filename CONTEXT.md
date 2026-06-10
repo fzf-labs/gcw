@@ -137,7 +137,7 @@ _避免使用_: ready for review, machine passed, draft complete
 _避免使用_: one giant script, hidden automation, unowned mutation
 
 **Hosted Apply Workflow**:
-手动触发的 GitHub Actions 或 GitLab CI workflow。只有当 `state.json.owner.kind` 与 hosted runner 匹配时，它才能应用 GCW 状态转换、更新 issue progress comment 和 review request body、提交 evidence changes 并推送。
+手动触发的 GitHub Actions 或 GitLab CI workflow。只有当 `state.json.owner.kind` 和 `state.json.owner.id` 分别与 hosted runner 的 `--runner-kind` 和 `--runner-id` 匹配时，它才能应用 GCW 状态转换、更新 issue progress comment 和 review request body、提交 evidence changes 并推送。
 _避免使用_: unowned CI write, automatic remote mutation
 
 **Remote Artifact Verification**:

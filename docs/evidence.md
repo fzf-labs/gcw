@@ -36,7 +36,7 @@ JSON schemas 位于：
 
 ## State Snapshot
 
-`state.json` 记录当前 issue、platform、repository、branch、owner、GCW state、last completed step、next allowed steps 和 evidence flags。
+`state.json` 记录当前 issue、platform、repository、branch、owner（`kind` 和 `id`）、GCW state、last completed step、next allowed steps 和 evidence flags。
 
 `planned` 要求 planning files 真实存在于磁盘，且 `evidence.planning_files_exist`、`evidence.planning_commit_pushed` 为 `true`、`evidence.progress_comment_url` 非空；`record-publish-planning` 在任一条件不满足时直接失败，不会改写 `state.json`。`planning_commit_pushed` 由调用方通过 `--planning-commit-pushed` 显式断言，implementation gate 会复核这条记录而不是凭空认定已推送。
 

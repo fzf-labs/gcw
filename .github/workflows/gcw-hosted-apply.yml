@@ -122,6 +122,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Claim ownership
+        run: |
+          python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --owner-kind github-actions --owner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --reason "GitHub Actions hosted apply workflow taking ownership."
+
       - name: Apply GCW step
         env:
           INPUT_PROGRESS_COMMENT_URL: ${{ inputs.progress_comment_url }}
@@ -144,25 +148,25 @@ jobs:
           set -euo pipefail
           case "$GCW_STEP" in
             implementation-gate)
-              python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --progress-comment-url "$INPUT_PROGRESS_COMMENT_URL" --issue-actionable "$INPUT_ISSUE_ACTIONABLE" --clarifying-question "$INPUT_CLARIFYING_QUESTION"
+              python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --progress-comment-url "$INPUT_PROGRESS_COMMENT_URL" --issue-actionable "$INPUT_ISSUE_ACTIONABLE" --clarifying-question "$INPUT_CLARIFYING_QUESTION"
               ;;
             local-self-review)
-              python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --progress-section "$INPUT_PROGRESS_SECTION"
+              python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --progress-section "$INPUT_PROGRESS_SECTION"
               ;;
             readiness-check)
-              python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --base-branch "$INPUT_BASE_BRANCH" --commit-range "$INPUT_COMMIT_RANGE" --title "$INPUT_TITLE" --summary "$INPUT_SUMMARY" --issue-link "$INPUT_ISSUE_LINK" --validation-command "$INPUT_VALIDATION_COMMAND" --validation-result "$INPUT_VALIDATION_RESULT" --risks "$INPUT_RISKS"
+              python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --base-branch "$INPUT_BASE_BRANCH" --commit-range "$INPUT_COMMIT_RANGE" --title "$INPUT_TITLE" --summary "$INPUT_SUMMARY" --issue-link "$INPUT_ISSUE_LINK" --validation-command "$INPUT_VALIDATION_COMMAND" --validation-result "$INPUT_VALIDATION_RESULT" --risks "$INPUT_RISKS"
               ;;
             create-review-request)
-              python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$INPUT_REVIEW_REQUEST_URL"
+              python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$INPUT_REVIEW_REQUEST_URL"
               ;;
             block)
-              python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --reason "$INPUT_REASON"
+              python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --reason "$INPUT_REASON"
               ;;
             clarify)
-              python3 .agents/skills/gcw/scripts/gcw_step.py clarify --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --question "$INPUT_REASON"
+              python3 .agents/skills/gcw/scripts/gcw_step.py clarify --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --question "$INPUT_REASON"
               ;;
             handoff)
-              python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind github-actions --issue-dir "$GCW_ISSUE_DIR" --owner-kind "$INPUT_OWNER_KIND" --owner-id "$INPUT_OWNER_ID" --reason "$INPUT_REASON"
+              python3 .agents/skills/gcw/scripts/gcw_step.py handoff --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --owner-kind "$INPUT_OWNER_KIND" --owner-id "$INPUT_OWNER_ID" --reason "$INPUT_REASON"
               ;;
           esac
 

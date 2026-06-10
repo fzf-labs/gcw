@@ -10,6 +10,7 @@ from typing import Any
 PLANNING_NEXT_STEPS = ["publish-planning"]
 IMPLEMENTING_NEXT_STEPS = ["implement", "local-self-review", "readiness-check", "block", "clarify"]
 MACHINE_FAILED_NEXT_STEPS = ["address-machine-feedback", "block", "clarify"]
+ACTIVE_BLOCK_STATES = {"implementing", "machine-review-failed"}
 HUMAN_REVIEW_TRANSITIONS = {
     "approved": ("approved", ["review-complete", "implement"]),
     "changes-requested": ("changes-requested", ["address-human-feedback"]),
@@ -17,6 +18,7 @@ HUMAN_REVIEW_TRANSITIONS = {
     "closed": ("review-complete", []),
 }
 PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
+TERMINAL_STATE = "review-complete"
 
 
 def parse_bool(value: str) -> bool:
@@ -35,6 +37,20 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
 
 def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def require_state(state: dict[str, Any], expected: set[str], action: str) -> list[str]:
+    current_state = state.get("state")
+    if current_state not in expected:
+        expected_states = ", ".join(sorted(expected))
+        return [f"{action} requires state {expected_states}"]
+    return []
+
+
+def require_not_terminal(state: dict[str, Any], action: str) -> list[str]:
+    if state.get("state") == TERMINAL_STATE:
+        return [f"{action} cannot run after {TERMINAL_STATE}"]
+    return []
 
 
 def init_state(args: argparse.Namespace) -> dict[str, Any]:
@@ -65,8 +81,8 @@ def init_state(args: argparse.Namespace) -> dict[str, Any]:
 def record_publish_planning(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_state(state, {"planning"}, "publish-planning")
     planning_files_exist = all((args.issue_dir / name).is_file() for name in PLANNING_FILES)
-    errors: list[str] = []
     if not planning_files_exist:
         errors.append("planning files are missing")
     if not args.planning_commit_pushed:
@@ -89,6 +105,9 @@ def record_publish_planning(args: argparse.Namespace) -> dict[str, Any]:
 def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_state(state, {"planned"}, "implementation-gate")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     planning_files_exist = all((args.issue_dir / name).is_file() for name in PLANNING_FILES)
     state_evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
     planning_commit_pushed = state_evidence.get("planning_commit_pushed") is True
@@ -104,7 +123,7 @@ def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
     gate = {
         "step": "implementation-gate",
         "ok": ok,
-        "state_transition": {"from": state.get("state", "planned"), "to": target_state},
+        "state_transition": {"from": "planned", "to": target_state},
         "checks": {
             "planning_files_exist": planning_files_exist,
             "planning_commit_pushed": planning_commit_pushed,
@@ -154,6 +173,14 @@ def planning_link(platform: str, repository: str, branch: str, issue: Any, filen
 def record_readiness_evidence(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_state(state, {"implementing"}, "readiness-check")
+    if errors:
+        return {
+            "ok": False,
+            "path": str(args.issue_dir / "readiness_evidence.json"),
+            "state": state,
+            "errors": errors,
+        }
     issue = state["issue"]
     branch = state["branch"]
     repository = state["repository"]
@@ -213,21 +240,28 @@ def record_review_request(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
     readiness_path = args.issue_dir / "readiness_evidence.json"
-    ok = readiness_path.is_file() and state.get("state") == "ready-for-review-request"
+    errors: list[str] = []
+    if not readiness_path.is_file():
+        errors.append("readiness_evidence.json is missing")
+    if state.get("state") != "ready-for-review-request":
+        errors.append("review request requires ready-for-review-request state")
     if state.get("last_completed_step") != "readiness-check":
-        ok = False
-    evidence = state.setdefault("evidence", {})
-    evidence["review_request_url"] = args.review_request_url
+        errors.append("review request requires last_completed_step readiness-check")
+    if not str(args.review_request_url).strip():
+        errors.append("review request URL is missing")
+    ok = not errors
     if ok:
+        evidence = state.setdefault("evidence", {})
+        evidence["review_request_url"] = args.review_request_url
         state["state"] = "ready-for-review"
         state["last_completed_step"] = "create-review-request"
         state["next_allowed_steps"] = ["machine-review-start"]
-    write_json(state_path, state)
+        write_json(state_path, state)
     return {
         "ok": ok,
         "path": str(state_path),
         "state": state,
-        "errors": [] if ok else ["review request requires ready-for-review-request state and readiness-check completion"],
+        "errors": errors,
     }
 
 
@@ -351,6 +385,9 @@ def record_review_complete(args: argparse.Namespace) -> dict[str, Any]:
 def record_block(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_state(state, ACTIVE_BLOCK_STATES, "block")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     evidence = state.setdefault("evidence", {})
     evidence["block_reason"] = args.reason
     state["state"] = "blocked"
@@ -363,6 +400,9 @@ def record_block(args: argparse.Namespace) -> dict[str, Any]:
 def record_clarify(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_state(state, ACTIVE_BLOCK_STATES, "clarify")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     evidence = state.setdefault("evidence", {})
     evidence["clarifying_question"] = args.question
     state["state"] = "issue-clarifying"
@@ -375,6 +415,9 @@ def record_clarify(args: argparse.Namespace) -> dict[str, Any]:
 def record_local_self_review(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_state(state, {"implementing"}, "local-self-review")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     evidence = state.setdefault("evidence", {})
     evidence["self_review_recorded"] = True
     evidence["self_review_progress_section"] = args.progress_section
@@ -388,6 +431,9 @@ def record_local_self_review(args: argparse.Namespace) -> dict[str, Any]:
 def record_handoff(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
+    errors = require_not_terminal(state, "handoff")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     state["owner"] = {
         "kind": args.owner_kind,
         "id": args.owner_id,
@@ -514,7 +560,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Move state.json from approved to review-complete.",
     )
     review_complete_parser.add_argument("--issue-dir", required=True, type=Path)
-    review_complete_parser.add_argument("--result", default="completed")
+    review_complete_parser.add_argument("--result", default="merged", choices=("merged", "closed", "accepted"))
     review_complete_parser.set_defaults(handler=record_review_complete)
 
     block_parser = subparsers.add_parser(

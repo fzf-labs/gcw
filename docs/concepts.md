@@ -32,7 +32,7 @@
 ## Runner 权限
 
 - **Owning Agent**: 对 Issue 分支承担写入责任的唯一 writer。
-- **Hosted Apply Workflow**: 手动触发的 hosted workflow，只有取得分支 ownership 时才可以执行 apply 操作。
+- **Hosted Apply Workflow**: 手动触发的 hosted workflow，只有取得分支 ownership 且 `state.json.owner.kind` / `state.json.owner.id` 与 runner 身份一致时才可以执行 apply 操作。
 - **Remote Artifact Verification**: 将托管平台上的 comment/body 文本与本地 readiness evidence 做确定性比较。
 - **Action Pipeline**: 可以由一个 GitHub Actions、GitLab CI 或其他自动化入口连续执行的一组 GCW steps。
 - **High-Risk Operation**: 任何可能破坏工作、改变共享历史、merge、close 或编辑他人创建内容的操作。

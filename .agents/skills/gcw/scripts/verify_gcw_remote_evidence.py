@@ -6,6 +6,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from render_gcw_hosted_artifacts import (
+    REVIEW_REQUEST_END,
+    REVIEW_REQUEST_START,
+    render_progress_comment,
+    render_review_request,
+)
 
 def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
     if not path.is_file():
@@ -32,25 +38,25 @@ def read_remote_text(path: Path, errors: list[str], artifact_name: str) -> str:
     return text
 
 
-def require_remote_text(remote_text: str, value: Any, label: str, errors: list[str]) -> None:
-    if value in ("", None, [], {}):
-        errors.append(f"readiness_evidence.json {label} is missing")
-    elif str(value) not in remote_text:
-        errors.append(f"remote artifact is missing {label}")
+def normalize_body(text: str) -> str:
+    return text.replace("\r\n", "\n").rstrip() + "\n"
+
+
+def extract_marked_body(remote_text: str, start_marker: str, end_marker: str) -> str | None:
+    start = remote_text.find(start_marker)
+    end = remote_text.find(end_marker)
+    if start == -1 or end == -1 or end < start:
+        return None
+    return remote_text[start : end + len(end_marker)]
 
 
 def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
-    evidence = load_json(args.issue_dir / "readiness_evidence.json", errors)
+    _ = load_json(args.issue_dir / "readiness_evidence.json", errors)
     remote_text = read_remote_text(args.remote_file, errors, "progress comment")
-
-    planning_links = evidence.get("planning_links") if isinstance(evidence.get("planning_links"), dict) else {}
-    for name in ("task_plan", "findings", "progress"):
-        link = planning_links.get(name)
-        if not link:
-            errors.append(f"readiness_evidence.json planning_links.{name} is missing")
-        elif link not in remote_text:
-            errors.append(f"remote progress comment is missing planning_links.{name}")
+    expected_text = render_progress_comment(argparse.Namespace(issue_dir=args.issue_dir))
+    if normalize_body(remote_text) != normalize_body(expected_text):
+        errors.append("remote progress comment does not match rendered body")
 
     return {
         "step": "remote-progress-comment",
@@ -61,34 +67,14 @@ def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
 
 def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
-    evidence = load_json(args.issue_dir / "readiness_evidence.json", errors)
+    _ = load_json(args.issue_dir / "readiness_evidence.json", errors)
     remote_text = read_remote_text(args.remote_file, errors, "review request")
-
-    review_request = evidence.get("review_request") if isinstance(evidence.get("review_request"), dict) else {}
-    require_remote_text(remote_text, review_request.get("title"), "review_request.title", errors)
-    require_remote_text(remote_text, review_request.get("summary"), "review_request.summary", errors)
-    require_remote_text(remote_text, review_request.get("issue_link"), "review_request.issue_link", errors)
-
-    validations = evidence.get("validation")
-    if not isinstance(validations, list) or not validations:
-        errors.append("readiness_evidence.json validation is missing")
-    else:
-        for index, validation in enumerate(validations):
-            if not isinstance(validation, dict):
-                errors.append(f"readiness_evidence.json validation[{index}] must be an object")
-                continue
-            require_remote_text(remote_text, validation.get("command"), f"validation[{index}].command", errors)
-            require_remote_text(remote_text, validation.get("result"), f"validation[{index}].result", errors)
-
-    planning_links = evidence.get("planning_links") if isinstance(evidence.get("planning_links"), dict) else {}
-    for name in ("task_plan", "findings", "progress"):
-        require_remote_text(remote_text, planning_links.get(name), f"planning_links.{name}", errors)
-
-    require_remote_text(remote_text, evidence.get("progress_comment_url"), "progress_comment_url", errors)
-    require_remote_text(remote_text, evidence.get("risks"), "risks", errors)
-    for optional_field in ("scope", "reviewer_notes"):
-        if evidence.get(optional_field):
-            require_remote_text(remote_text, evidence[optional_field], optional_field, errors)
+    expected_text = render_review_request(argparse.Namespace(issue_dir=args.issue_dir))
+    rendered_section = extract_marked_body(remote_text, REVIEW_REQUEST_START, REVIEW_REQUEST_END)
+    if rendered_section is None:
+        errors.append("remote review request is missing gcw review request markers")
+    elif normalize_body(rendered_section) != normalize_body(expected_text):
+        errors.append("remote review request body does not match rendered body")
 
     return {
         "step": "remote-review-request",
