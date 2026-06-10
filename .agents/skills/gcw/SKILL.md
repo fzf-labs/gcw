@@ -318,13 +318,13 @@ Human review:
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-human-review-result \
   --issue-dir .gcw/issues/<issue-id> \
-  --result <approved|changes-requested|blocked|closed>
+  --result <approved|changes-requested|blocked|closed|rejected>
 ```
 
 - `approved` moves to `approved`.
 - `changes-requested` moves to `changes-requested`; after addressing the feedback, record `record-address-human-feedback` to return to `implementing`.
 - `blocked` moves to `blocked`.
-- `closed` moves to `review-complete`.
+- `closed` or `rejected` moves to `review-complete`.
 
 Completion runs only after the review request is approved, and only once any merge or close has been performed with the approvals required by High-Risk Operations:
 

@@ -24,6 +24,7 @@
 Hosted apply 可以：
 
 - 执行支持的 `gcw_step.py --mode apply` 状态转换。
+- 执行 review 阶段的 `machine-review-*`、`address-*`、`human-review-result` 和 `review-complete` 写入步骤。
 - 根据本地 evidence 渲染 progress comment 和 review request body。
 - 更新 issue progress comment 和 review request body。
 - 提交变更后的 `.gcw/issues/<issue-id>/` evidence。

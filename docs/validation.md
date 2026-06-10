@@ -26,6 +26,8 @@ python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .g
 python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
 ```
 
+review 阶段的状态转换也可以通过同一 runner 做状态校验，例如 `machine-review-start`、`human-review-result` 和 `review-complete`。
+
 ## Remote Artifact Verification
 
 使用平台客户端抓取 issue progress comment 文本或 review request body 文本，写入临时文件后运行：

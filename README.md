@@ -3,6 +3,7 @@
 Git Collaboration Workflow（GCW）是一套面向人机协作开发的工作流包。它连接本地 Git 开发与 GitHub/GitLab 协作流程，让 coding agent 能围绕一个 GitHub/GitLab Issue 持续推进，直到创建 review request、通过机审并完成人类审查。
 
 GCW 的核心价值是：统一术语、持久化规划信息、产出机器可读证据，并为 CI 上的托管执行环境（hosted runner）提供清晰的安全边界。
+它也会把 issue intake 的前置状态写入机器可读状态文件，而不是只依赖评论串。
 
 ## 从这里开始
 

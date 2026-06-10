@@ -127,6 +127,23 @@ class GcwStepTest(unittest.TestCase):
         self.assertEqual(output["step"], "create-review-request")
         self.assertTrue(output["ok"])
 
+    def test_check_mode_dispatches_review_phase_state_checks(self) -> None:
+        for step in (
+            "machine-review-start",
+            "machine-review-result",
+            "address-machine-feedback",
+            "human-review-result",
+            "address-human-feedback",
+            "review-complete",
+        ):
+            with self.subTest(step=step):
+                result = self.run_step(step, "--mode", "check", "--issue-dir", str(COMPLETE_FIXTURE))
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                output = json.loads(result.stdout)
+                self.assertEqual(output["step"], "state")
+                self.assertTrue(output["ok"])
+
     def test_apply_mode_dispatches_to_state_manager(self) -> None:
         self.write_initial_state_and_planning_files()
 

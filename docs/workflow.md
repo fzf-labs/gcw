@@ -1,6 +1,6 @@
 # GCW 工作流
 
-GCW 的完整流程从 Issue 提出开始，不是从写代码开始。一个 Issue 需要先创建、分类、讨论清楚，并被判断为可以开发，之后才进入 planning files、实现、review request、机审、人审和审查结束。
+GCW 的完整流程从 Issue 提出开始，不是从写代码开始。一个 Issue 需要先创建、分类、讨论清楚，并被判断为可以开发；这些前置状态也会写入 `state.json`，之后才进入 planning files、实现、review request、机审、人审和审查结束。
 
 本文把三个层次拆开说明：
 

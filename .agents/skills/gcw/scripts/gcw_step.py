@@ -23,6 +23,12 @@ CHECK_COMMANDS = {
     "implementation-gate": (VALIDATOR, ["implementation-gate"]),
     "readiness-check": (VALIDATOR, ["readiness-check"]),
     "create-review-request": (VALIDATOR, ["create-review-request"]),
+    "machine-review-start": (VALIDATOR, ["state"]),
+    "machine-review-result": (VALIDATOR, ["state"]),
+    "address-machine-feedback": (VALIDATOR, ["state"]),
+    "human-review-result": (VALIDATOR, ["state"]),
+    "address-human-feedback": (VALIDATOR, ["state"]),
+    "review-complete": (VALIDATOR, ["state"]),
     "remote-progress-comment": (REMOTE_VERIFIER, ["progress-comment"]),
     "remote-review-request": (REMOTE_VERIFIER, ["review-request"]),
 }

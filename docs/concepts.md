@@ -13,7 +13,7 @@
 - **Ready for Review**: review request 已完整创建、可以进入机审和人审的中间状态。
 - **Machine Review**: CI、静态检查、remote artifact verification 或 AI review 执行的自动审查阶段。
 - **Human Review**: 机审通过或被接受后，由 reviewer 对 review request 做出的人工审查。
-- **Review Complete**: 人类审查已经结束且结果已记录的终点状态。
+- **Review Complete**: 人类审查已经结束且结果已记录的终点状态，可能来自 `approved` 后的完成、`closed`，或 `rejected`。
 
 ## 工作记忆
 

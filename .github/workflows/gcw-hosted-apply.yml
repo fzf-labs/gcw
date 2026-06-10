@@ -16,6 +16,12 @@ on:
           - local-self-review
           - readiness-check
           - create-review-request
+          - machine-review-start
+          - machine-review-result
+          - address-machine-feedback
+          - human-review-result
+          - address-human-feedback
+          - review-complete
           - block
           - clarify
           - handoff
@@ -72,6 +78,34 @@ on:
         description: Risks or reviewer notes
         required: false
         type: string
+      machine_review_result:
+        description: Machine review result
+        required: false
+        default: passed
+        type: choice
+        options:
+          - passed
+          - failed
+      human_review_result:
+        description: Human review result
+        required: false
+        default: approved
+        type: choice
+        options:
+          - approved
+          - changes-requested
+          - blocked
+          - closed
+          - rejected
+      review_complete_result:
+        description: Review completion result
+        required: false
+        default: merged
+        type: choice
+        options:
+          - merged
+          - closed
+          - accepted
       review_request_url:
         description: Hosted review request URL
         required: false
@@ -140,6 +174,9 @@ jobs:
           INPUT_VALIDATION_COMMAND: ${{ inputs.validation_command }}
           INPUT_VALIDATION_RESULT: ${{ inputs.validation_result }}
           INPUT_RISKS: ${{ inputs.risks }}
+          INPUT_MACHINE_REVIEW_RESULT: ${{ inputs.machine_review_result }}
+          INPUT_HUMAN_REVIEW_RESULT: ${{ inputs.human_review_result }}
+          INPUT_REVIEW_COMPLETE_RESULT: ${{ inputs.review_complete_result }}
           INPUT_REVIEW_REQUEST_URL: ${{ inputs.review_request_url }}
           INPUT_REASON: ${{ inputs.reason }}
           INPUT_OWNER_KIND: ${{ inputs.owner_kind }}
@@ -158,6 +195,24 @@ jobs:
               ;;
             create-review-request)
               python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$INPUT_REVIEW_REQUEST_URL"
+              ;;
+            machine-review-start)
+              python3 .agents/skills/gcw/scripts/gcw_step.py machine-review-start --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR"
+              ;;
+            machine-review-result)
+              python3 .agents/skills/gcw/scripts/gcw_step.py machine-review-result --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --result "$INPUT_MACHINE_REVIEW_RESULT"
+              ;;
+            address-machine-feedback)
+              python3 .agents/skills/gcw/scripts/gcw_step.py address-machine-feedback --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR"
+              ;;
+            human-review-result)
+              python3 .agents/skills/gcw/scripts/gcw_step.py human-review-result --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --result "$INPUT_HUMAN_REVIEW_RESULT"
+              ;;
+            address-human-feedback)
+              python3 .agents/skills/gcw/scripts/gcw_step.py address-human-feedback --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR"
+              ;;
+            review-complete)
+              python3 .agents/skills/gcw/scripts/gcw_step.py review-complete --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --result "$INPUT_REVIEW_COMPLETE_RESULT"
               ;;
             block)
               python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --reason "$INPUT_REASON"

@@ -26,6 +26,24 @@ gcw:hosted-apply:
         create-review-request)
           python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$GCW_REVIEW_REQUEST_URL"
           ;;
+        machine-review-start)
+          python3 .agents/skills/gcw/scripts/gcw_step.py machine-review-start --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR"
+          ;;
+        machine-review-result)
+          python3 .agents/skills/gcw/scripts/gcw_step.py machine-review-result --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --result "${GCW_MACHINE_REVIEW_RESULT:-passed}"
+          ;;
+        address-machine-feedback)
+          python3 .agents/skills/gcw/scripts/gcw_step.py address-machine-feedback --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR"
+          ;;
+        human-review-result)
+          python3 .agents/skills/gcw/scripts/gcw_step.py human-review-result --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --result "${GCW_HUMAN_REVIEW_RESULT:-approved}"
+          ;;
+        address-human-feedback)
+          python3 .agents/skills/gcw/scripts/gcw_step.py address-human-feedback --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR"
+          ;;
+        review-complete)
+          python3 .agents/skills/gcw/scripts/gcw_step.py review-complete --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --result "${GCW_REVIEW_COMPLETE_RESULT:-merged}"
+          ;;
         block)
           python3 .agents/skills/gcw/scripts/gcw_step.py block --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --reason "$GCW_REASON"
           ;;
