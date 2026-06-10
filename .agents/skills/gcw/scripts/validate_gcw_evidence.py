@@ -112,6 +112,11 @@ def validate_state(issue_dir: Path, errors: list[str]) -> dict[str, Any]:
                 f"next_allowed_steps contains steps not allowed from {current_state}: {', '.join(unexpected_steps)}"
             )
     evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
+    if current_state == "planned":
+        validate_planning_files(issue_dir, errors)
+        require_true(evidence, "planning_files_exist", errors, "planned requires evidence.planning_files_exist")
+        require_true(evidence, "planning_commit_pushed", errors, "planned requires evidence.planning_commit_pushed")
+        require_non_empty(evidence, "progress_comment_url", errors)
     if current_state == "ready-for-review":
         if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
             errors.append("ready-for-review requires state.json evidence.review_request_url")

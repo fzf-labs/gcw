@@ -75,13 +75,19 @@ class ManageGcwStateTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def publish_planning(self, progress_url: str = DEFAULT_PROGRESS_URL) -> subprocess.CompletedProcess[str]:
+    def publish_planning(
+        self,
+        progress_url: str = DEFAULT_PROGRESS_URL,
+        planning_commit_pushed: str = "true",
+    ) -> subprocess.CompletedProcess[str]:
         return self.run_manager(
             "record-publish-planning",
             "--issue-dir",
             str(self.issue_dir),
             "--progress-comment-url",
             progress_url,
+            "--planning-commit-pushed",
+            planning_commit_pushed,
         )
 
     def implementation_gate(self, progress_url: str = DEFAULT_PROGRESS_URL, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -106,7 +112,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "## Local Self-Review",
         )
 
-    def readiness_evidence(self) -> subprocess.CompletedProcess[str]:
+    def readiness_evidence(self, *extra: str) -> subprocess.CompletedProcess[str]:
         return self.run_manager(
             "record-readiness-evidence",
             "--issue-dir",
@@ -127,6 +133,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "passed",
             "--risks",
             "Low risk.",
+            *extra,
         )
 
     def review_request(self) -> subprocess.CompletedProcess[str]:
@@ -218,6 +225,33 @@ class ManageGcwStateTest(unittest.TestCase):
         validator = self.run_validator("state")
         self.assertEqual(validator.returncode, 0, validator.stdout)
 
+    def test_record_publish_planning_fails_without_planning_files_and_keeps_state(self) -> None:
+        self.assert_ok(self.init_state())
+
+        result = self.publish_planning()
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertIn("planning files are missing", output["errors"])
+        state = self.state_now()
+        self.assertEqual(state["state"], "planning")
+        self.assertEqual(state["last_completed_step"], "")
+        self.assertFalse(state["evidence"]["planning_files_exist"])
+        self.assertFalse(state["evidence"]["planning_commit_pushed"])
+
+    def test_record_publish_planning_fails_when_commit_not_pushed(self) -> None:
+        self.assert_ok(self.init_state())
+        self.write_planning_files()
+
+        result = self.publish_planning(planning_commit_pushed="false")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertIn("planning commit is not pushed", output["errors"])
+        state = self.state_now()
+        self.assertEqual(state["state"], "planning")
+        self.assertFalse(state["evidence"]["planning_commit_pushed"])
+
     # -- implementation gate ----------------------------------------------
 
     def test_record_implementation_gate_writes_passing_gate_and_updates_state(self) -> None:
@@ -255,6 +289,20 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertEqual(state["evidence"]["clarifying_question"], "Which rollout behavior should this use?")
         validator = self.run_validator("state")
         self.assertEqual(validator.returncode, 0, validator.stdout)
+
+    def test_record_implementation_gate_fails_when_push_evidence_is_missing(self) -> None:
+        self.reach_planned()
+        state = self.state_now()
+        state["evidence"]["planning_commit_pushed"] = False
+        (self.issue_dir / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+        result = self.implementation_gate()
+
+        self.assertNotEqual(result.returncode, 0)
+        gate = json.loads((self.issue_dir / "implementation_gate_result.json").read_text(encoding="utf-8"))
+        self.assertFalse(gate["ok"])
+        self.assertFalse(gate["checks"]["planning_commit_pushed"])
+        self.assertEqual(self.state_now()["state"], "blocked")
 
     def test_record_implementation_gate_blocks_without_clarifying_question(self) -> None:
         self.reach_planned()
@@ -301,6 +349,24 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertEqual(state["state"], "ready-for-review-request")
         self.assertEqual(state["last_completed_step"], "readiness-check")
         self.assertEqual(state["next_allowed_steps"], ["create-review-request"])
+        validator = self.run_validator("readiness-check")
+        self.assertEqual(validator.returncode, 0, validator.stdout)
+
+    def test_record_readiness_evidence_records_optional_scope_and_reviewer_notes(self) -> None:
+        self.prepare_implementing_issue()
+
+        self.assert_ok(
+            self.readiness_evidence(
+                "--scope",
+                "Only the example module; excludes CLI changes.",
+                "--reviewer-notes",
+                "Focus on the state transitions.",
+            )
+        )
+
+        evidence = json.loads((self.issue_dir / "readiness_evidence.json").read_text(encoding="utf-8"))
+        self.assertEqual(evidence["scope"], "Only the example module; excludes CLI changes.")
+        self.assertEqual(evidence["reviewer_notes"], "Focus on the state transitions.")
         validator = self.run_validator("readiness-check")
         self.assertEqual(validator.returncode, 0, validator.stdout)
 

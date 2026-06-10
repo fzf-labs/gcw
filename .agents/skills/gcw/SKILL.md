@@ -132,12 +132,13 @@ If the branch name contains `/`, use the hosting platform's copied file URL or U
 
 When updating the progress comment, target the comment containing `<!-- gcw-progress -->` that was authored by the authenticated user. If no such comment exists, create it. If a marker exists only on a comment authored by someone else, ask before editing it.
 
-Record the published planning evidence in `state.json`:
+Record the published planning evidence in `state.json`. Pass `--planning-commit-pushed true` only after the planning commit is actually pushed to the issue branch; the command fails without mutating `state.json` when planning files are missing, the commit is not pushed, or the progress comment URL is empty:
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-publish-planning \
   --issue-dir .gcw/issues/<issue-id> \
-  --progress-comment-url <issue-progress-comment-url>
+  --progress-comment-url <issue-progress-comment-url> \
+  --planning-commit-pushed true
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
 ```
 
@@ -259,9 +260,13 @@ python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-readiness-evidence
   --issue-link "Closes #<issue-id>" \
   --validation-command <validation-command> \
   --validation-result <passed|failed|skipped> \
-  --risks <risks-or-reviewer-notes>
+  --risks <risks> \
+  --scope <scope-and-non-goals> \
+  --reviewer-notes <reviewer-notes>
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir .gcw/issues/<issue-id>
 ```
+
+`--scope` and `--reviewer-notes` are optional; when provided they are stored in `readiness_evidence.json` and rendered into the review request body.
 
 Use `pr-create` to create or update the GitHub Pull Request or GitLab Merge Request.
 

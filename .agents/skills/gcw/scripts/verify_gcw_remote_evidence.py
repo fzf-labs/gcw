@@ -86,6 +86,9 @@ def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
 
     require_remote_text(remote_text, evidence.get("progress_comment_url"), "progress_comment_url", errors)
     require_remote_text(remote_text, evidence.get("risks"), "risks", errors)
+    for optional_field in ("scope", "reviewer_notes"):
+        if evidence.get(optional_field):
+            require_remote_text(remote_text, evidence[optional_field], optional_field, errors)
 
     return {
         "step": "remote-review-request",

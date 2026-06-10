@@ -38,6 +38,8 @@ JSON schemas 位于：
 
 `state.json` 记录当前 issue、platform、repository、branch、owner、GCW state、last completed step、next allowed steps 和 evidence flags。
 
+`planned` 要求 planning files 真实存在于磁盘，且 `evidence.planning_files_exist`、`evidence.planning_commit_pushed` 为 `true`、`evidence.progress_comment_url` 非空；`record-publish-planning` 在任一条件不满足时直接失败，不会改写 `state.json`。`planning_commit_pushed` 由调用方通过 `--planning-commit-pushed` 显式断言，implementation gate 会复核这条记录而不是凭空认定已推送。
+
 `ready-for-review` 要求 `evidence.review_request_url` 非空，并且 `last_completed_step` 为 `create-review-request`。机审和人审结论继续记录在 `state.json` 的 evidence 中，而不是只留在 CI 日志或聊天记录里。
 
 state manager 与 validator 覆盖从 `planning` 到 `review-complete` 的完整状态机，包括 `planned`、`ready-for-implementation`、`implementing`、`issue-clarifying`、`ready-for-review-request`、`ready-for-review`、`machine-reviewing`、`machine-review-failed`、`human-reviewing`、`changes-requested`、`approved`、`blocked` 和 `review-complete`。`issue-opened`、`issue-triaging`、`ready-for-planning` 发生在 issue worktree 和 `state.json` 创建之前，由 issue progress comment 跟踪，因此不写入本地 `state.json`。
@@ -52,7 +54,7 @@ state manager 与 validator 覆盖从 `planning` 到 `review-complete` 的完整
 
 ## Readiness Evidence
 
-`readiness_evidence.json` 记录 issue、branch、base branch、commit range、review request title/summary/issue link、validation results、local self-review、planning links、progress comment URL 和 risks。
+`readiness_evidence.json` 记录 issue、branch、base branch、commit range、review request title/summary/issue link、validation results、local self-review、planning links、progress comment URL 和 risks，以及可选的 scope 与 reviewer_notes。可选字段一旦记录就会渲染进 review request body，并被 remote artifact verification 复核。
 
 创建或更新 review request 前，先运行 validator：
 

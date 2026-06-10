@@ -84,6 +84,14 @@
     "risks": {
       "type": "string",
       "minLength": 1
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewer_notes": {
+      "type": "string",
+      "minLength": 1
     }
   }
 }

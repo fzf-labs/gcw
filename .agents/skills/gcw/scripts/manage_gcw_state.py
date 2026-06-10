@@ -66,25 +66,35 @@ def record_publish_planning(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
     planning_files_exist = all((args.issue_dir / name).is_file() for name in PLANNING_FILES)
+    errors: list[str] = []
+    if not planning_files_exist:
+        errors.append("planning files are missing")
+    if not args.planning_commit_pushed:
+        errors.append("planning commit is not pushed")
+    if not args.progress_comment_url:
+        errors.append("progress comment URL is missing")
+    if errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     evidence = state.setdefault("evidence", {})
-    evidence["planning_files_exist"] = planning_files_exist
+    evidence["planning_files_exist"] = True
     evidence["planning_commit_pushed"] = True
     evidence["progress_comment_url"] = args.progress_comment_url
     state["state"] = "planned"
     state["last_completed_step"] = "publish-planning"
     state["next_allowed_steps"] = ["implementation-gate"]
     write_json(state_path, state)
-    ok = planning_files_exist and bool(args.progress_comment_url)
-    return {"ok": ok, "path": str(state_path), "state": state}
+    return {"ok": True, "path": str(state_path), "state": state}
 
 
 def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
     planning_files_exist = all((args.issue_dir / name).is_file() for name in PLANNING_FILES)
+    state_evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
+    planning_commit_pushed = state_evidence.get("planning_commit_pushed") is True
     progress_comment_linked = bool(args.progress_comment_url)
     issue_actionable = args.issue_actionable
-    ok = planning_files_exist and progress_comment_linked and issue_actionable
+    ok = planning_files_exist and planning_commit_pushed and progress_comment_linked and issue_actionable
     if ok:
         target_state = "ready-for-implementation"
     elif not issue_actionable and args.clarifying_question:
@@ -97,7 +107,7 @@ def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
         "state_transition": {"from": state.get("state", "planned"), "to": target_state},
         "checks": {
             "planning_files_exist": planning_files_exist,
-            "planning_commit_pushed": True,
+            "planning_commit_pushed": planning_commit_pushed,
             "progress_comment_linked": progress_comment_linked,
             "issue_actionable": issue_actionable,
         },
@@ -107,7 +117,7 @@ def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
 
     evidence = state.setdefault("evidence", {})
     evidence["planning_files_exist"] = planning_files_exist
-    evidence["planning_commit_pushed"] = True
+    evidence["planning_commit_pushed"] = planning_commit_pushed
     evidence["progress_comment_url"] = args.progress_comment_url
     if args.clarifying_question:
         evidence["clarifying_question"] = args.clarifying_question
@@ -186,6 +196,10 @@ def record_readiness_evidence(args: argparse.Namespace) -> dict[str, Any]:
         "progress_comment_url": progress_comment_url,
         "risks": args.risks,
     }
+    if args.scope:
+        evidence["scope"] = args.scope
+    if args.reviewer_notes:
+        evidence["reviewer_notes"] = args.reviewer_notes
     write_json(args.issue_dir / "readiness_evidence.json", evidence)
 
     state["state"] = "ready-for-review-request"
@@ -404,6 +418,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_parser.add_argument("--issue-dir", required=True, type=Path)
     publish_parser.add_argument("--progress-comment-url", required=True)
+    publish_parser.add_argument(
+        "--planning-commit-pushed",
+        required=True,
+        type=parse_bool,
+        help="Whether the planning commit has actually been pushed to the issue branch.",
+    )
     publish_parser.set_defaults(handler=record_publish_planning)
 
     gate_parser = subparsers.add_parser(
@@ -436,6 +456,8 @@ def build_parser() -> argparse.ArgumentParser:
     readiness_parser.add_argument("--validation-command", required=True)
     readiness_parser.add_argument("--validation-result", required=True)
     readiness_parser.add_argument("--risks", required=True)
+    readiness_parser.add_argument("--scope", default="")
+    readiness_parser.add_argument("--reviewer-notes", default="")
     readiness_parser.set_defaults(handler=record_readiness_evidence)
 
     review_parser = subparsers.add_parser(

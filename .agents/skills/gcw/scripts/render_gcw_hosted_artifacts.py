@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any
 
 
+PROGRESS_MARKER = "<!-- gcw-progress -->"
+REVIEW_REQUEST_START = "<!-- gcw-review-request:start -->"
+REVIEW_REQUEST_END = "<!-- gcw-review-request:end -->"
+
+
 def load_json(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {}
@@ -54,6 +59,7 @@ def render_progress_comment(args: argparse.Namespace) -> str:
     evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
     owner = state.get("owner") if isinstance(state.get("owner"), dict) else {}
     lines = [
+        PROGRESS_MARKER,
         f"GCW Status: {state.get('state', 'unknown')}",
         "",
         f"- Issue: {state.get('issue', '')}",
@@ -76,6 +82,7 @@ def render_review_request(args: argparse.Namespace) -> str:
     review_request = readiness.get("review_request") if isinstance(readiness.get("review_request"), dict) else {}
     validations = readiness.get("validation") if isinstance(readiness.get("validation"), list) else []
     lines = [
+        REVIEW_REQUEST_START,
         str(review_request.get("title", "")).strip(),
         "",
         "## Summary",
@@ -95,6 +102,8 @@ def render_review_request(args: argparse.Namespace) -> str:
                 lines.append(f"- {validation.get('command', '')}: {validation.get('result', '')}")
     else:
         lines.append("- Not recorded.")
+    if readiness.get("scope"):
+        lines.extend(["", "## Scope", "", str(readiness["scope"]).strip()])
     lines.extend(["", "## Planning", ""])
     links = planning_links_markdown(readiness)
     lines.extend(links if links else ["- Not recorded."])
@@ -110,7 +119,30 @@ def render_review_request(args: argparse.Namespace) -> str:
             str(readiness.get("risks", "")).strip(),
         ]
     )
+    if readiness.get("reviewer_notes"):
+        lines.extend(["", "## Reviewer Notes", "", str(readiness["reviewer_notes"]).strip()])
+    lines.extend(["", REVIEW_REQUEST_END])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def merge_review_request_body(existing: str, rendered: str) -> str:
+    """Replace the generated section between markers, preserving hand-written content outside it."""
+    rendered = rendered.strip("\n")
+    start = existing.find(REVIEW_REQUEST_START)
+    end = existing.find(REVIEW_REQUEST_END)
+    if start != -1 and end != -1 and end >= start:
+        end_index = end + len(REVIEW_REQUEST_END)
+        merged = existing[:start] + rendered + existing[end_index:]
+        return merged.strip("\n") + "\n"
+    if not existing.strip():
+        return rendered + "\n"
+    return existing.rstrip("\n") + "\n\n" + rendered + "\n"
+
+
+def merge_review_request(args: argparse.Namespace) -> str:
+    rendered = args.rendered_file.read_text(encoding="utf-8")
+    existing = args.existing_file.read_text(encoding="utf-8") if args.existing_file.is_file() else ""
+    return merge_review_request_body(existing, rendered)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -124,6 +156,14 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser = subparsers.add_parser("review-request")
     review_parser.add_argument("--issue-dir", required=True, type=Path)
     review_parser.set_defaults(handler=render_review_request)
+
+    merge_parser = subparsers.add_parser(
+        "merge-review-request",
+        help="Merge a rendered review request body into an existing body, preserving manual content.",
+    )
+    merge_parser.add_argument("--existing-file", required=True, type=Path)
+    merge_parser.add_argument("--rendered-file", required=True, type=Path)
+    merge_parser.set_defaults(handler=merge_review_request)
 
     return parser
 

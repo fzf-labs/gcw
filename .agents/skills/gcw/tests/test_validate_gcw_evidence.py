@@ -153,6 +153,36 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertTrue(output["ok"])
 
+    def test_state_check_rejects_planned_without_planning_files(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "planned"
+        state["last_completed_step"] = "publish-planning"
+        state["next_allowed_steps"] = ["implementation-gate"]
+        self.write_json("state.json", state)
+        (self.issue_dir / "findings.md").unlink()
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("findings.md is missing", output["errors"])
+
+    def test_state_check_rejects_planned_without_push_evidence(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "planned"
+        state["last_completed_step"] = "publish-planning"
+        state["next_allowed_steps"] = ["implementation-gate"]
+        state["evidence"]["planning_commit_pushed"] = False
+        self.write_json("state.json", state)
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("planned requires evidence.planning_commit_pushed", output["errors"])
+
     def test_state_check_rejects_implementing_without_passing_gate(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
         state["state"] = "implementing"

@@ -61,6 +61,16 @@ class GcwStepTest(unittest.TestCase):
         (self.issue_dir / "task_plan.md").write_text("# Plan\n", encoding="utf-8")
         (self.issue_dir / "findings.md").write_text("# Findings\n", encoding="utf-8")
         (self.issue_dir / "progress.md").write_text("# Progress\n", encoding="utf-8")
+        publish = self.run_manager(
+            "record-publish-planning",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--progress-comment-url",
+            "https://github.com/owner/repo/issues/42#issuecomment-1",
+            "--planning-commit-pushed",
+            "true",
+        )
+        self.assertEqual(publish.returncode, 0, publish.stderr)
 
     def test_check_mode_dispatches_to_validator(self) -> None:
         result = self.run_step("state", "--mode", "check", "--issue-dir", str(COMPLETE_FIXTURE))

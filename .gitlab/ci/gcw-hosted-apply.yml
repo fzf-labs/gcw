@@ -51,7 +51,9 @@ gcw:hosted-apply:
         curl --request PUT --fail --header "$auth_header" --data-urlencode "body@/tmp/gcw-progress-comment.md" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues/$GCW_ISSUE_IID/notes/$GCW_PROGRESS_NOTE_ID"
       fi
       if [ -n "${GCW_MERGE_REQUEST_IID:-}" ]; then
-        curl --request PUT --fail --header "$auth_header" --data-urlencode "description@/tmp/gcw-review-request.md" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$GCW_MERGE_REQUEST_IID"
+        curl --fail --header "$auth_header" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$GCW_MERGE_REQUEST_IID" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("description") or "")' > /tmp/gcw-existing-review-request.md
+        python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py merge-review-request --existing-file /tmp/gcw-existing-review-request.md --rendered-file /tmp/gcw-review-request.md > /tmp/gcw-merged-review-request.md
+        curl --request PUT --fail --header "$auth_header" --data-urlencode "description@/tmp/gcw-merged-review-request.md" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$GCW_MERGE_REQUEST_IID"
       fi
     - |
       set -euo pipefail

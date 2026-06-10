@@ -194,7 +194,9 @@ jobs:
         run: |
           set -euo pipefail
           review_number="${INPUT_REVIEW_REQUEST_URL##*/}"
-          gh pr edit "$review_number" --body-file /tmp/gcw-review-request.md
+          gh pr view "$review_number" --json body --jq '.body // ""' > /tmp/gcw-existing-review-request.md
+          python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py merge-review-request --existing-file /tmp/gcw-existing-review-request.md --rendered-file /tmp/gcw-review-request.md > /tmp/gcw-merged-review-request.md
+          gh pr edit "$review_number" --body-file /tmp/gcw-merged-review-request.md
 
       - name: Commit GCW issue evidence
         run: |

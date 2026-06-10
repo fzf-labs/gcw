@@ -64,4 +64,16 @@ python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comme
 python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request --issue-dir .gcw/issues/<issue-id>
 ```
 
+Progress comment 渲染结果以 `<!-- gcw-progress -->` marker 开头，与 `issue-manage` 的 `gcw-progress-upsert` 定位规则保持一致，整条评论是生成内容，可以整体替换。
+
+Review request 渲染结果包裹在 `<!-- gcw-review-request:start -->` 与 `<!-- gcw-review-request:end -->` marker 之间。更新已有 review request 前，hosted workflow 必须先抓取现有 body，再用 `merge-review-request` 合并，避免覆盖 marker 区域之外的人工内容：
+
+```bash
+python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py merge-review-request \
+  --existing-file /tmp/existing-body.md \
+  --rendered-file /tmp/rendered-body.md
+```
+
+合并规则：marker 区域内的生成内容被替换；marker 之外的人工内容原样保留；现有 body 没有 marker 时，生成内容追加到人工内容之后。
+
 抓取托管平台上的文本后，使用 [validation.md](validation.md) 验证 remote artifacts。
