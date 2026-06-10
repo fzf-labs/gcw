@@ -115,7 +115,7 @@ class GcwStepTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         output = json.loads(result.stdout)
         self.assertTrue(output["ok"])
-        self.assertEqual(output["state"]["state"], "implementing")
+        self.assertEqual(output["state"]["state"], "ready-for-implementation")
 
     def test_apply_mode_rejects_non_owner_runner(self) -> None:
         self.write_initial_state_and_planning_files()
@@ -145,6 +145,22 @@ class GcwStepTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertIn("does not support apply mode", output["errors"][0])
+
+    def test_apply_mode_dispatches_new_review_step_and_fails_closed(self) -> None:
+        self.write_initial_state_and_planning_files()
+
+        result = self.run_step(
+            "review-complete",
+            "--mode",
+            "apply",
+            "--issue-dir",
+            str(self.issue_dir),
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("review-complete requires approved state", output["errors"])
 
 
 if __name__ == "__main__":

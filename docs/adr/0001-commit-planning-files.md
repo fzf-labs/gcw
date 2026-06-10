@@ -1,5 +1,5 @@
 # 提交 Planning Files
 
-GCW 会将 planning files 提交到 Issue 分支的 `.gcw/issues/<issue-id>/` 下，推送到 Git hosting platform，从 issue progress comment 链接这些文件，并允许它们出现在 review request diff 中，最终随 base branch 合并。
+GCW 会将 planning files 提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到 Git hosting platform，并在 issue progress comment 中链接这些文件。它们也会出现在 review request diff 中，并可能随 base branch 一起合并。
 
-这样做可以通过稳定的远程链接保留 agent planning、findings、progress 和 review context，避免 workflow 的工作记忆只隐藏在聊天或本地文件里。代价是仓库历史会保留 GCW collaboration metadata，项目接受这一点。
+这样做可以通过稳定的远程链接保留 agent 的计划、发现、进展和 review 上下文，避免工作流记忆只存在于聊天记录或本地文件里。对应的代价是：仓库历史会保留 GCW 协作元数据。项目接受这个取舍。

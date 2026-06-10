@@ -38,7 +38,7 @@ Before executing, read `CONTEXT.md` and apply its vocabulary. Key GCW terms incl
 2. Use `issue-summarize` to read the issue and comments.
 3. Decide whether the issue is actionable.
    - If material information is missing before an issue worktree and planning files exist, add a normal issue clarification comment using `issue-manage` and stop. Do not create a branch, planning files, or progress comment just to ask the question.
-   - If material information becomes missing after planning files and an issue progress comment exist, set the progress snapshot status to `clarifying`, update the issue with the missing questions using `issue-manage`, and stop before creating implementation changes.
+   - If material information becomes missing after planning files and an issue progress comment exist, set the progress snapshot status to `issue-clarifying`, update the issue with the missing questions using `issue-manage`, and stop before creating implementation changes.
    - If the issue is actionable, continue.
 
 ### 2. Create the issue worktree
@@ -148,12 +148,12 @@ Do not modify product code until the Implementation Gate passes. Verify and reco
 - Planning files exist under `.gcw/issues/<issue-id>/`.
 - The planning commit has been pushed to the issue branch.
 - The issue progress comment links to the branch versions of `task_plan.md`, `findings.md`, and `progress.md`.
-- The issue is still actionable; otherwise move to `clarifying` or `blocked`.
-- The progress snapshot status has moved from `planning` to `implementing`.
+- The issue is still actionable; otherwise move to `issue-clarifying` or `blocked`.
+- The progress snapshot status has moved from `planned` to `ready-for-implementation`.
 
-Update the issue progress comment to `implementing` immediately before editing product code. If any gate item is missing, stop before implementation, update `progress.md` with the missing evidence, and update the issue progress comment with the current blocker.
+When the gate passes, the workflow moves to `ready-for-implementation`; record `implement` to enter `implementing` immediately before editing product code. If any gate item is missing, stop before implementation, update `progress.md` with the missing evidence, and update the issue progress comment with the current blocker.
 
-Write `.gcw/issues/<issue-id>/implementation_gate_result.json`, update `state.json` to `implementing`, and validate the gate before implementation:
+Write `.gcw/issues/<issue-id>/implementation_gate_result.json`, update `state.json` to `ready-for-implementation`, and validate the gate before implementation:
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-implementation-gate \
@@ -163,7 +163,15 @@ python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-implementation-gat
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py implementation-gate --issue-dir .gcw/issues/<issue-id>
 ```
 
-If the gate finds a missing decision, record the clarifying transition instead of beginning implementation:
+When the gate passes, record `implement` to move from `ready-for-implementation` to `implementing` before editing product code:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-implement \
+  --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
+
+If the gate finds a missing decision, record the issue-clarifying transition instead of beginning implementation:
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-implementation-gate \
@@ -182,7 +190,7 @@ python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .g
 4. Use planning checkpoints at key stages instead of committing every small planning edit.
 5. Use `git-commit` for focused implementation commits and `git-push` to publish them.
 
-If blocked, update planning files and the issue progress comment with status `blocked` or `clarifying`, record one matching state transition, then stop with a concise blocker summary:
+If blocked, update planning files and the issue progress comment with status `blocked` or `issue-clarifying`, record one matching state transition, then stop with a concise blocker summary:
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-block \
@@ -239,7 +247,7 @@ Before invoking `pr-create`, assemble Readiness Evidence from the current branch
 - Links to planning files and the issue progress comment.
 - Known risks, migration notes, or reviewer notes.
 
-Write `.gcw/issues/<issue-id>/readiness_evidence.json` and validate it. This records readiness evidence but keeps `state.json` in `implementing`; only `create-review-request` moves the workflow to `ready-for-review`.
+Write `.gcw/issues/<issue-id>/readiness_evidence.json` and validate it. This moves `state.json` to `ready-for-review-request`; only `create-review-request` then moves the workflow to `ready-for-review`.
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-readiness-evidence \
@@ -280,6 +288,47 @@ After creation, update the issue progress comment:
 - Status: `ready-for-review`.
 - Latest checkpoint: review request created.
 - Review Request: URL.
+
+### 9. Track review and completion
+
+After the review request is ready for review, record review-phase transitions in `state.json` as they happen. Machine and human review outcomes are recorded, not invented: the machine result comes from CI and the human result comes from the reviewer.
+
+Machine review:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-machine-review-start \
+  --issue-dir .gcw/issues/<issue-id>
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-machine-review-result \
+  --issue-dir .gcw/issues/<issue-id> \
+  --result <passed|failed>
+```
+
+- `passed` moves to `human-reviewing`.
+- `failed` moves to `machine-review-failed`; after addressing the feedback, record `record-address-machine-feedback` to return to `implementing`.
+
+Human review:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-human-review-result \
+  --issue-dir .gcw/issues/<issue-id> \
+  --result <approved|changes-requested|blocked|closed>
+```
+
+- `approved` moves to `approved`.
+- `changes-requested` moves to `changes-requested`; after addressing the feedback, record `record-address-human-feedback` to return to `implementing`.
+- `blocked` moves to `blocked`.
+- `closed` moves to `review-complete`.
+
+Completion runs only after the review request is approved, and only once any merge or close has been performed with the approvals required by High-Risk Operations:
+
+```bash
+python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-review-complete \
+  --issue-dir .gcw/issues/<issue-id> \
+  --result <merged|closed|accepted>
+python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py state --issue-dir .gcw/issues/<issue-id>
+```
+
+Update the issue progress comment with the current review status at each transition.
 
 ## Ownership Handoff
 

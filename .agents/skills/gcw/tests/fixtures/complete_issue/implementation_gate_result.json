@@ -8,8 +8,8 @@
   "errors": [],
   "ok": true,
   "state_transition": {
-    "from": "planning",
-    "to": "implementing"
+    "from": "planned",
+    "to": "ready-for-implementation"
   },
   "step": "implementation-gate"
 }

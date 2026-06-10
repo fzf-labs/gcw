@@ -1,6 +1,6 @@
 # GCW 证据
 
-每个 Issue 分支都会在以下目录保存持久化的人类记录和机器记录：
+每个 Issue 分支都会在以下目录中保存人类可读记录和机器可读记录：
 
 ```text
 .gcw/issues/<issue-id>/
@@ -26,7 +26,7 @@
 .gcw/issues/<issue-id>/readiness_evidence.json
 ```
 
-v1 JSON schemas 位于：
+JSON schemas 位于：
 
 ```text
 .agents/skills/gcw/schemas/state.schema.json
@@ -38,21 +38,23 @@ v1 JSON schemas 位于：
 
 `state.json` 记录当前 issue、platform、repository、branch、owner、GCW state、last completed step、next allowed steps 和 evidence flags。
 
-`ready-for-review` 要求 `evidence.review_request_url` 非空，并且 `last_completed_step` 为 `create-review-request`。
+`ready-for-review` 要求 `evidence.review_request_url` 非空，并且 `last_completed_step` 为 `create-review-request`。机审和人审结论继续记录在 `state.json` 的 evidence 中，而不是只留在 CI 日志或聊天记录里。
+
+state manager 与 validator 覆盖从 `planning` 到 `review-complete` 的完整状态机，包括 `planned`、`ready-for-implementation`、`implementing`、`issue-clarifying`、`ready-for-review-request`、`ready-for-review`、`machine-reviewing`、`machine-review-failed`、`human-reviewing`、`changes-requested`、`approved`、`blocked` 和 `review-complete`。`issue-opened`、`issue-triaging`、`ready-for-planning` 发生在 issue worktree 和 `state.json` 创建之前，由 issue progress comment 跟踪，因此不写入本地 `state.json`。
 
 ## Implementation Gate
 
 `implementation_gate_result.json` 记录是否可以开始实现：
 
-- `ok: true` transition 到 `implementing`。
-- `ok: false` transition 到 `clarifying` 或 `blocked`。
-- 通过的 gate 需要 planning files、已推送的 planning commit、已链接的 progress comment，以及 actionable issue 信息。
+- `ok: true` 表示状态从 `planned` 转换到 `ready-for-implementation`；随后 `implement` 步骤进入 `implementing`。
+- `ok: false` 表示状态转换到 `issue-clarifying`（信息不清）或 `blocked`。
+- 通过 gate 需要 planning files、已推送的 planning commit、已链接的 progress comment，以及可执行的 Issue 信息。
 
 ## Readiness Evidence
 
 `readiness_evidence.json` 记录 issue、branch、base branch、commit range、review request title/summary/issue link、validation results、local self-review、planning links、progress comment URL 和 risks。
 
-创建或更新 review request 前运行 validator：
+创建或更新 review request 前，先运行 validator：
 
 ```bash
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir .gcw/issues/<issue-id>

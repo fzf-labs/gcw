@@ -8,13 +8,43 @@ from typing import Any
 
 
 PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
-VALID_STATES = {"planning", "clarifying", "implementing", "blocked", "ready-for-review"}
+VALID_STATES = {
+    "issue-opened",
+    "issue-triaging",
+    "issue-clarifying",
+    "ready-for-planning",
+    "planning",
+    "planned",
+    "ready-for-implementation",
+    "implementing",
+    "ready-for-review-request",
+    "ready-for-review",
+    "machine-reviewing",
+    "machine-review-failed",
+    "human-reviewing",
+    "changes-requested",
+    "approved",
+    "blocked",
+    "review-complete",
+}
 ALLOWED_NEXT_STEPS = {
-    "planning": {"create-issue-worktree", "create-planning-files", "publish-planning", "implementation-gate"},
-    "clarifying": set(),
-    "implementing": {"implement", "local-self-review", "readiness-check", "create-review-request", "block", "clarify"},
+    "issue-opened": {"triage-issue"},
+    "issue-triaging": {"discuss-issue", "mark-issue-actionable"},
+    "issue-clarifying": {"discuss-issue", "mark-issue-actionable"},
+    "ready-for-planning": {"create-issue-worktree", "create-planning-files"},
+    "planning": {"publish-planning"},
+    "planned": {"implementation-gate"},
+    "ready-for-implementation": {"implement"},
+    "implementing": {"implement", "local-self-review", "readiness-check", "block", "clarify"},
+    "ready-for-review-request": {"create-review-request"},
+    "ready-for-review": {"machine-review-start"},
+    "machine-reviewing": {"machine-review-result"},
+    "machine-review-failed": {"address-machine-feedback", "block", "clarify"},
+    "human-reviewing": {"human-review-result"},
+    "changes-requested": {"address-human-feedback"},
+    "approved": {"review-complete", "implement"},
     "blocked": set(),
-    "ready-for-review": set(),
+    "review-complete": set(),
 }
 
 
@@ -95,7 +125,7 @@ def validate_passing_gate_for_state(issue_dir: Path, errors: list[str]) -> None:
     if not gate:
         errors.append("implementing requires passing implementation_gate_result.json")
         return
-    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "implementing":
+    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "ready-for-implementation":
         errors.append("implementing requires passing implementation_gate_result.json")
 
 
@@ -118,14 +148,14 @@ def validate_implementation_gate(issue_dir: Path) -> dict[str, Any]:
     gate_ok = require_boolean(gate, "ok", errors)
     transition_from = require_non_empty(gate, "state_transition.from", errors)
     transition_to = require_non_empty(gate, "state_transition.to", errors)
-    if transition_from not in {"planning", "implementing"}:
+    if transition_from not in {"planned", "implementing"}:
         errors.append("implementation gate transition source is invalid")
-    if transition_to not in {"implementing", "clarifying", "blocked"}:
+    if transition_to not in {"ready-for-implementation", "issue-clarifying", "blocked"}:
         errors.append("implementation gate transition target is invalid")
-    if gate_ok is True and transition_to != "implementing":
-        errors.append("passing implementation gate must transition to implementing")
-    if gate_ok is False and transition_to not in {"clarifying", "blocked"}:
-        errors.append("non-passing implementation gate must transition to clarifying or blocked")
+    if gate_ok is True and transition_to != "ready-for-implementation":
+        errors.append("passing implementation gate must transition to ready-for-implementation")
+    if gate_ok is False and transition_to not in {"issue-clarifying", "blocked"}:
+        errors.append("non-passing implementation gate must transition to issue-clarifying or blocked")
 
     checks = gate.get("checks") if isinstance(gate.get("checks"), dict) else {}
     if not checks:
@@ -165,14 +195,14 @@ def validate_readiness(issue_dir: Path) -> dict[str, Any]:
     errors: list[str] = []
     validate_planning_files(issue_dir, errors)
     state = validate_state(issue_dir, errors)
-    if state.get("state") != "implementing":
-        errors.append("readiness-check must leave state.json state as implementing")
+    if state.get("state") != "ready-for-review-request":
+        errors.append("readiness-check must leave state.json state as ready-for-review-request")
     gate_result = validate_implementation_gate(issue_dir)
     if not gate_result["ok"]:
         errors.extend(f"implementation gate: {error}" for error in gate_result["errors"])
     gate_errors: list[str] = []
     gate = load_json(issue_dir / "implementation_gate_result.json", gate_errors)
-    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "implementing":
+    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "ready-for-implementation":
         errors.append("readiness-check requires passing implementation gate")
 
     evidence = load_json(issue_dir / "readiness_evidence.json", errors)

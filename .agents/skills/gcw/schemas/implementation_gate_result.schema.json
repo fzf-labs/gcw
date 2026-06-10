@@ -26,11 +26,11 @@
       "properties": {
         "from": {
           "type": "string",
-          "enum": ["planning", "implementing"]
+          "enum": ["planned", "implementing"]
         },
         "to": {
           "type": "string",
-          "enum": ["implementing", "clarifying", "blocked"]
+          "enum": ["ready-for-implementation", "issue-clarifying", "blocked"]
         }
       }
     },

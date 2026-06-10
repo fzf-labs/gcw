@@ -32,7 +32,25 @@
     },
     "state": {
       "type": "string",
-      "enum": ["planning", "clarifying", "implementing", "blocked", "ready-for-review"]
+      "enum": [
+        "issue-opened",
+        "issue-triaging",
+        "issue-clarifying",
+        "ready-for-planning",
+        "planning",
+        "planned",
+        "ready-for-implementation",
+        "implementing",
+        "ready-for-review-request",
+        "ready-for-review",
+        "machine-reviewing",
+        "machine-review-failed",
+        "human-reviewing",
+        "changes-requested",
+        "approved",
+        "blocked",
+        "review-complete"
+      ]
     },
     "branch": {
       "type": "string",

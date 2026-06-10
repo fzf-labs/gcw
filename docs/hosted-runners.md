@@ -1,10 +1,10 @@
-# Hosted Runners
+# 托管 Runner
 
-Hosted runners 让 GitHub Actions 或 GitLab CI 可以检查证据，并在明确拥有权限时 apply GCW 状态转换。
+托管 runner 让 GitHub Actions 或 GitLab CI 可以检查证据，并在明确拥有权限时应用 GCW 状态转换。这里的应用状态转换，就是把本地证据写回 GCW 状态文件或托管平台内容。
 
-## Read-Only Checks
+## 只读检查
 
-这些 workflow 只验证证据，不修改 repository、Issue 或 review request state：
+这些 workflow 只做证据验证，不修改 repository、Issue 或 review request state：
 
 ```text
 .github/workflows/ci.yml
@@ -14,7 +14,7 @@ Hosted runners 让 GitHub Actions 或 GitLab CI 可以检查证据，并在明�
 
 ## Hosted Apply
 
-这些入口需要手动触发，并受 ownership gate 保护：
+这些入口需要手动触发，并受 ownership gate 保护。ownership gate 会检查当前 runner 是否拥有写入权：
 
 ```text
 .github/workflows/gcw-hosted-apply.yml
@@ -23,10 +23,10 @@ Hosted runners 让 GitHub Actions 或 GitLab CI 可以检查证据，并在明�
 
 Hosted apply 可以：
 
-- Apply 支持的 `gcw_step.py --mode apply` transition。
-- 从本地 evidence 渲染 progress comment 和 review request body。
-- 更新 issue progress comments 和 review request bodies。
-- 提交变化后的 `.gcw/issues/<issue-id>/` evidence。
+- 执行支持的 `gcw_step.py --mode apply` 状态转换。
+- 根据本地 evidence 渲染 progress comment 和 review request body。
+- 更新 issue progress comment 和 review request body。
+- 提交变更后的 `.gcw/issues/<issue-id>/` evidence。
 - 推送当前 Issue 分支。
 
 Hosted apply 不可以：
@@ -36,16 +36,16 @@ Hosted apply 不可以：
 - Merge review request。
 - Close issue。
 - 未经显式 handoff 覆盖 ownership。
-- 未经明确批准编辑他人 authored content。
+- 未经明确批准编辑他人内容。
 
-## Ownership
+## Ownership 规则
 
-除非 `state.json.owner.kind` 与 runner 匹配，否则 hosted apply 必须 fail closed：
+除非 `state.json.owner.kind` 与 runner 匹配，否则 hosted apply 必须 fail closed，也就是直接失败并拒绝写入：
 
 - GitHub Actions 使用 `github-actions`。
 - GitLab CI 使用 `gitlab-ci`。
 
-Hosted runner 接管未来写入前，先使用 `record-handoff`：
+Hosted runner 接管后续写入前，先使用 `record-handoff`：
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-handoff \
@@ -55,13 +55,13 @@ python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-handoff \
   --reason <handoff-reason>
 ```
 
-## Remote Artifact Updates
+## 远程产物更新
 
-Hosted workflows 使用以下命令渲染 body：
+Hosted workflow 通过以下命令渲染 progress comment 和 review request body：
 
 ```bash
 python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comment --issue-dir .gcw/issues/<issue-id>
 python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request --issue-dir .gcw/issues/<issue-id>
 ```
 
-抓取 hosted text 后，使用 [validation.md](validation.md) 验证 remote artifacts。
+抓取托管平台上的文本后，使用 [validation.md](validation.md) 验证 remote artifacts。

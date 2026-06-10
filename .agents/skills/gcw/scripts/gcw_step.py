@@ -23,9 +23,17 @@ CHECK_COMMANDS = {
 }
 
 APPLY_COMMANDS = {
+    "publish-planning": ["record-publish-planning"],
     "implementation-gate": ["record-implementation-gate"],
+    "implement": ["record-implement"],
     "readiness-check": ["record-readiness-evidence"],
     "create-review-request": ["record-review-request"],
+    "machine-review-start": ["record-machine-review-start"],
+    "machine-review-result": ["record-machine-review-result"],
+    "address-machine-feedback": ["record-address-machine-feedback"],
+    "human-review-result": ["record-human-review-result"],
+    "address-human-feedback": ["record-address-human-feedback"],
+    "review-complete": ["record-review-complete"],
     "block": ["record-block"],
     "clarify": ["record-clarify"],
     "local-self-review": ["record-local-self-review"],

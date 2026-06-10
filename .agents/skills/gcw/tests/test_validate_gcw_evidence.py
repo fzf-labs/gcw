@@ -37,16 +37,16 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
                 "issue": 42,
                 "platform": "github",
                 "repository": "owner/repo",
-                "state": "implementing",
+                "state": "ready-for-review-request",
                 "branch": "feat/example-42",
                 "owner": {"kind": "local", "id": "cursor-session"},
-                "last_completed_step": "implementation-gate",
-                "next_allowed_steps": ["implement", "block", "clarify", "readiness-check"],
+                "last_completed_step": "readiness-check",
+                "next_allowed_steps": ["create-review-request"],
                 "evidence": {
                     "planning_files_exist": True,
                     "planning_commit_pushed": True,
                     "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
-                    "self_review_recorded": False,
+                    "self_review_recorded": True,
                     "review_request_url": "",
                 },
             },
@@ -56,7 +56,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             {
                 "step": "implementation-gate",
                 "ok": True,
-                "state_transition": {"from": "planning", "to": "implementing"},
+                "state_transition": {"from": "planned", "to": "ready-for-implementation"},
                 "checks": {
                     "planning_files_exist": True,
                     "planning_commit_pushed": True,
@@ -154,6 +154,11 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(output["ok"])
 
     def test_state_check_rejects_implementing_without_passing_gate(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "implementing"
+        state["last_completed_step"] = "implement"
+        state["next_allowed_steps"] = ["readiness-check"]
+        self.write_json("state.json", state)
         (self.issue_dir / "implementation_gate_result.json").unlink()
 
         result = self.run_validator("state")
@@ -173,14 +178,14 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
 
     def test_implementation_gate_accepts_clarifying_pause_evidence(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
-        state["state"] = "clarifying"
+        state["state"] = "issue-clarifying"
         state["last_completed_step"] = "implementation-gate"
         state["next_allowed_steps"] = []
         state["evidence"]["clarifying_question"] = "Which rollout behavior should this use?"
         self.write_json("state.json", state)
         gate = json.loads((self.issue_dir / "implementation_gate_result.json").read_text(encoding="utf-8"))
         gate["ok"] = False
-        gate["state_transition"]["to"] = "clarifying"
+        gate["state_transition"]["to"] = "issue-clarifying"
         gate["checks"]["issue_actionable"] = False
         gate["errors"] = ["implementation gate evidence is incomplete or the issue needs clarification"]
         self.write_json("implementation_gate_result.json", gate)
@@ -251,7 +256,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
     def test_readiness_check_rejects_valid_but_non_passing_gate(self) -> None:
         gate = json.loads((self.issue_dir / "implementation_gate_result.json").read_text(encoding="utf-8"))
         gate["ok"] = False
-        gate["state_transition"]["to"] = "clarifying"
+        gate["state_transition"]["to"] = "issue-clarifying"
         gate["checks"]["issue_actionable"] = False
         gate["errors"] = ["implementation gate evidence is incomplete or the issue needs clarification"]
         self.write_json("implementation_gate_result.json", gate)
@@ -262,12 +267,11 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertIn("readiness-check requires passing implementation gate", output["errors"])
 
-    def test_readiness_check_does_not_transition_to_ready_for_review(self) -> None:
+    def test_readiness_check_requires_ready_for_review_request_state(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
-        state["state"] = "ready-for-review"
-        state["last_completed_step"] = "readiness-check"
-        state["next_allowed_steps"] = []
-        state["evidence"]["review_request_url"] = ""
+        state["state"] = "implementing"
+        state["last_completed_step"] = "local-self-review"
+        state["next_allowed_steps"] = ["readiness-check"]
         self.write_json("state.json", state)
 
         result = self.run_validator("readiness-check")
@@ -275,7 +279,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
-        self.assertIn("readiness-check must leave state.json state as implementing", output["errors"])
+        self.assertIn("readiness-check must leave state.json state as ready-for-review-request", output["errors"])
 
     def test_implementation_gate_rejects_ready_for_review_without_review_request(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))

@@ -30,7 +30,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         result = self.run_render("progress-comment", "--issue-dir", str(COMPLETE_FIXTURE))
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("GCW Status: implementing", result.stdout)
+        self.assertIn("GCW Status: ready-for-review-request", result.stdout)
         self.assertIn("Last completed step: readiness-check", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md", result.stdout)

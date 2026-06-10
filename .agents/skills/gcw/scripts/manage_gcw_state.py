@@ -7,13 +7,15 @@ from pathlib import Path
 from typing import Any
 
 
-PLANNING_NEXT_STEPS = [
-    "create-issue-worktree",
-    "create-planning-files",
-    "publish-planning",
-    "implementation-gate",
-]
-IMPLEMENTING_NEXT_STEPS = ["implement", "local-self-review", "readiness-check", "create-review-request", "block", "clarify"]
+PLANNING_NEXT_STEPS = ["publish-planning"]
+IMPLEMENTING_NEXT_STEPS = ["implement", "local-self-review", "readiness-check", "block", "clarify"]
+MACHINE_FAILED_NEXT_STEPS = ["address-machine-feedback", "block", "clarify"]
+HUMAN_REVIEW_TRANSITIONS = {
+    "approved": ("approved", ["review-complete", "implement"]),
+    "changes-requested": ("changes-requested", ["address-human-feedback"]),
+    "blocked": ("blocked", []),
+    "closed": ("review-complete", []),
+}
 PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
 
 
@@ -68,7 +70,7 @@ def record_publish_planning(args: argparse.Namespace) -> dict[str, Any]:
     evidence["planning_files_exist"] = planning_files_exist
     evidence["planning_commit_pushed"] = True
     evidence["progress_comment_url"] = args.progress_comment_url
-    state["state"] = "planning"
+    state["state"] = "planned"
     state["last_completed_step"] = "publish-planning"
     state["next_allowed_steps"] = ["implementation-gate"]
     write_json(state_path, state)
@@ -84,15 +86,15 @@ def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
     issue_actionable = args.issue_actionable
     ok = planning_files_exist and progress_comment_linked and issue_actionable
     if ok:
-        target_state = "implementing"
+        target_state = "ready-for-implementation"
     elif not issue_actionable and args.clarifying_question:
-        target_state = "clarifying"
+        target_state = "issue-clarifying"
     else:
         target_state = "blocked"
     gate = {
         "step": "implementation-gate",
         "ok": ok,
-        "state_transition": {"from": state.get("state", "planning"), "to": target_state},
+        "state_transition": {"from": state.get("state", "planned"), "to": target_state},
         "checks": {
             "planning_files_exist": planning_files_exist,
             "planning_commit_pushed": True,
@@ -111,9 +113,26 @@ def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
         evidence["clarifying_question"] = args.clarifying_question
     state["state"] = target_state
     state["last_completed_step"] = "implementation-gate"
-    state["next_allowed_steps"] = IMPLEMENTING_NEXT_STEPS if ok else []
+    state["next_allowed_steps"] = ["implement"] if ok else []
     write_json(state_path, state)
     return {"ok": ok, "path": str(args.issue_dir / "implementation_gate_result.json"), "state": state}
+
+
+def record_implement(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    ok = state.get("state") == "ready-for-implementation"
+    if ok:
+        state["state"] = "implementing"
+        state["last_completed_step"] = "implement"
+        state["next_allowed_steps"] = IMPLEMENTING_NEXT_STEPS
+        write_json(state_path, state)
+    return {
+        "ok": ok,
+        "path": str(state_path),
+        "state": state,
+        "errors": [] if ok else ["implement requires ready-for-implementation state"],
+    }
 
 
 def planning_link(platform: str, repository: str, branch: str, issue: Any, filename: str) -> str:
@@ -169,7 +188,7 @@ def record_readiness_evidence(args: argparse.Namespace) -> dict[str, Any]:
     }
     write_json(args.issue_dir / "readiness_evidence.json", evidence)
 
-    state["state"] = "implementing"
+    state["state"] = "ready-for-review-request"
     state["last_completed_step"] = "readiness-check"
     state["next_allowed_steps"] = ["create-review-request"]
     write_json(state_path, state)
@@ -180,20 +199,138 @@ def record_review_request(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
     readiness_path = args.issue_dir / "readiness_evidence.json"
-    ok = readiness_path.is_file() and state.get("state") == "implementing"
+    ok = readiness_path.is_file() and state.get("state") == "ready-for-review-request"
     if state.get("last_completed_step") != "readiness-check":
         ok = False
     evidence = state.setdefault("evidence", {})
     evidence["review_request_url"] = args.review_request_url
-    state["state"] = "ready-for-review" if ok else state.get("state", "implementing")
-    state["last_completed_step"] = "create-review-request" if ok else state.get("last_completed_step", "")
-    state["next_allowed_steps"] = [] if ok else state.get("next_allowed_steps", [])
+    if ok:
+        state["state"] = "ready-for-review"
+        state["last_completed_step"] = "create-review-request"
+        state["next_allowed_steps"] = ["machine-review-start"]
     write_json(state_path, state)
     return {
         "ok": ok,
         "path": str(state_path),
         "state": state,
-        "errors": [] if ok else ["review request requires implementing state and readiness-check completion"],
+        "errors": [] if ok else ["review request requires ready-for-review-request state and readiness-check completion"],
+    }
+
+
+def record_machine_review_start(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    ok = state.get("state") == "ready-for-review"
+    if ok:
+        state["state"] = "machine-reviewing"
+        state["last_completed_step"] = "machine-review-start"
+        state["next_allowed_steps"] = ["machine-review-result"]
+        write_json(state_path, state)
+    return {
+        "ok": ok,
+        "path": str(state_path),
+        "state": state,
+        "errors": [] if ok else ["machine-review-start requires ready-for-review state"],
+    }
+
+
+def record_machine_review_result(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    if state.get("state") != "machine-reviewing":
+        return {
+            "ok": False,
+            "path": str(state_path),
+            "state": state,
+            "errors": ["machine-review-result requires machine-reviewing state"],
+        }
+    evidence = state.setdefault("evidence", {})
+    evidence["machine_review_result"] = args.result
+    state["last_completed_step"] = "machine-review-result"
+    if args.result == "passed":
+        state["state"] = "human-reviewing"
+        state["next_allowed_steps"] = ["human-review-result"]
+        ok = True
+        errors: list[str] = []
+    else:
+        state["state"] = "machine-review-failed"
+        state["next_allowed_steps"] = MACHINE_FAILED_NEXT_STEPS
+        ok = False
+        errors = ["machine review reported failing checks"]
+    write_json(state_path, state)
+    return {"ok": ok, "path": str(state_path), "state": state, "errors": errors}
+
+
+def record_address_machine_feedback(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    ok = state.get("state") == "machine-review-failed"
+    if ok:
+        state["state"] = "implementing"
+        state["last_completed_step"] = "address-machine-feedback"
+        state["next_allowed_steps"] = IMPLEMENTING_NEXT_STEPS
+        write_json(state_path, state)
+    return {
+        "ok": ok,
+        "path": str(state_path),
+        "state": state,
+        "errors": [] if ok else ["address-machine-feedback requires machine-review-failed state"],
+    }
+
+
+def record_human_review_result(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    if state.get("state") != "human-reviewing":
+        return {
+            "ok": False,
+            "path": str(state_path),
+            "state": state,
+            "errors": ["human-review-result requires human-reviewing state"],
+        }
+    target_state, next_steps = HUMAN_REVIEW_TRANSITIONS[args.result]
+    evidence = state.setdefault("evidence", {})
+    evidence["human_review_result"] = args.result
+    state["state"] = target_state
+    state["last_completed_step"] = "human-review-result"
+    state["next_allowed_steps"] = next_steps
+    write_json(state_path, state)
+    return {"ok": True, "path": str(state_path), "state": state}
+
+
+def record_address_human_feedback(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    ok = state.get("state") == "changes-requested"
+    if ok:
+        state["state"] = "implementing"
+        state["last_completed_step"] = "address-human-feedback"
+        state["next_allowed_steps"] = IMPLEMENTING_NEXT_STEPS
+        write_json(state_path, state)
+    return {
+        "ok": ok,
+        "path": str(state_path),
+        "state": state,
+        "errors": [] if ok else ["address-human-feedback requires changes-requested state"],
+    }
+
+
+def record_review_complete(args: argparse.Namespace) -> dict[str, Any]:
+    state_path = args.issue_dir / "state.json"
+    state = read_json(state_path)
+    ok = state.get("state") == "approved"
+    if ok:
+        evidence = state.setdefault("evidence", {})
+        evidence["review_complete_result"] = args.result
+        state["state"] = "review-complete"
+        state["last_completed_step"] = "review-complete"
+        state["next_allowed_steps"] = []
+        write_json(state_path, state)
+    return {
+        "ok": ok,
+        "path": str(state_path),
+        "state": state,
+        "errors": [] if ok else ["review-complete requires approved state"],
     }
 
 
@@ -214,7 +351,7 @@ def record_clarify(args: argparse.Namespace) -> dict[str, Any]:
     state = read_json(state_path)
     evidence = state.setdefault("evidence", {})
     evidence["clarifying_question"] = args.question
-    state["state"] = "clarifying"
+    state["state"] = "issue-clarifying"
     state["last_completed_step"] = "clarify"
     state["next_allowed_steps"] = []
     write_json(state_path, state)
@@ -279,9 +416,16 @@ def build_parser() -> argparse.ArgumentParser:
     gate_parser.add_argument("--clarifying-question", default="")
     gate_parser.set_defaults(handler=record_implementation_gate)
 
+    implement_parser = subparsers.add_parser(
+        "record-implement",
+        help="Move state.json from ready-for-implementation to implementing.",
+    )
+    implement_parser.add_argument("--issue-dir", required=True, type=Path)
+    implement_parser.set_defaults(handler=record_implement)
+
     readiness_parser = subparsers.add_parser(
         "record-readiness-evidence",
-        help="Write readiness_evidence.json and keep state.json in implementing.",
+        help="Write readiness_evidence.json and move state.json to ready-for-review-request.",
     )
     readiness_parser.add_argument("--issue-dir", required=True, type=Path)
     readiness_parser.add_argument("--base-branch", required=True)
@@ -302,6 +446,55 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser.add_argument("--review-request-url", required=True)
     review_parser.set_defaults(handler=record_review_request)
 
+    machine_start_parser = subparsers.add_parser(
+        "record-machine-review-start",
+        help="Move state.json from ready-for-review to machine-reviewing.",
+    )
+    machine_start_parser.add_argument("--issue-dir", required=True, type=Path)
+    machine_start_parser.set_defaults(handler=record_machine_review_start)
+
+    machine_result_parser = subparsers.add_parser(
+        "record-machine-review-result",
+        help="Record the machine review outcome and move to human-reviewing or machine-review-failed.",
+    )
+    machine_result_parser.add_argument("--issue-dir", required=True, type=Path)
+    machine_result_parser.add_argument("--result", required=True, choices=("passed", "failed"))
+    machine_result_parser.set_defaults(handler=record_machine_review_result)
+
+    address_machine_parser = subparsers.add_parser(
+        "record-address-machine-feedback",
+        help="Move state.json from machine-review-failed back to implementing.",
+    )
+    address_machine_parser.add_argument("--issue-dir", required=True, type=Path)
+    address_machine_parser.set_defaults(handler=record_address_machine_feedback)
+
+    human_result_parser = subparsers.add_parser(
+        "record-human-review-result",
+        help="Record the human review outcome.",
+    )
+    human_result_parser.add_argument("--issue-dir", required=True, type=Path)
+    human_result_parser.add_argument(
+        "--result",
+        required=True,
+        choices=("approved", "changes-requested", "blocked", "closed"),
+    )
+    human_result_parser.set_defaults(handler=record_human_review_result)
+
+    address_human_parser = subparsers.add_parser(
+        "record-address-human-feedback",
+        help="Move state.json from changes-requested back to implementing.",
+    )
+    address_human_parser.add_argument("--issue-dir", required=True, type=Path)
+    address_human_parser.set_defaults(handler=record_address_human_feedback)
+
+    review_complete_parser = subparsers.add_parser(
+        "record-review-complete",
+        help="Move state.json from approved to review-complete.",
+    )
+    review_complete_parser.add_argument("--issue-dir", required=True, type=Path)
+    review_complete_parser.add_argument("--result", default="completed")
+    review_complete_parser.set_defaults(handler=record_review_complete)
+
     block_parser = subparsers.add_parser(
         "record-block",
         help="Move state.json to blocked with a blocker reason.",
@@ -312,7 +505,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     clarify_parser = subparsers.add_parser(
         "record-clarify",
-        help="Move state.json to clarifying with the open question.",
+        help="Move state.json to issue-clarifying with the open question.",
     )
     clarify_parser.add_argument("--issue-dir", required=True, type=Path)
     clarify_parser.add_argument("--question", required=True)
