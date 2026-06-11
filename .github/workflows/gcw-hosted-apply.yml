@@ -78,6 +78,14 @@ on:
         description: Risks or reviewer notes
         required: false
         type: string
+      scope:
+        description: Optional readiness scope
+        required: false
+        type: string
+      reviewer_notes:
+        description: Optional reviewer notes
+        required: false
+        type: string
       machine_review_result:
         description: Machine review result
         required: false
@@ -174,6 +182,8 @@ jobs:
           INPUT_VALIDATION_COMMAND: ${{ inputs.validation_command }}
           INPUT_VALIDATION_RESULT: ${{ inputs.validation_result }}
           INPUT_RISKS: ${{ inputs.risks }}
+          INPUT_SCOPE: ${{ inputs.scope }}
+          INPUT_REVIEWER_NOTES: ${{ inputs.reviewer_notes }}
           INPUT_MACHINE_REVIEW_RESULT: ${{ inputs.machine_review_result }}
           INPUT_HUMAN_REVIEW_RESULT: ${{ inputs.human_review_result }}
           INPUT_REVIEW_COMPLETE_RESULT: ${{ inputs.review_complete_result }}
@@ -191,7 +201,7 @@ jobs:
               python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --progress-section "$INPUT_PROGRESS_SECTION"
               ;;
             readiness-check)
-              python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --base-branch "$INPUT_BASE_BRANCH" --commit-range "$INPUT_COMMIT_RANGE" --title "$INPUT_TITLE" --summary "$INPUT_SUMMARY" --issue-link "$INPUT_ISSUE_LINK" --validation-command "$INPUT_VALIDATION_COMMAND" --validation-result "$INPUT_VALIDATION_RESULT" --risks "$INPUT_RISKS"
+              python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --base-branch "$INPUT_BASE_BRANCH" --commit-range "$INPUT_COMMIT_RANGE" --title "$INPUT_TITLE" --summary "$INPUT_SUMMARY" --issue-link "$INPUT_ISSUE_LINK" --validation-command "$INPUT_VALIDATION_COMMAND" --validation-result "$INPUT_VALIDATION_RESULT" --risks "$INPUT_RISKS" --scope "$INPUT_SCOPE" --reviewer-notes "$INPUT_REVIEWER_NOTES"
               ;;
             create-review-request)
               python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind github-actions --runner-id "$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB" --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$INPUT_REVIEW_REQUEST_URL"

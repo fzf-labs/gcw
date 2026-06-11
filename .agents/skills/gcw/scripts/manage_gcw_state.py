@@ -455,8 +455,12 @@ def record_human_review_result(args: argparse.Namespace) -> dict[str, Any]:
     evidence = state.setdefault("evidence", {})
     evidence["human_review_result"] = args.result
     state["state"] = target_state
-    state["last_completed_step"] = "human-review-result"
     state["next_allowed_steps"] = next_steps
+    if target_state == TERMINAL_STATE:
+        evidence["review_complete_result"] = args.result
+        state["last_completed_step"] = "review-complete"
+    else:
+        state["last_completed_step"] = "human-review-result"
     write_json(state_path, state)
     return {"ok": True, "path": str(state_path), "state": state}
 
@@ -547,6 +551,13 @@ def record_handoff(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
     errors = require_not_terminal(state, "handoff")
+    current_owner = state.get("owner") if isinstance(state.get("owner"), dict) else {}
+    current_owner_kind = current_owner.get("kind") if isinstance(current_owner, dict) else None
+    current_owner_id = current_owner.get("id") if isinstance(current_owner, dict) else None
+    if current_owner_kind not in {"local", args.owner_kind} or (
+        current_owner_kind == args.owner_kind and current_owner_id != args.owner_id and current_owner_kind != "local"
+    ):
+        errors.append("handoff requires the current owner to be local or already owned by the target runner")
     if errors:
         return {"ok": False, "path": str(state_path), "state": state, "errors": errors}
     state["owner"] = {

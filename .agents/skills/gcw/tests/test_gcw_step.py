@@ -236,6 +236,37 @@ class GcwStepTest(unittest.TestCase):
         self.assertEqual(state["owner"], {"kind": "github-actions", "id": "workflow-run-123"})
         self.assertEqual(state["evidence"]["handoff_reason"], "Hosted apply workflow owns the next transition.")
 
+    def test_apply_mode_handoff_rejects_taking_ownership_from_non_local_owner(self) -> None:
+        self.write_initial_state_and_planning_files()
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["owner"] = {"kind": "github-actions", "id": "workflow-run-older"}
+        (self.issue_dir / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+        result = self.run_step(
+            "handoff",
+            "--mode",
+            "apply",
+            "--runner-id",
+            "workflow-run-123",
+            "--runner-kind",
+            "github-actions",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--owner-kind",
+            "github-actions",
+            "--owner-id",
+            "workflow-run-123",
+            "--reason",
+            "Hosted apply workflow owns the next transition.",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("handoff", output["errors"][0])
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["owner"], {"kind": "github-actions", "id": "workflow-run-older"})
+
     def test_unsupported_apply_mode_fails_closed(self) -> None:
         result = self.run_step("state", "--mode", "apply", "--issue-dir", str(COMPLETE_FIXTURE))
 

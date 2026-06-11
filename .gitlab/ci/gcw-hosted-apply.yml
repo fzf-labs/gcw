@@ -21,7 +21,7 @@ gcw:hosted-apply:
           python3 .agents/skills/gcw/scripts/gcw_step.py local-self-review --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --progress-section "${GCW_PROGRESS_SECTION:-## Local Self-Review}"
           ;;
         readiness-check)
-          python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --base-branch "$GCW_BASE_BRANCH" --commit-range "$GCW_COMMIT_RANGE" --title "$GCW_TITLE" --summary "$GCW_SUMMARY" --issue-link "$GCW_ISSUE_LINK" --validation-command "$GCW_VALIDATION_COMMAND" --validation-result "$GCW_VALIDATION_RESULT" --risks "$GCW_RISKS"
+          python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --base-branch "$GCW_BASE_BRANCH" --commit-range "$GCW_COMMIT_RANGE" --title "$GCW_TITLE" --summary "$GCW_SUMMARY" --issue-link "$GCW_ISSUE_LINK" --validation-command "$GCW_VALIDATION_COMMAND" --validation-result "$GCW_VALIDATION_RESULT" --risks "$GCW_RISKS" --scope "${GCW_SCOPE:-}" --reviewer-notes "${GCW_REVIEWER_NOTES:-}"
           ;;
         create-review-request)
           python3 .agents/skills/gcw/scripts/gcw_step.py create-review-request --mode apply --runner-kind gitlab-ci --runner-id "${CI_PIPELINE_ID}:${CI_JOB_ID}" --issue-dir "$GCW_ISSUE_DIR" --review-request-url "$GCW_REVIEW_REQUEST_URL"

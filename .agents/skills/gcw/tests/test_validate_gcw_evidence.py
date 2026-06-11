@@ -133,6 +133,18 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertFalse(output["ok"])
         self.assertIn("owner.id is missing", output["errors"])
 
+    def test_state_check_rejects_non_string_owner_id(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["owner"]["id"] = 123
+        self.write_json("state.json", state)
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("owner.id must be a string", output["errors"])
+
     def test_state_check_rejects_next_steps_outside_transition_table(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
         state["state"] = "ready-for-review"
@@ -164,6 +176,21 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         output = json.loads(result.stdout)
         self.assertTrue(output["ok"])
+
+    def test_state_check_requires_readiness_evidence_for_review_request_state(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "ready-for-review-request"
+        state["last_completed_step"] = "readiness-check"
+        state["next_allowed_steps"] = ["create-review-request"]
+        self.write_json("state.json", state)
+        (self.issue_dir / "readiness_evidence.json").unlink()
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("ready-for-review-request requires readiness_evidence.json", output["errors"])
 
     def test_state_check_rejects_planned_without_planning_files(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
@@ -209,6 +236,21 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertIn("implementing requires passing implementation_gate_result.json", output["errors"])
+
+    def test_state_check_rejects_approved_without_human_review_result(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "approved"
+        state["last_completed_step"] = "machine-review-result"
+        state["next_allowed_steps"] = ["review-complete", "implement"]
+        state["evidence"]["review_request_url"] = "https://github.com/owner/repo/pull/7"
+        self.write_json("state.json", state)
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("approved requires last_completed_step human-review-result", output["errors"])
 
     def test_implementation_gate_accepts_complete_evidence(self) -> None:
         result = self.run_validator("implementation-gate")
@@ -349,6 +391,21 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertIn("ready-for-review requires state.json evidence.review_request_url", output["errors"])
+
+    def test_state_check_rejects_review_complete_without_completion_result(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "review-complete"
+        state["last_completed_step"] = "review-complete"
+        state["next_allowed_steps"] = []
+        state["evidence"]["review_request_url"] = "https://github.com/owner/repo/pull/7"
+        self.write_json("state.json", state)
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("review-complete requires state.json evidence.review_complete_result", output["errors"])
 
 
 if __name__ == "__main__":

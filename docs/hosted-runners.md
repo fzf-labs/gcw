@@ -14,7 +14,7 @@
 
 ## Hosted Apply
 
-这些入口需要手动触发，并受 ownership gate 保护。workflow 会先用 `record-handoff` 认领当前 run 的 ownership，然后 ownership gate 再检查当前 runner 是否拥有写入权，以及 runner 身份是否与 `state.json` 中记录的一致：
+这些入口需要手动触发，并受 ownership gate 保护。workflow 会先用 `record-handoff` 认领当前 run 的 ownership；这个转移只接受当前 owner 仍是 local，或者已经是同一个 hosted runner 的情况。随后 ownership gate 再检查当前 runner 是否拥有写入权，以及 runner 身份是否与 `state.json` 中记录的一致：
 
 ```text
 .github/workflows/gcw-hosted-apply.yml

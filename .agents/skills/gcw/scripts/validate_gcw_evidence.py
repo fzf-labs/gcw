@@ -75,6 +75,72 @@ def require_non_empty(data: dict[str, Any], path: str, errors: list[str]) -> Any
     return current
 
 
+def require_string(data: dict[str, Any], path: str, errors: list[str], *, allow_empty: bool = False) -> str | None:
+    current: Any = data
+    for part in path.split("."):
+        if not isinstance(current, dict) or part not in current:
+            errors.append(f"{path} is missing")
+            return None
+        current = current[part]
+    if not isinstance(current, str):
+        errors.append(f"{path} must be a string")
+        return None
+    if not allow_empty and current == "":
+        errors.append(f"{path} is empty")
+    return current
+
+
+def require_issue_identifier(data: dict[str, Any], path: str, errors: list[str]) -> Any:
+    current: Any = data
+    for part in path.split("."):
+        if not isinstance(current, dict) or part not in current:
+            errors.append(f"{path} is missing")
+            return None
+        current = current[part]
+    if type(current) is int:
+        return current
+    if isinstance(current, str):
+        if current == "":
+            errors.append(f"{path} is empty")
+            return None
+        return current
+    errors.append(f"{path} must be an integer or a non-empty string")
+    return None
+
+
+def require_string_enum(
+    data: dict[str, Any],
+    path: str,
+    allowed: set[str],
+    errors: list[str],
+    *,
+    allow_empty: bool = False,
+) -> str | None:
+    current = require_string(data, path, errors, allow_empty=allow_empty)
+    if current is None:
+        return None
+    if current not in allowed:
+        errors.append(f"{path} must be one of: {', '.join(sorted(allowed))}")
+    return current
+
+
+def require_string_list(data: dict[str, Any], path: str, errors: list[str]) -> list[str] | None:
+    current: Any = data
+    for part in path.split("."):
+        if not isinstance(current, dict) or part not in current:
+            errors.append(f"{path} is missing")
+            return None
+        current = current[part]
+    if not isinstance(current, list):
+        errors.append(f"{path} must be an array")
+        return None
+    for item in current:
+        if not isinstance(item, str):
+            errors.append(f"{path} items must be strings")
+            return None
+    return current
+
+
 def require_true(data: dict[str, Any], path: str, errors: list[str], message: str) -> None:
     current = require_non_empty(data, path, errors)
     if current is not True:
@@ -96,35 +162,64 @@ def validate_planning_files(issue_dir: Path, errors: list[str]) -> None:
 
 def validate_state(issue_dir: Path, errors: list[str]) -> dict[str, Any]:
     state = load_json(issue_dir / "state.json", errors)
+    require_issue_identifier(state, "issue", errors)
+    require_string_enum(state, "platform", {"github", "gitlab"}, errors)
+    require_string(state, "repository", errors)
+    require_string(state, "branch", errors)
+    require_string_enum(state, "owner.kind", {"local", "github-actions", "gitlab-ci", "manual"}, errors)
+    require_string(state, "owner.id", errors)
+    require_string(state, "last_completed_step", errors, allow_empty=True)
+    require_string_list(state, "next_allowed_steps", errors)
+    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
+    require_boolean(evidence, "planning_files_exist", errors)
+    require_boolean(evidence, "planning_commit_pushed", errors)
+    require_string(evidence, "progress_comment_url", errors, allow_empty=True)
+    require_boolean(evidence, "self_review_recorded", errors)
+    require_string(evidence, "review_request_url", errors, allow_empty=True)
     current_state = state.get("state")
     if current_state not in VALID_STATES:
         errors.append("state.json state is missing or invalid")
-    require_non_empty(state, "issue", errors)
-    require_non_empty(state, "branch", errors)
-    require_non_empty(state, "owner.kind", errors)
-    require_non_empty(state, "owner.id", errors)
     next_allowed_steps = state.get("next_allowed_steps")
-    if not isinstance(next_allowed_steps, list):
-        errors.append("next_allowed_steps must be an array")
-    elif current_state in ALLOWED_NEXT_STEPS:
+    if isinstance(next_allowed_steps, list) and current_state in ALLOWED_NEXT_STEPS:
         unexpected_steps = sorted(set(next_allowed_steps) - ALLOWED_NEXT_STEPS[current_state])
         if unexpected_steps:
             errors.append(
                 f"next_allowed_steps contains steps not allowed from {current_state}: {', '.join(unexpected_steps)}"
             )
-    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
     if current_state == "planned":
         validate_planning_files(issue_dir, errors)
         require_true(evidence, "planning_files_exist", errors, "planned requires evidence.planning_files_exist")
         require_true(evidence, "planning_commit_pushed", errors, "planned requires evidence.planning_commit_pushed")
         require_non_empty(evidence, "progress_comment_url", errors)
+    if current_state == "ready-for-review-request":
+        if not (issue_dir / "readiness_evidence.json").is_file():
+            errors.append("ready-for-review-request requires readiness_evidence.json")
+        if state.get("last_completed_step") != "readiness-check":
+            errors.append("ready-for-review-request requires last_completed_step readiness-check")
     if current_state == "ready-for-review":
+        if not (issue_dir / "readiness_evidence.json").is_file():
+            errors.append("ready-for-review requires readiness_evidence.json")
         if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
             errors.append("ready-for-review requires state.json evidence.review_request_url")
         if state.get("last_completed_step") != "create-review-request":
             errors.append("ready-for-review requires last_completed_step create-review-request")
-    if current_state == "ready-for-review-request" and state.get("last_completed_step") != "readiness-check":
-        errors.append("ready-for-review-request requires last_completed_step readiness-check")
+    if current_state in {"machine-reviewing", "machine-review-failed", "human-reviewing", "changes-requested", "approved", "review-complete"}:
+        if not (issue_dir / "readiness_evidence.json").is_file():
+            errors.append(f"{current_state} requires readiness_evidence.json")
+        if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
+            errors.append(f"{current_state} requires state.json evidence.review_request_url")
+    if current_state == "approved":
+        if state.get("last_completed_step") != "human-review-result":
+            errors.append("approved requires last_completed_step human-review-result")
+        if not isinstance(next_allowed_steps, list) or "review-complete" not in next_allowed_steps:
+            errors.append("approved requires next_allowed_steps to include review-complete")
+    if current_state == "review-complete":
+        if state.get("last_completed_step") != "review-complete":
+            errors.append("review-complete requires last_completed_step review-complete")
+        if not isinstance(evidence, dict) or not evidence.get("review_complete_result"):
+            errors.append("review-complete requires state.json evidence.review_complete_result")
+        if isinstance(next_allowed_steps, list) and next_allowed_steps:
+            errors.append("review-complete requires next_allowed_steps to be empty")
     return state
 
 

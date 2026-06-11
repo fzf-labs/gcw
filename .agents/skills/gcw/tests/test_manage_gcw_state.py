@@ -531,7 +531,11 @@ class ManageGcwStateTest(unittest.TestCase):
 
         state = self.state_now()
         self.assertEqual(state["state"], "review-complete")
+        self.assertEqual(state["last_completed_step"], "review-complete")
         self.assertEqual(state["next_allowed_steps"], [])
+        self.assertEqual(state["evidence"]["review_complete_result"], "closed")
+        validator = self.run_validator("state")
+        self.assertEqual(validator.returncode, 0, validator.stdout)
 
     def test_human_review_rejected_moves_to_review_complete(self) -> None:
         self.reach_human_reviewing()
@@ -540,7 +544,11 @@ class ManageGcwStateTest(unittest.TestCase):
 
         state = self.state_now()
         self.assertEqual(state["state"], "review-complete")
+        self.assertEqual(state["last_completed_step"], "review-complete")
         self.assertEqual(state["next_allowed_steps"], [])
+        self.assertEqual(state["evidence"]["review_complete_result"], "rejected")
+        validator = self.run_validator("state")
+        self.assertEqual(validator.returncode, 0, validator.stdout)
 
     def test_review_complete_requires_approved_state(self) -> None:
         self.reach_human_reviewing()
