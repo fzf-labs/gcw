@@ -167,7 +167,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
         state["state"] = "ready-for-review"
         state["last_completed_step"] = "create-review-request"
-        state["next_allowed_steps"] = []
+        state["next_allowed_steps"] = ["machine-review-start"]
         state["evidence"]["review_request_url"] = "https://github.com/owner/repo/pull/7"
         self.write_json("state.json", state)
 
@@ -237,6 +237,28 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertFalse(output["ok"])
         self.assertIn("implementing requires passing implementation_gate_result.json", output["errors"])
 
+    def test_state_check_rejects_inconsistent_machine_reviewing_state(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "machine-reviewing"
+        state["last_completed_step"] = "review-complete"
+        state["next_allowed_steps"] = []
+        state["evidence"]["review_request_url"] = "https://github.com/owner/repo/pull/7"
+        self.write_json("state.json", state)
+
+        result = self.run_validator("state")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn(
+            "machine-reviewing requires last_completed_step machine-review-start",
+            output["errors"],
+        )
+        self.assertIn(
+            "machine-reviewing requires next_allowed_steps to include machine-review-result",
+            output["errors"],
+        )
+
     def test_state_check_rejects_approved_without_human_review_result(self) -> None:
         state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
         state["state"] = "approved"
@@ -258,6 +280,23 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         output = json.loads(result.stdout)
         self.assertTrue(output["ok"])
+
+    def test_implementation_gate_rejects_state_that_still_says_planned(self) -> None:
+        state = json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+        state["state"] = "planned"
+        state["last_completed_step"] = "publish-planning"
+        state["next_allowed_steps"] = ["implementation-gate"]
+        self.write_json("state.json", state)
+
+        result = self.run_validator("implementation-gate")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn(
+            "implementation gate requires state.json state to advance beyond planned",
+            output["errors"],
+        )
         self.assertEqual(output["step"], "implementation-gate")
 
     def test_implementation_gate_accepts_clarifying_pause_evidence(self) -> None:

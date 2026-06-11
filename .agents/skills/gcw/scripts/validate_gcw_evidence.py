@@ -154,6 +154,35 @@ def require_boolean(data: dict[str, Any], path: str, errors: list[str]) -> Any:
     return current
 
 
+def require_last_completed_step(state_name: str, state: dict[str, Any], expected: str, errors: list[str]) -> None:
+    actual = state.get("last_completed_step")
+    if expected == "":
+        if actual != "":
+            errors.append(f"{state_name} requires last_completed_step to be empty")
+        return
+    if actual != expected:
+        errors.append(f"{state_name} requires last_completed_step {expected}")
+
+
+def require_next_allowed_steps_include(
+    state_name: str,
+    state: dict[str, Any],
+    expected_steps: list[str],
+    errors: list[str],
+) -> None:
+    actual = state.get("next_allowed_steps")
+    if not isinstance(actual, list):
+        return
+    missing = [step for step in expected_steps if step not in actual]
+    if missing:
+        if len(expected_steps) == 1:
+            errors.append(f"{state_name} requires next_allowed_steps to include {expected_steps[0]}")
+        else:
+            errors.append(
+                f"{state_name} requires next_allowed_steps to include {', '.join(expected_steps)}"
+            )
+
+
 def validate_planning_files(issue_dir: Path, errors: list[str]) -> None:
     for name in PLANNING_FILES:
         if not (issue_dir / name).is_file():
@@ -186,36 +215,76 @@ def validate_state(issue_dir: Path, errors: list[str]) -> dict[str, Any]:
             errors.append(
                 f"next_allowed_steps contains steps not allowed from {current_state}: {', '.join(unexpected_steps)}"
             )
+    if current_state == "issue-opened":
+        require_last_completed_step("issue-opened", state, "", errors)
+        require_next_allowed_steps_include("issue-opened", state, ["triage-issue"], errors)
+    if current_state == "issue-triaging":
+        require_last_completed_step("issue-triaging", state, "triage-issue", errors)
+        require_next_allowed_steps_include(
+            "issue-triaging",
+            state,
+            ["discuss-issue", "mark-issue-actionable"],
+            errors,
+        )
+    if current_state == "ready-for-planning":
+        require_last_completed_step("ready-for-planning", state, "mark-issue-actionable", errors)
+        require_next_allowed_steps_include(
+            "ready-for-planning",
+            state,
+            ["create-issue-worktree", "create-planning-files"],
+            errors,
+        )
+    if current_state == "planning":
+        require_next_allowed_steps_include("planning", state, ["publish-planning"], errors)
     if current_state == "planned":
         validate_planning_files(issue_dir, errors)
+        require_last_completed_step("planned", state, "publish-planning", errors)
+        require_next_allowed_steps_include("planned", state, ["implementation-gate"], errors)
         require_true(evidence, "planning_files_exist", errors, "planned requires evidence.planning_files_exist")
         require_true(evidence, "planning_commit_pushed", errors, "planned requires evidence.planning_commit_pushed")
         require_non_empty(evidence, "progress_comment_url", errors)
+    if current_state == "ready-for-implementation":
+        require_last_completed_step("ready-for-implementation", state, "implementation-gate", errors)
+        require_next_allowed_steps_include("ready-for-implementation", state, ["implement"], errors)
     if current_state == "ready-for-review-request":
         if not (issue_dir / "readiness_evidence.json").is_file():
             errors.append("ready-for-review-request requires readiness_evidence.json")
-        if state.get("last_completed_step") != "readiness-check":
-            errors.append("ready-for-review-request requires last_completed_step readiness-check")
+        require_last_completed_step("ready-for-review-request", state, "readiness-check", errors)
+        require_next_allowed_steps_include("ready-for-review-request", state, ["create-review-request"], errors)
     if current_state == "ready-for-review":
         if not (issue_dir / "readiness_evidence.json").is_file():
             errors.append("ready-for-review requires readiness_evidence.json")
         if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
             errors.append("ready-for-review requires state.json evidence.review_request_url")
-        if state.get("last_completed_step") != "create-review-request":
-            errors.append("ready-for-review requires last_completed_step create-review-request")
+        require_last_completed_step("ready-for-review", state, "create-review-request", errors)
+        require_next_allowed_steps_include("ready-for-review", state, ["machine-review-start"], errors)
     if current_state in {"machine-reviewing", "machine-review-failed", "human-reviewing", "changes-requested", "approved", "review-complete"}:
         if not (issue_dir / "readiness_evidence.json").is_file():
             errors.append(f"{current_state} requires readiness_evidence.json")
         if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
             errors.append(f"{current_state} requires state.json evidence.review_request_url")
+    if current_state == "machine-reviewing":
+        require_last_completed_step("machine-reviewing", state, "machine-review-start", errors)
+        require_next_allowed_steps_include("machine-reviewing", state, ["machine-review-result"], errors)
+    if current_state == "machine-review-failed":
+        require_last_completed_step("machine-review-failed", state, "machine-review-result", errors)
+        require_next_allowed_steps_include(
+            "machine-review-failed",
+            state,
+            ["address-machine-feedback", "block", "clarify"],
+            errors,
+        )
+    if current_state == "human-reviewing":
+        require_last_completed_step("human-reviewing", state, "machine-review-result", errors)
+        require_next_allowed_steps_include("human-reviewing", state, ["human-review-result"], errors)
+    if current_state == "changes-requested":
+        require_last_completed_step("changes-requested", state, "human-review-result", errors)
+        require_next_allowed_steps_include("changes-requested", state, ["address-human-feedback"], errors)
     if current_state == "approved":
-        if state.get("last_completed_step") != "human-review-result":
-            errors.append("approved requires last_completed_step human-review-result")
-        if not isinstance(next_allowed_steps, list) or "review-complete" not in next_allowed_steps:
-            errors.append("approved requires next_allowed_steps to include review-complete")
+        require_last_completed_step("approved", state, "human-review-result", errors)
+        require_next_allowed_steps_include("approved", state, ["review-complete", "implement"], errors)
     if current_state == "review-complete":
-        if state.get("last_completed_step") != "review-complete":
-            errors.append("review-complete requires last_completed_step review-complete")
+        require_last_completed_step("review-complete", state, "review-complete", errors)
         if not isinstance(evidence, dict) or not evidence.get("review_complete_result"):
             errors.append("review-complete requires state.json evidence.review_complete_result")
         if isinstance(next_allowed_steps, list) and next_allowed_steps:
@@ -259,6 +328,8 @@ def validate_implementation_gate(issue_dir: Path) -> dict[str, Any]:
         errors.append("passing implementation gate must transition to ready-for-implementation")
     if gate_ok is False and transition_to not in {"issue-clarifying", "blocked"}:
         errors.append("non-passing implementation gate must transition to issue-clarifying or blocked")
+    if state.get("state") == "planned":
+        errors.append("implementation gate requires state.json state to advance beyond planned")
 
     checks = gate.get("checks") if isinstance(gate.get("checks"), dict) else {}
     if not checks:
