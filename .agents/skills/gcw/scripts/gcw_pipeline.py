@@ -359,15 +359,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     if pause_after_success:
-        emit_json(
-            {
-                "ok": False,
-                "pipeline": args.pipeline,
-                "errors": ["issue requires clarification before the pipeline can continue"],
-                "steps": results,
-            }
-        )
-        return 1
+        emit_json({"ok": True, "paused": True, "pipeline": args.pipeline, "steps": results})
+        return 2
 
     emit_json({"ok": True, "pipeline": args.pipeline, "steps": results})
     return 0

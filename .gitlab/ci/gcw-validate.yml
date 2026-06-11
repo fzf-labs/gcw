@@ -31,7 +31,7 @@ gcw:validate:
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py implementation-gate --issue-dir "$issue_dir"
         fi
         state="$(python3 -c "import json; print(json.load(open('$issue_dir/state.json'))['state'])" 2>/dev/null || true)"
-        if [ -f "$issue_dir/readiness_evidence.json" ] || [ "$state" = "ready-for-review" ]; then
+        if [ "$state" = "ready-for-review-request" ]; then
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --issue-dir "$issue_dir"
         fi
       done

@@ -10,6 +10,7 @@ gcw:action-pipeline:
   script:
     - |
       set -euo pipefail
+      set +e
       case "${GCW_PIPELINE:-}" in
         issue-intake|issue-clarify|planning|machine-review|machine-feedback-loop|human-feedback-loop|review-complete)
           ;;
@@ -42,6 +43,13 @@ gcw:action-pipeline:
         --scope "${GCW_SCOPE:-}" \
         --reviewer-notes "${GCW_REVIEWER_NOTES:-}" \
         --review-complete-result "${GCW_REVIEW_COMPLETE_RESULT:-merged}"
+      status=$?
+      set -e
+      if [ "$status" -eq 2 ]; then
+        echo "GCW pipeline paused after a successful clarification step."
+      elif [ "$status" -ne 0 ]; then
+        exit "$status"
+      fi
     - |
       set -euo pipefail
       python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comment --issue-dir "$GCW_ISSUE_DIR" > /tmp/gcw-progress-comment.md

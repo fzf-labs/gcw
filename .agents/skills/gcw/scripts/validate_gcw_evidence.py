@@ -75,6 +75,30 @@ def require_non_empty(data: dict[str, Any], path: str, errors: list[str]) -> Any
     return current
 
 
+def validate_validation_entries(evidence: dict[str, Any], errors: list[str]) -> None:
+    validation = evidence.get("validation")
+    if not isinstance(validation, list):
+        errors.append("validation must be an array")
+        return
+    if not validation:
+        errors.append("validation is empty")
+        return
+    for index, entry in enumerate(validation):
+        entry_path = f"validation[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{entry_path} must be an object")
+            continue
+        for field in ("command", "result"):
+            value = entry.get(field)
+            field_path = f"{entry_path}.{field}"
+            if value is None:
+                errors.append(f"{field_path} is missing")
+            elif not isinstance(value, str):
+                errors.append(f"{field_path} must be a string")
+            elif value == "":
+                errors.append(f"{field_path} is empty")
+
+
 def require_string(data: dict[str, Any], path: str, errors: list[str], *, allow_empty: bool = False) -> str | None:
     current: Any = data
     for part in path.split("."):
@@ -387,7 +411,7 @@ def validate_readiness(issue_dir: Path, step_name: str = "readiness-check") -> d
     require_non_empty(evidence, "review_request.title", errors)
     require_non_empty(evidence, "review_request.summary", errors)
     require_non_empty(evidence, "review_request.issue_link", errors)
-    require_non_empty(evidence, "validation", errors)
+    validate_validation_entries(evidence, errors)
     require_true(evidence, "local_self_review.recorded", errors, "local self-review is not recorded")
     progress_section = require_non_empty(evidence, "local_self_review.progress_section", errors)
     require_non_empty(evidence, "planning_links.task_plan", errors)

@@ -1,8 +1,8 @@
 # 验证
 
-GCW 尽量使用确定性验证。本地 agent、GitHub Actions 和 GitLab CI 应调用同一组脚本。
+GCW 尽量把验证收敛到同一组脚本。文件与 schema 契约见 [evidence.md](evidence.md)。
 
-## 必需的本地检查
+## 本地检查
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/gcw-pycache python3 -m unittest discover -s .agents/skills/gcw/tests
@@ -19,6 +19,8 @@ python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py readiness-check --is
 python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py create-review-request --issue-dir .gcw/issues/<issue-id>
 ```
 
+`readiness-check` 是 `create-review-request` 的前置检查。`create-review-request` validator 使用的是同一套 preflight contract，只是换成消费它的 step 名称。
+
 统一 runner 也提供同样的检查：
 
 ```bash
@@ -30,14 +32,14 @@ review 阶段的状态转换也可以通过同一 runner 做状态校验，例�
 
 ## Remote Artifact Verification
 
-使用平台客户端抓取 issue progress comment 文本或 review request body 文本，写入临时文件后运行：
+抓取平台上的 progress comment 或 review request body 后，再用：
 
 ```bash
 python3 .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py progress-comment --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/progress-comment.md
 python3 .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py review-request --issue-dir .gcw/issues/<issue-id> --remote-file /tmp/review-request.md
 ```
 
-该检查会将托管平台上的文本与 `readiness_evidence.json` 比较，并报告缺失的 planning links、validation、issue link、progress comment URL 或 risks。
+该检查会把远程文本与 `readiness_evidence.json` 比较，报告缺失的 planning links、validation、issue link、progress comment URL 或 risks。
 
 ## CI
 
@@ -48,4 +50,5 @@ GitLab CI 使用 `.gitlab-ci.yml` 作为入口，并 include：
 ```text
 .gitlab/ci/gcw-validate.yml
 .gitlab/ci/gcw-hosted-apply.yml
+.gitlab/ci/gcw-action-pipelines.yml
 ```

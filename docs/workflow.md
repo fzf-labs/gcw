@@ -115,16 +115,17 @@ flowchart TD
 
 ## Action 流水线边界
 
+GitHub Actions 和 GitLab CI 目前提供 7 个 Action pipeline 入口：
+
 | Action 流水线 | 可合并步骤 | 适合自动化的原因 | 边界 |
 | --- | --- | --- | --- |
-| `gcw-issue-intake` | `create-issue`、`triage-issue`、初步评论 | Issue 创建和分类可以标准化，适合自动补 labels、metadata 和初始问题。 | 不应替人决定不明确的需求；复杂需求应进入 `issue-clarifying`。 |
-| `gcw-issue-clarify` | `discuss-issue`、`mark-issue-actionable` | 可以检测缺失信息、生成澄清问题、在信息齐全后标记为 `ready-for-planning`。 | 关键业务决策必须来自人类或可信来源，不能由 Action 猜测。 |
-| `gcw-planning` | `create-issue-worktree`、`create-planning-files`、`publish-planning` | Issue 已清楚后，创建 planning files、提交、推送和更新 Issue 评论都是可自动化的准备工作。 | 只能从 `ready-for-planning` 开始；planning files 必须推送到分支并从 Issue 评论链接。 |
-| `gcw-implement` | `implementation-gate`、`implement`、`local-self-review`、`readiness-check` | 具备代码能力的 agent 可以连续完成实现、自查和 readiness evidence。 | 普通 CI 不应自行改代码；需要明确 owner 和分支写权限。 |
-| `gcw-review-request` | `create-review-request`、更新 issue progress comment、更新 review request body | 基于 readiness evidence 可以确定性生成 review request 内容。 | 不应跳过 local self-review 和 readiness-check。 |
-| `gcw-machine-review` | `machine-review-start`、CI、静态检查、remote artifact verification、`machine-review-result` | PR/MR 创建或更新后可以由 Action 自动运行，并把结果写回状态。 | 自动检查失败时只能进入 `machine-review-failed`，不能直接合并或关闭。 |
-| `gcw-feedback-loop` | `address-machine-feedback` 或 `address-human-feedback`，然后回到 `local-self-review`、`readiness-check`、更新 review request | 反馈修复和重新验证可以由 agent 连续执行。 | 必须保留 reviewer 意见和修复摘要；高风险操作仍需人类批准。 |
-| `gcw-review-complete` | 记录 `approved`、merge/close 结果、更新 issue progress comment、进入 `review-complete` | 审查结束后的记录可以自动化，保证 Issue 与 review request 状态一致。 | merge、close issue、删除分支等操作必须先获得明确的人类授权。 |
+| `issue-intake` | `triage-issue`、`mark-issue-actionable` | Issue 分类和可执行性判断可以标准化，适合自动补 labels、metadata 和初始问题。 | 不应替人决定不明确的需求；复杂需求应进入 `issue-clarifying`。 |
+| `issue-clarify` | `discuss-issue`、`mark-issue-actionable` | 可以检测缺失信息、生成澄清问题、在信息齐全后标记为 `ready-for-planning`。 | 关键业务决策必须来自人类或可信来源，不能由 Action 猜测。 |
+| `planning` | `create-issue-worktree`、`create-planning-files`、`publish-planning` | Issue 已清楚后，创建 planning files、提交、推送和更新 Issue 评论都是可自动化的准备工作。 | 只能从 `ready-for-planning` 开始；planning files 必须推送到分支并从 Issue 评论链接。 |
+| `machine-review` | `machine-review-start`、`machine-review-result` | PR/MR 创建或更新后可以由 Action 自动运行，并把结果写回状态。 | 自动检查失败时只能进入 `machine-review-failed`，不能直接合并或关闭。 |
+| `machine-feedback-loop` | `address-machine-feedback`、`local-self-review`、`readiness-check` | 反馈修复和重新验证可以由 agent 连续执行。 | 必须保留 reviewer 意见和修复摘要；高风险操作仍需人类批准。 |
+| `human-feedback-loop` | `address-human-feedback`、`local-self-review`、`readiness-check` | 人审反馈修复后可以连续自查并重新生成 readiness evidence。 | 必须保留 reviewer 意见和修复摘要；高风险操作仍需人类批准。 |
+| `review-complete` | `review-complete` | 审查结束后的记录可以自动化，保证 Issue 与 review request 状态一致。 | merge、close issue、删除分支等操作必须先获得明确的人类授权。 |
 
 理论上，一个具备完整权限和代码能力的 agent 可以按顺序跑完整流程；工程上更推荐拆成上述 Action 流水线，因为每段的权限边界、失败恢复方式和人类参与点不同。
 

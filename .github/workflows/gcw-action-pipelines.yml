@@ -169,6 +169,7 @@ jobs:
           INPUT_REVIEW_COMPLETE_RESULT: ${{ inputs.review_complete_result }}
         run: |
           set -euo pipefail
+          set +e
           python3 .agents/skills/gcw/scripts/gcw_pipeline.py "$GCW_PIPELINE" \
             --issue-dir "$GCW_ISSUE_DIR" \
             --runner-kind github-actions \
@@ -193,6 +194,13 @@ jobs:
             --scope "$INPUT_SCOPE" \
             --reviewer-notes "$INPUT_REVIEWER_NOTES" \
             --review-complete-result "$INPUT_REVIEW_COMPLETE_RESULT"
+          status=$?
+          set -e
+          if [ "$status" -eq 2 ]; then
+            echo "GCW pipeline paused after a successful clarification step."
+          elif [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
 
       - name: Render hosted artifacts
         run: |

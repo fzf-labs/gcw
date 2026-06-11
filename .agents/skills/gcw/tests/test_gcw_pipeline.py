@@ -227,7 +227,10 @@ class GcwPipelineTest(unittest.TestCase):
             "Which rollout behavior should this use?",
         )
 
-        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 2)
+        output = json.loads(result.stdout)
+        self.assertTrue(output["ok"])
+        self.assertTrue(output["paused"])
         state = self.state_now()
         self.assertEqual(state["state"], "issue-clarifying")
         self.assertEqual(state["evidence"]["clarifying_question"], "Which rollout behavior should this use?")
@@ -240,6 +243,25 @@ class GcwPipelineTest(unittest.TestCase):
 
         self.assert_ok(result)
         self.assertEqual(self.state_now()["state"], "ready-for-planning")
+
+    def test_issue_clarify_pipeline_keeps_unclear_issue_in_clarification_and_pauses(self) -> None:
+        self.init_state("issue-clarifying")
+
+        result = self.run_pipeline(
+            "issue-clarify",
+            "--issue-actionable",
+            "false",
+            "--clarifying-question",
+            "Which rollout behavior should this use?",
+        )
+
+        self.assertEqual(result.returncode, 2)
+        output = json.loads(result.stdout)
+        self.assertTrue(output["ok"])
+        self.assertTrue(output["paused"])
+        state = self.state_now()
+        self.assertEqual(state["state"], "issue-clarifying")
+        self.assertEqual(state["evidence"]["clarifying_question"], "Which rollout behavior should this use?")
 
     def test_planning_pipeline_records_worktree_planning_files_and_publish_evidence(self) -> None:
         self.init_state("ready-for-planning")

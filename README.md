@@ -2,17 +2,15 @@
 
 Git Collaboration Workflow（GCW）是一套面向人机协作开发的工作流包。它连接本地 Git 开发与 GitHub/GitLab 协作流程，让 coding agent 能围绕一个 GitHub/GitLab Issue 持续推进，直到创建 review request、通过机审并完成人类审查。
 
-GCW 的核心价值是：统一术语、持久化规划信息、产出机器可读证据，并为 CI 上的托管执行环境（hosted runner）提供清晰的安全边界。
-它也会把 issue intake 的前置状态写入机器可读状态文件，而不是只依赖评论串。
+GCW 的核心价值是：统一术语、持久化规划信息、产出机器可读证据，并为 CI 上的托管执行环境提供清晰的安全边界。
 
 ## 从这里开始
 
-- 阅读 [CONTEXT.md](CONTEXT.md) 了解项目术语。
-- 阅读 [docs/overview.md](docs/overview.md) 了解项目整体。
-- 阅读 [docs/workflow.md](docs/workflow.md) 了解从 Issue 接入到人类审查结束的完整流程、状态和 Action 流水线边界。
-- 阅读 [docs/evidence.md](docs/evidence.md) 了解 GCW 如何记录状态、实现前检查和审查准备证据，包括 `state.json`、implementation gate 和 readiness evidence。
-- 使用 GitHub Actions 或 GitLab CI 执行写入操作前，先阅读 [docs/hosted-runners.md](docs/hosted-runners.md) 了解 apply 模式。
-- 修改脚本、skill 或 CI 前，先阅读 [docs/validation.md](docs/validation.md)。
+- 阅读 [CONTEXT.md](CONTEXT.md) 了解项目术语与边界。
+- 阅读 [docs/workflow.md](docs/workflow.md) 了解从 Issue 接入到人类审查结束的完整流程、状态和 Action 流水线。
+- 阅读 [docs/evidence.md](docs/evidence.md) 了解 `state.json`、implementation gate 和 readiness evidence。
+- 阅读 [docs/hosted-runners.md](docs/hosted-runners.md) 了解 GitHub Actions / GitLab CI 的写入边界。
+- 阅读 [docs/validation.md](docs/validation.md) 了解本地和 CI 使用的验证命令。
 
 ## 仓库结构
 
@@ -21,7 +19,7 @@ GCW 的核心价值是：统一术语、持久化规划信息、产出机器可�
 .github/workflows/   GitHub Actions workflows
 .gitlab-ci.yml       GitLab CI 入口文件
 .gitlab/ci/          GitLab CI job 定义
-docs/                项目设计、操作说明、验证说明、路线图和 ADR
+docs/                主文档
 ```
 
 ## 本地验证

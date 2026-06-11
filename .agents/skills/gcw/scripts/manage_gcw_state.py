@@ -47,6 +47,19 @@ def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def require_passing_implementation_gate(issue_dir: Path, action: str) -> tuple[dict[str, Any] | None, list[str]]:
+    gate_path = issue_dir / "implementation_gate_result.json"
+    try:
+        gate = read_json(gate_path)
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        return None, [f"{action} requires passing implementation_gate_result.json: {exc}"]
+
+    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "ready-for-implementation":
+        return None, [f"{action} requires passing implementation_gate_result.json"]
+
+    return gate, []
+
+
 def require_state(state: dict[str, Any], expected: set[str], action: str) -> list[str]:
     current_state = state.get("state")
     if current_state not in expected:
@@ -258,17 +271,27 @@ def record_implementation_gate(args: argparse.Namespace) -> dict[str, Any]:
 def record_implement(args: argparse.Namespace) -> dict[str, Any]:
     state_path = args.issue_dir / "state.json"
     state = read_json(state_path)
-    ok = state.get("state") == "ready-for-implementation"
-    if ok:
-        state["state"] = "implementing"
-        state["last_completed_step"] = "implement"
-        state["next_allowed_steps"] = IMPLEMENTING_NEXT_STEPS
-        write_json(state_path, state)
+    if state.get("state") != "ready-for-implementation":
+        return {
+            "ok": False,
+            "path": str(state_path),
+            "state": state,
+            "errors": ["implement requires ready-for-implementation state"],
+        }
+
+    _, gate_errors = require_passing_implementation_gate(args.issue_dir, "implement")
+    if gate_errors:
+        return {"ok": False, "path": str(state_path), "state": state, "errors": gate_errors}
+
+    state["state"] = "implementing"
+    state["last_completed_step"] = "implement"
+    state["next_allowed_steps"] = IMPLEMENTING_NEXT_STEPS
+    write_json(state_path, state)
     return {
-        "ok": ok,
+        "ok": True,
         "path": str(state_path),
         "state": state,
-        "errors": [] if ok else ["implement requires ready-for-implementation state"],
+        "errors": [],
     }
 
 
@@ -309,6 +332,14 @@ def record_readiness_evidence(args: argparse.Namespace) -> dict[str, Any]:
             "path": str(args.issue_dir / "readiness_evidence.json"),
             "state": state,
             "errors": ["readiness evidence requires prior local self-review"],
+        }
+    _, gate_errors = require_passing_implementation_gate(args.issue_dir, "readiness-check")
+    if gate_errors:
+        return {
+            "ok": False,
+            "path": str(args.issue_dir / "readiness_evidence.json"),
+            "state": state,
+            "errors": gate_errors,
         }
     evidence = {
         "issue": issue,

@@ -363,6 +363,18 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertIn("commit_range is missing", output["errors"])
         self.assertIn("progress_comment_url is missing", output["errors"])
 
+    def test_readiness_check_requires_validation_items_to_be_objects(self) -> None:
+        evidence = json.loads((self.issue_dir / "readiness_evidence.json").read_text(encoding="utf-8"))
+        evidence["validation"] = ["python3 -m unittest"]
+        self.write_json("readiness_evidence.json", evidence)
+
+        result = self.run_validator("readiness-check")
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("validation[0] must be an object", output["errors"])
+
     def test_readiness_check_requires_passing_implementation_gate_for_implementing_state(self) -> None:
         (self.issue_dir / "implementation_gate_result.json").unlink()
 

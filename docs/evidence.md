@@ -36,13 +36,11 @@ JSON schemas 位于：
 
 ## State Snapshot
 
-`state.json` 记录当前 issue、platform、repository、branch、owner（`kind` 和 `id`）、GCW state、last completed step、next allowed steps 和 evidence flags。
+`state.json` 记录当前 issue、platform、repository、branch、owner（`kind` 和 `id`）、workflow state、last completed step、next allowed steps 和 evidence flags。完整的状态命名和转换见 [workflow.md](workflow.md)。
 
-`planned` 要求 planning files 真实存在于磁盘，且 `evidence.planning_files_exist`、`evidence.planning_commit_pushed` 为 `true`、`evidence.progress_comment_url` 非空；`record-publish-planning` 在任一条件不满足时直接失败，不会改写 `state.json`。`planning_commit_pushed` 由调用方通过 `--planning-commit-pushed` 显式断言，implementation gate 会复核这条记录而不是凭空认定已推送。
+`planned` 要求 planning files 真实存在于磁盘，且 `evidence.planning_files_exist`、`evidence.planning_commit_pushed` 为 `true`、`evidence.progress_comment_url` 非空；`record-publish-planning` 在任一条件不满足时直接失败，不会改写 `state.json`。`planning_commit_pushed` 由调用方通过 `--planning-commit-pushed` 显式断言，implementation gate 会复核这条记录，而不是凭空认定已推送。
 
 `ready-for-review` 要求 `evidence.review_request_url` 非空，并且 `last_completed_step` 为 `create-review-request`。机审和人审结论继续记录在 `state.json` 的 evidence 中，而不是只留在 CI 日志或聊天记录里。
-
-state manager 与 validator 覆盖从 `issue-opened` 到 `review-complete` 的完整状态机，包括 `issue-opened`、`issue-triaging`、`issue-clarifying`、`ready-for-planning`、`planning`、`planned`、`ready-for-implementation`、`implementing`、`ready-for-review-request`、`ready-for-review`、`machine-reviewing`、`machine-review-failed`、`human-reviewing`、`changes-requested`、`approved`、`blocked` 和 `review-complete`。早期 intake 状态现在也可以直接写入本地 `state.json`，并通过 `init-state --state ...`、`triage-issue`、`discuss-issue`、`mark-issue-actionable`、`create-issue-worktree` 和 `create-planning-files` 推进。
 
 ## Implementation Gate
 

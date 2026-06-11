@@ -1,6 +1,6 @@
 # 托管 Runner
 
-托管 runner 让 GitHub Actions 或 GitLab CI 可以检查证据，并在明确拥有权限时应用 GCW 状态转换。这里的应用状态转换，就是把本地证据写回 GCW 状态文件或托管平台内容。
+托管 runner 分两类：只读验证和受 ownership gate 保护的写入。
 
 ## 只读检查
 
@@ -14,7 +14,7 @@
 
 ## Hosted Apply
 
-这些入口需要手动触发，并受 ownership gate 保护。workflow 会先用 `record-handoff` 认领当前 run 的 ownership；这个转移只接受当前 owner 仍是 local，或者已经是同一个 hosted runner 的情况。随后 ownership gate 再检查当前 runner 是否拥有写入权，以及 runner 身份是否与 `state.json` 中记录的一致：
+这些入口需要手动触发，并先通过 `record-handoff` 认领 ownership。随后 ownership gate 再检查 `state.json.owner.kind` / `state.json.owner.id` 是否与 runner 身份一致：
 
 ```text
 .github/workflows/gcw-hosted-apply.yml
@@ -24,10 +24,9 @@
 Hosted apply 可以：
 
 - 执行支持的 `gcw_step.py --mode apply` 状态转换。
-- 执行 review 阶段的 `machine-review-*`、`address-*`、`human-review-result` 和 `review-complete` 写入步骤。
-- 根据本地 evidence 渲染 progress comment 和 review request body。
+- 渲染 progress comment 和 review request body。
 - 更新 issue progress comment 和 review request body。
-- 提交变更后的 `.gcw/issues/<issue-id>/` evidence。
+- 提交 `.gcw/issues/<issue-id>/` evidence。
 - 推送当前 Issue 分支。
 
 Hosted apply 不可以：
@@ -37,11 +36,10 @@ Hosted apply 不可以：
 - Merge review request。
 - Close issue。
 - 未经显式 handoff 覆盖 ownership。
-- 未经明确批准编辑他人内容。
 
 ## Action Pipelines
 
-这些入口把多个已支持的 `gcw_step.py --mode apply` 步骤串成文档中的 Action pipeline。它们同样需要手动触发并先声明 ownership；每个写入步骤仍由 step runner 执行 ownership gate。
+这些入口把多个已支持的 `gcw_step.py --mode apply` 步骤串起来：
 
 ```text
 .github/workflows/gcw-action-pipelines.yml
@@ -58,16 +56,11 @@ Hosted apply 不可以：
 - `human-feedback-loop`
 - `review-complete`
 
-Action pipeline 可以减少重复手动触发，但不会放宽安全边界：不能 force-push、merge review request、close issue、删除分支，或在没有明确授权时修改托管平台对象。
+Action pipeline 仍然不能 force-push、merge review request、close issue、删除分支，或在没有明确授权时修改托管平台对象。
 
 ## Ownership 规则
 
-除非 `state.json.owner.kind` 和 `state.json.owner.id` 都与 runner 匹配，否则 hosted apply 必须 fail closed，也就是直接失败并拒绝写入：
-
-- GitHub Actions 使用 `github-actions`。
-- GitLab CI 使用 `gitlab-ci`。
-
-Hosted runner 接管后续写入前，先使用 `record-handoff`：
+除非 `state.json.owner.kind` 和 `state.json.owner.id` 都与 runner 匹配，否则 hosted apply 必须 fail closed。GitHub Actions 使用 `github-actions`，GitLab CI 使用 `gitlab-ci`。
 
 ```bash
 python3 .agents/skills/gcw/scripts/manage_gcw_state.py record-handoff \
@@ -86,16 +79,4 @@ python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py progress-comme
 python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request --issue-dir .gcw/issues/<issue-id>
 ```
 
-Progress comment 渲染结果以 `<!-- gcw-progress -->` marker 开头，与 `issue-manage` 的 `gcw-progress-upsert` 定位规则保持一致，整条评论是生成内容，可以整体替换。
-
-Review request 渲染结果包裹在 `<!-- gcw-review-request:start -->` 与 `<!-- gcw-review-request:end -->` marker 之间。更新已有 review request 前，hosted workflow 必须先抓取现有 body，再用 `merge-review-request` 合并，避免覆盖 marker 区域之外的人工内容：
-
-```bash
-python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py merge-review-request \
-  --existing-file /tmp/existing-body.md \
-  --rendered-file /tmp/rendered-body.md
-```
-
-合并规则：marker 区域内的生成内容被替换；marker 之外的人工内容原样保留；现有 body 没有 marker 时，生成内容追加到人工内容之后。
-
-抓取托管平台上的文本后，使用 [validation.md](validation.md) 验证 remote artifacts。
+远程文本抓取后，使用 [validation.md](validation.md) 验证 remote artifacts。

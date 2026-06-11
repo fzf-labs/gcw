@@ -13,18 +13,23 @@ class DocumentationStructureTest(unittest.TestCase):
             "README.md",
             "CONTRIBUTING.md",
             "CONTEXT.md",
-            "docs/overview.md",
-            "docs/concepts.md",
             "docs/workflow.md",
             "docs/evidence.md",
             "docs/hosted-runners.md",
             "docs/validation.md",
-            "docs/roadmap.md",
-            "docs/adr/0001-commit-planning-files.md",
         ]
         for relative_path in expected_paths:
             with self.subTest(path=relative_path):
                 self.assertTrue((ROOT / relative_path).is_file(), relative_path)
+
+        for removed_path in (
+            "docs/overview.md",
+            "docs/concepts.md",
+            "docs/roadmap.md",
+            "docs/adr/0001-commit-planning-files.md",
+        ):
+            with self.subTest(path=removed_path):
+                self.assertFalse((ROOT / removed_path).exists(), removed_path)
 
     def test_old_executable_workflow_document_name_is_removed(self) -> None:
         self.assertFalse((ROOT / "docs/gcw-executable-workflow.md").exists())

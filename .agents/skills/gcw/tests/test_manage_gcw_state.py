@@ -335,6 +335,30 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.state_now()["state"], "planned")
 
+    def test_record_implement_rejects_when_gate_file_missing(self) -> None:
+        self.reach_ready_for_implementation()
+        (self.issue_dir / "implementation_gate_result.json").unlink()
+
+        result = self.implement()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("passing implementation_gate_result.json", result.stdout)
+        self.assertEqual(self.state_now()["state"], "ready-for-implementation")
+
+    def test_record_implement_rejects_when_gate_not_passing(self) -> None:
+        self.reach_ready_for_implementation()
+        gate_file = self.issue_dir / "implementation_gate_result.json"
+        gate = json.loads(gate_file.read_text("utf-8"))
+        gate["ok"] = False
+        gate["state_transition"]["to"] = "blocked"
+        gate_file.write_text(json.dumps(gate, indent=2), encoding="utf-8")
+
+        result = self.implement()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("passing implementation_gate_result.json", result.stdout)
+        self.assertEqual(self.state_now()["state"], "ready-for-implementation")
+
     # -- readiness / review request ---------------------------------------
 
     def test_record_readiness_evidence_moves_state_to_ready_for_review_request(self) -> None:
@@ -394,6 +418,23 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertIn("readiness evidence requires linked progress comment", output["errors"])
         state = self.state_now()
         self.assertEqual(state["state"], "implementing")
+
+    def test_record_readiness_evidence_requires_passing_implementation_gate(self) -> None:
+        self.prepare_implementing_issue()
+        gate_file = self.issue_dir / "implementation_gate_result.json"
+        gate = json.loads(gate_file.read_text(encoding="utf-8"))
+        gate["ok"] = False
+        gate["state_transition"]["to"] = "blocked"
+        gate_file.write_text(json.dumps(gate, indent=2), encoding="utf-8")
+
+        result = self.readiness_evidence()
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertIn("readiness-check requires passing implementation_gate_result.json", output["errors"])
+        self.assertEqual(self.state_now()["state"], "implementing")
+        self.assertFalse((self.issue_dir / "readiness_evidence.json").exists())
 
     def test_record_review_request_moves_state_to_ready_for_review(self) -> None:
         self.prepare_implementing_issue()
