@@ -12,6 +12,7 @@
 - GitHub 和 GitLab planning links。
 - GitHub Actions 和 GitLab CI 的只读 validation。
 - GitHub Actions 和 GitLab CI 中手动触发、受 ownership gate 保护的 hosted apply。
+- GitHub Actions 和 GitLab CI 中手动触发、受 ownership gate 保护的 Action pipeline 入口，覆盖 issue intake、issue clarify、planning、machine review、feedback loop 和 review complete。
 - Remote artifact 渲染与校验。
 - `issue-opened`、`issue-triaging`、`issue-clarifying`、`ready-for-planning` 的本地 state.json 初始化和状态推进。
 - state manager 与 validator 覆盖从 `planning` 到 `review-complete` 的完整状态机，包括 implementation gate、`implement`、readiness、机审、人审、反馈回环和 review-complete。
@@ -19,7 +20,7 @@
 
 ## 未来工作
 
-- 实现 `gcw-issue-intake`、`gcw-issue-clarify`、`gcw-planning`、`gcw-machine-review`、`gcw-feedback-loop`、`gcw-review-complete` 等 Action 流水线。
+- 扩展 Action pipeline 与托管平台 API 的深度集成，例如自动创建 Issue、创建 review request、补充评论和同步远程 artifact。
 - 接入真正的 cloud coding agent 或 `/fix` runner，在显式 ownership handoff 后执行代码改动。
 - 增加通过 remote API 直接抓取 hosted artifacts 的检查，不再只依赖已抓取的文本文件。
 - 如果项目标准化 `glab` 或 GitLab API credentials，补齐更完整的 GitLab review request 创建和更新流程。

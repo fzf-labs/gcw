@@ -7,9 +7,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 HOSTED_APPLY = ROOT / ".github/workflows/gcw-hosted-apply.yml"
+ACTION_PIPELINES = ROOT / ".github/workflows/gcw-action-pipelines.yml"
 GITLAB_CI = ROOT / ".gitlab-ci.yml"
 GITLAB_VALIDATE = ROOT / ".gitlab/ci/gcw-validate.yml"
 GITLAB_HOSTED_APPLY = ROOT / ".gitlab/ci/gcw-hosted-apply.yml"
+GITLAB_ACTION_PIPELINES = ROOT / ".gitlab/ci/gcw-action-pipelines.yml"
 
 
 class CiWorkflowTest(unittest.TestCase):
@@ -46,6 +48,7 @@ class CiWorkflowTest(unittest.TestCase):
         self.assertIn("include:", content)
         self.assertIn("local: .gitlab/ci/gcw-validate.yml", content)
         self.assertIn("local: .gitlab/ci/gcw-hosted-apply.yml", content)
+        self.assertIn("local: .gitlab/ci/gcw-action-pipelines.yml", content)
         self.assertNotIn("gcw:validate:", content)
         self.assertNotIn("gcw:hosted-apply:", content)
 
@@ -88,6 +91,33 @@ class CiWorkflowTest(unittest.TestCase):
         self.assertIn('git add "$GCW_ISSUE_DIR"', content)
         self.assertNotIn("git push --force", content)
 
+    def test_github_action_pipelines_workflow_is_manual_and_owner_gated(self) -> None:
+        content = ACTION_PIPELINES.read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", content)
+        self.assertIn("contents: write", content)
+        self.assertIn("issues: write", content)
+        self.assertIn("pull-requests: write", content)
+        self.assertIn("gcw_pipeline.py", content)
+        self.assertIn("--claim-ownership", content)
+        self.assertIn("--runner-kind github-actions", content)
+        self.assertIn("--runner-id \"$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT:$GITHUB_JOB\"", content)
+        for pipeline in (
+            "issue-intake",
+            "issue-clarify",
+            "planning",
+            "machine-review",
+            "machine-feedback-loop",
+            "human-feedback-loop",
+            "review-complete",
+        ):
+            self.assertIn(pipeline, content)
+        self.assertIn("render_gcw_hosted_artifacts.py progress-comment", content)
+        self.assertIn("render_gcw_hosted_artifacts.py review-request", content)
+        self.assertIn("gh api", content)
+        self.assertIn("gh pr edit", content)
+        self.assertIn('git add "$GCW_ISSUE_DIR"', content)
+        self.assertNotIn("git push --force", content)
+
     def test_gitlab_hosted_apply_job_is_manual_and_owner_gated(self) -> None:
         content = GITLAB_HOSTED_APPLY.read_text(encoding="utf-8")
         self.assertIn("gcw:hosted-apply", content)
@@ -106,6 +136,32 @@ class CiWorkflowTest(unittest.TestCase):
         self.assertIn("GCW_MACHINE_REVIEW_RESULT", content)
         self.assertIn("GCW_HUMAN_REVIEW_RESULT", content)
         self.assertIn("GCW_REVIEW_COMPLETE_RESULT", content)
+        self.assertIn("render_gcw_hosted_artifacts.py progress-comment", content)
+        self.assertIn("render_gcw_hosted_artifacts.py review-request", content)
+        self.assertIn("curl --request PUT", content)
+        self.assertIn("GCW_PROGRESS_NOTE_ID", content)
+        self.assertIn("GCW_MERGE_REQUEST_IID", content)
+        self.assertIn('git add "$GCW_ISSUE_DIR"', content)
+        self.assertNotIn("git push --force", content)
+
+    def test_gitlab_action_pipelines_job_is_manual_and_owner_gated(self) -> None:
+        content = GITLAB_ACTION_PIPELINES.read_text(encoding="utf-8")
+        self.assertIn("gcw:action-pipeline", content)
+        self.assertIn("when: manual", content)
+        self.assertIn("gcw_pipeline.py", content)
+        self.assertIn("--claim-ownership", content)
+        self.assertIn("--runner-kind gitlab-ci", content)
+        self.assertIn("--runner-id \"${CI_PIPELINE_ID}:${CI_JOB_ID}\"", content)
+        for pipeline in (
+            "issue-intake",
+            "issue-clarify",
+            "planning",
+            "machine-review",
+            "machine-feedback-loop",
+            "human-feedback-loop",
+            "review-complete",
+        ):
+            self.assertIn(pipeline, content)
         self.assertIn("render_gcw_hosted_artifacts.py progress-comment", content)
         self.assertIn("render_gcw_hosted_artifacts.py review-request", content)
         self.assertIn("curl --request PUT", content)

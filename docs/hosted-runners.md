@@ -39,6 +39,27 @@ Hosted apply 不可以：
 - 未经显式 handoff 覆盖 ownership。
 - 未经明确批准编辑他人内容。
 
+## Action Pipelines
+
+这些入口把多个已支持的 `gcw_step.py --mode apply` 步骤串成文档中的 Action pipeline。它们同样需要手动触发并先声明 ownership；每个写入步骤仍由 step runner 执行 ownership gate。
+
+```text
+.github/workflows/gcw-action-pipelines.yml
+.gitlab/ci/gcw-action-pipelines.yml
+```
+
+当前支持的 pipeline：
+
+- `issue-intake`
+- `issue-clarify`
+- `planning`
+- `machine-review`
+- `machine-feedback-loop`
+- `human-feedback-loop`
+- `review-complete`
+
+Action pipeline 可以减少重复手动触发，但不会放宽安全边界：不能 force-push、merge review request、close issue、删除分支，或在没有明确授权时修改托管平台对象。
+
 ## Ownership 规则
 
 除非 `state.json.owner.kind` 和 `state.json.owner.id` 都与 runner 匹配，否则 hosted apply 必须 fail closed，也就是直接失败并拒绝写入：

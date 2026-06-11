@@ -5,3 +5,4 @@ stages:
 include:
   - local: .gitlab/ci/gcw-validate.yml
   - local: .gitlab/ci/gcw-hosted-apply.yml
+  - local: .gitlab/ci/gcw-action-pipelines.yml
