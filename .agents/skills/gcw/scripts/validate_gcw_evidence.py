@@ -7,45 +7,35 @@ from pathlib import Path
 from typing import Any
 
 
-PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
-VALID_STATES = {
+STATES = {
     "issue-opened",
-    "issue-triaging",
     "issue-clarifying",
     "ready-for-planning",
-    "planning",
     "planned",
     "ready-for-implementation",
     "implementing",
-    "ready-for-review-request",
     "ready-for-review",
-    "machine-reviewing",
-    "machine-review-failed",
-    "human-reviewing",
+    "reviewing",
     "changes-requested",
-    "approved",
     "blocked",
     "review-complete",
 }
-ALLOWED_NEXT_STEPS = {
-    "issue-opened": {"triage-issue"},
-    "issue-triaging": {"discuss-issue", "mark-issue-actionable"},
-    "issue-clarifying": {"discuss-issue", "mark-issue-actionable"},
-    "ready-for-planning": {"create-issue-worktree", "create-planning-files"},
-    "planning": {"publish-planning"},
-    "planned": {"implementation-gate"},
-    "ready-for-implementation": {"implement"},
-    "implementing": {"implement", "local-self-review", "readiness-check", "block", "clarify"},
-    "ready-for-review-request": {"create-review-request"},
-    "ready-for-review": {"machine-review-start"},
-    "machine-reviewing": {"machine-review-result"},
-    "machine-review-failed": {"address-machine-feedback", "block", "clarify"},
-    "human-reviewing": {"human-review-result"},
-    "changes-requested": {"address-human-feedback"},
-    "approved": {"review-complete", "implement"},
-    "blocked": set(),
-    "review-complete": set(),
+
+NEXT_ALLOWED_STEPS: dict[str, list[str]] = {
+    "issue-opened": ["gcw-issue-prepare"],
+    "issue-clarifying": ["gcw-issue-prepare"],
+    "ready-for-planning": ["gcw-issue-to-spec"],
+    "planned": ["gcw-spec-check"],
+    "ready-for-implementation": ["gcw-implement"],
+    "implementing": ["gcw-implement", "gcw-implement-check", "gcw-block", "gcw-clarify"],
+    "ready-for-review": ["gcw-pr-publish"],
+    "reviewing": ["gcw-pr-review"],
+    "changes-requested": ["gcw-implement"],
+    "blocked": [],
+    "review-complete": [],
 }
+
+PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
 
 
 def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
@@ -63,386 +53,145 @@ def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
     return data
 
 
-def require_non_empty(data: dict[str, Any], path: str, errors: list[str]) -> Any:
-    current: Any = data
-    for part in path.split("."):
-        if not isinstance(current, dict) or part not in current:
-            errors.append(f"{path} is missing")
-            return None
-        current = current[part]
-    if current in ("", None, [], {}):
-        errors.append(f"{path} is empty")
-    return current
+def require_non_empty(data: dict[str, Any], key: str, errors: list[str], prefix: str = "") -> None:
+    value = data.get(key)
+    if value is None or str(value).strip() == "":
+        errors.append(f"{prefix}{key} is required")
 
 
-def validate_validation_entries(evidence: dict[str, Any], errors: list[str]) -> None:
-    validation = evidence.get("validation")
-    if not isinstance(validation, list):
-        errors.append("validation must be an array")
-        return
-    if not validation:
-        errors.append("validation is empty")
-        return
-    for index, entry in enumerate(validation):
-        entry_path = f"validation[{index}]"
-        if not isinstance(entry, dict):
-            errors.append(f"{entry_path} must be an object")
-            continue
-        for field in ("command", "result"):
-            value = entry.get(field)
-            field_path = f"{entry_path}.{field}"
-            if value is None:
-                errors.append(f"{field_path} is missing")
-            elif not isinstance(value, str):
-                errors.append(f"{field_path} must be a string")
-            elif value == "":
-                errors.append(f"{field_path} is empty")
-
-
-def require_string(data: dict[str, Any], path: str, errors: list[str], *, allow_empty: bool = False) -> str | None:
-    current: Any = data
-    for part in path.split("."):
-        if not isinstance(current, dict) or part not in current:
-            errors.append(f"{path} is missing")
-            return None
-        current = current[part]
-    if not isinstance(current, str):
-        errors.append(f"{path} must be a string")
-        return None
-    if not allow_empty and current == "":
-        errors.append(f"{path} is empty")
-    return current
-
-
-def require_issue_identifier(data: dict[str, Any], path: str, errors: list[str]) -> Any:
-    current: Any = data
-    for part in path.split("."):
-        if not isinstance(current, dict) or part not in current:
-            errors.append(f"{path} is missing")
-            return None
-        current = current[part]
-    if type(current) is int:
-        return current
-    if isinstance(current, str):
-        if current == "":
-            errors.append(f"{path} is empty")
-            return None
-        return current
-    errors.append(f"{path} must be an integer or a non-empty string")
-    return None
-
-
-def require_string_enum(
-    data: dict[str, Any],
-    path: str,
-    allowed: set[str],
-    errors: list[str],
-    *,
-    allow_empty: bool = False,
-) -> str | None:
-    current = require_string(data, path, errors, allow_empty=allow_empty)
-    if current is None:
-        return None
-    if current not in allowed:
-        errors.append(f"{path} must be one of: {', '.join(sorted(allowed))}")
-    return current
-
-
-def require_string_list(data: dict[str, Any], path: str, errors: list[str]) -> list[str] | None:
-    current: Any = data
-    for part in path.split("."):
-        if not isinstance(current, dict) or part not in current:
-            errors.append(f"{path} is missing")
-            return None
-        current = current[part]
-    if not isinstance(current, list):
-        errors.append(f"{path} must be an array")
-        return None
-    for item in current:
-        if not isinstance(item, str):
-            errors.append(f"{path} items must be strings")
-            return None
-    return current
-
-
-def require_true(data: dict[str, Any], path: str, errors: list[str], message: str) -> None:
-    current = require_non_empty(data, path, errors)
-    if current is not True:
-        errors.append(message)
-
-
-def require_boolean(data: dict[str, Any], path: str, errors: list[str]) -> Any:
-    current = require_non_empty(data, path, errors)
-    if not isinstance(current, bool):
-        errors.append(f"{path} must be a boolean")
-    return current
-
-
-def require_last_completed_step(state_name: str, state: dict[str, Any], expected: str, errors: list[str]) -> None:
-    actual = state.get("last_completed_step")
-    if expected == "":
-        if actual != "":
-            errors.append(f"{state_name} requires last_completed_step to be empty")
-        return
-    if actual != expected:
-        errors.append(f"{state_name} requires last_completed_step {expected}")
-
-
-def require_next_allowed_steps_include(
-    state_name: str,
-    state: dict[str, Any],
-    expected_steps: list[str],
-    errors: list[str],
-) -> None:
-    actual = state.get("next_allowed_steps")
-    if not isinstance(actual, list):
-        return
-    missing = [step for step in expected_steps if step not in actual]
-    if missing:
-        if len(expected_steps) == 1:
-            errors.append(f"{state_name} requires next_allowed_steps to include {expected_steps[0]}")
-        else:
-            errors.append(
-                f"{state_name} requires next_allowed_steps to include {', '.join(expected_steps)}"
-            )
-
-
-def validate_planning_files(issue_dir: Path, errors: list[str]) -> None:
-    for name in PLANNING_FILES:
-        if not (issue_dir / name).is_file():
-            errors.append(f"{name} is missing")
-
-
-def validate_state(issue_dir: Path, errors: list[str]) -> dict[str, Any]:
+def state_errors(issue_dir: Path) -> list[str]:
+    errors: list[str] = []
     state = load_json(issue_dir / "state.json", errors)
-    require_issue_identifier(state, "issue", errors)
-    require_string_enum(state, "platform", {"github", "gitlab"}, errors)
-    require_string(state, "repository", errors)
-    require_string(state, "branch", errors)
-    require_string_enum(state, "owner.kind", {"local", "github-actions", "gitlab-ci", "manual"}, errors)
-    require_string(state, "owner.id", errors)
-    require_string(state, "last_completed_step", errors, allow_empty=True)
-    require_string_list(state, "next_allowed_steps", errors)
-    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
-    require_boolean(evidence, "planning_files_exist", errors)
-    require_boolean(evidence, "planning_commit_pushed", errors)
-    require_string(evidence, "progress_comment_url", errors, allow_empty=True)
-    require_boolean(evidence, "self_review_recorded", errors)
-    require_string(evidence, "review_request_url", errors, allow_empty=True)
-    current_state = state.get("state")
-    if current_state not in VALID_STATES:
-        errors.append("state.json state is missing or invalid")
-    next_allowed_steps = state.get("next_allowed_steps")
-    if isinstance(next_allowed_steps, list) and current_state in ALLOWED_NEXT_STEPS:
-        unexpected_steps = sorted(set(next_allowed_steps) - ALLOWED_NEXT_STEPS[current_state])
-        if unexpected_steps:
-            errors.append(
-                f"next_allowed_steps contains steps not allowed from {current_state}: {', '.join(unexpected_steps)}"
-            )
-    if current_state == "issue-opened":
-        require_last_completed_step("issue-opened", state, "", errors)
-        require_next_allowed_steps_include("issue-opened", state, ["triage-issue"], errors)
-    if current_state == "issue-triaging":
-        require_last_completed_step("issue-triaging", state, "triage-issue", errors)
-        require_next_allowed_steps_include(
-            "issue-triaging",
-            state,
-            ["discuss-issue", "mark-issue-actionable"],
-            errors,
-        )
-    if current_state == "ready-for-planning":
-        require_last_completed_step("ready-for-planning", state, "mark-issue-actionable", errors)
-        require_next_allowed_steps_include(
-            "ready-for-planning",
-            state,
-            ["create-issue-worktree", "create-planning-files"],
-            errors,
-        )
-    if current_state == "planning":
-        require_next_allowed_steps_include("planning", state, ["publish-planning"], errors)
-    if current_state == "planned":
-        validate_planning_files(issue_dir, errors)
-        require_last_completed_step("planned", state, "publish-planning", errors)
-        require_next_allowed_steps_include("planned", state, ["implementation-gate"], errors)
-        require_true(evidence, "planning_files_exist", errors, "planned requires evidence.planning_files_exist")
-        require_true(evidence, "planning_commit_pushed", errors, "planned requires evidence.planning_commit_pushed")
-        require_non_empty(evidence, "progress_comment_url", errors)
-    if current_state == "ready-for-implementation":
-        require_last_completed_step("ready-for-implementation", state, "implementation-gate", errors)
-        require_next_allowed_steps_include("ready-for-implementation", state, ["implement"], errors)
-    if current_state == "ready-for-review-request":
-        if not (issue_dir / "readiness_evidence.json").is_file():
-            errors.append("ready-for-review-request requires readiness_evidence.json")
-        require_last_completed_step("ready-for-review-request", state, "readiness-check", errors)
-        require_next_allowed_steps_include("ready-for-review-request", state, ["create-review-request"], errors)
-    if current_state == "ready-for-review":
-        if not (issue_dir / "readiness_evidence.json").is_file():
-            errors.append("ready-for-review requires readiness_evidence.json")
-        if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
-            errors.append("ready-for-review requires state.json evidence.review_request_url")
-        require_last_completed_step("ready-for-review", state, "create-review-request", errors)
-        require_next_allowed_steps_include("ready-for-review", state, ["machine-review-start"], errors)
-    if current_state in {"machine-reviewing", "machine-review-failed", "human-reviewing", "changes-requested", "approved", "review-complete"}:
-        if not (issue_dir / "readiness_evidence.json").is_file():
-            errors.append(f"{current_state} requires readiness_evidence.json")
-        if not isinstance(evidence, dict) or not evidence.get("review_request_url"):
-            errors.append(f"{current_state} requires state.json evidence.review_request_url")
-    if current_state == "machine-reviewing":
-        require_last_completed_step("machine-reviewing", state, "machine-review-start", errors)
-        require_next_allowed_steps_include("machine-reviewing", state, ["machine-review-result"], errors)
-    if current_state == "machine-review-failed":
-        require_last_completed_step("machine-review-failed", state, "machine-review-result", errors)
-        require_next_allowed_steps_include(
-            "machine-review-failed",
-            state,
-            ["address-machine-feedback", "block", "clarify"],
-            errors,
-        )
-    if current_state == "human-reviewing":
-        require_last_completed_step("human-reviewing", state, "machine-review-result", errors)
-        require_next_allowed_steps_include("human-reviewing", state, ["human-review-result"], errors)
-    if current_state == "changes-requested":
-        require_last_completed_step("changes-requested", state, "human-review-result", errors)
-        require_next_allowed_steps_include("changes-requested", state, ["address-human-feedback"], errors)
-    if current_state == "approved":
-        require_last_completed_step("approved", state, "human-review-result", errors)
-        require_next_allowed_steps_include("approved", state, ["review-complete", "implement"], errors)
-    if current_state == "review-complete":
-        require_last_completed_step("review-complete", state, "review-complete", errors)
-        if not isinstance(evidence, dict) or not evidence.get("review_complete_result"):
-            errors.append("review-complete requires state.json evidence.review_complete_result")
-        if isinstance(next_allowed_steps, list) and next_allowed_steps:
-            errors.append("review-complete requires next_allowed_steps to be empty")
-    return state
+    if errors:
+        return errors
 
+    for key in ("issue", "platform", "repository", "state", "branch", "owner", "last_completed_step", "next_allowed_steps", "evidence"):
+        if key not in state:
+            errors.append(f"state.json missing {key}")
 
-def validate_passing_gate_for_state(issue_dir: Path, errors: list[str]) -> None:
-    gate = load_json(issue_dir / "implementation_gate_result.json", errors)
-    if not gate:
-        errors.append("implementing requires passing implementation_gate_result.json")
-        return
-    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "ready-for-implementation":
-        errors.append("implementing requires passing implementation_gate_result.json")
+    current = state.get("state")
+    if current not in STATES:
+        errors.append(f"state.json has unknown state {current}")
+        return errors
 
+    expected_next = NEXT_ALLOWED_STEPS[current]
+    if state.get("next_allowed_steps") != expected_next:
+        errors.append(f"{current} requires next_allowed_steps {expected_next}")
 
-def validate_state_file(issue_dir: Path) -> dict[str, Any]:
-    errors: list[str] = []
-    state = validate_state(issue_dir, errors)
-    if state.get("state") == "implementing":
-        validate_passing_gate_for_state(issue_dir, errors)
-    return {"step": "state", "ok": not errors, "errors": errors}
-
-
-def validate_implementation_gate(issue_dir: Path) -> dict[str, Any]:
-    errors: list[str] = []
-    state = validate_state(issue_dir, errors)
-    gate = load_json(issue_dir / "implementation_gate_result.json", errors)
-
-    step = require_non_empty(gate, "step", errors)
-    if step is not None and step != "implementation-gate":
-        errors.append("implementation gate step is invalid")
-    gate_ok = require_boolean(gate, "ok", errors)
-    transition_from = require_non_empty(gate, "state_transition.from", errors)
-    transition_to = require_non_empty(gate, "state_transition.to", errors)
-    if transition_from != "planned":
-        errors.append("implementation gate transition source is invalid")
-    if transition_to not in {"ready-for-implementation", "issue-clarifying", "blocked"}:
-        errors.append("implementation gate transition target is invalid")
-    if gate_ok is True and transition_to != "ready-for-implementation":
-        errors.append("passing implementation gate must transition to ready-for-implementation")
-    if gate_ok is False and transition_to not in {"issue-clarifying", "blocked"}:
-        errors.append("non-passing implementation gate must transition to issue-clarifying or blocked")
-    if state.get("state") == "planned":
-        errors.append("implementation gate requires state.json state to advance beyond planned")
-
-    checks = gate.get("checks") if isinstance(gate.get("checks"), dict) else {}
-    if not checks:
-        errors.append("implementation gate checks are missing")
+    evidence = state.get("evidence")
+    if not isinstance(evidence, dict):
+        errors.append("state.json evidence must be an object")
     else:
-        for check_name in (
+        for key in (
             "planning_files_exist",
             "planning_commit_pushed",
-            "progress_comment_linked",
-            "issue_actionable",
+            "progress_comment_url",
+            "spec_check_passed",
+            "implement_check_passed",
+            "self_review_recorded",
+            "review_request_url",
         ):
-            require_boolean(checks, check_name, errors)
-        if gate_ok is True:
-            require_true(checks, "planning_files_exist", errors, "gate check planning_files_exist is not passing")
-            require_true(checks, "planning_commit_pushed", errors, "gate check planning_commit_pushed is not passing")
-            require_true(checks, "progress_comment_linked", errors, "gate check progress_comment_linked is not passing")
-            require_true(checks, "issue_actionable", errors, "gate check issue_actionable is not passing")
+            if key not in evidence:
+                errors.append(f"state.json evidence missing {key}")
 
-    if gate_ok is True:
-        validate_planning_files(issue_dir, errors)
-        evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
-        if not evidence:
-            errors.append("state.json evidence is missing")
+    metadata = state.get("metadata")
+    if current == "blocked":
+        if not isinstance(metadata, dict):
+            errors.append("blocked requires metadata")
         else:
-            require_true(evidence, "planning_files_exist", errors, "planning files are not marked as existing")
-            require_true(evidence, "planning_commit_pushed", errors, "planning commit is not marked as pushed")
-            require_non_empty(evidence, "progress_comment_url", errors)
-    elif gate_ok is False:
-        gate_errors = gate.get("errors")
-        if not isinstance(gate_errors, list) or not gate_errors:
-            errors.append("non-passing implementation gate requires errors")
+            require_non_empty(metadata, "resume_state", errors, "metadata.")
+            require_non_empty(metadata, "resume_step", errors, "metadata.")
+    if current == "changes-requested":
+        if not isinstance(metadata, dict):
+            errors.append("changes-requested requires metadata")
+        else:
+            source = metadata.get("feedback_source")
+            if source not in {"pr-review", "human-review"}:
+                errors.append("changes-requested requires metadata.feedback_source pr-review or human-review")
 
-    return {"step": "implementation-gate", "ok": not errors, "errors": errors}
+    return errors
 
 
-def validate_readiness(issue_dir: Path, step_name: str = "readiness-check") -> dict[str, Any]:
-    errors: list[str] = []
-    validate_planning_files(issue_dir, errors)
-    state = validate_state(issue_dir, errors)
-    if state.get("state") != "ready-for-review-request":
-        errors.append(f"{step_name} must leave state.json state as ready-for-review-request")
-    gate_result = validate_implementation_gate(issue_dir)
-    if not gate_result["ok"]:
-        errors.extend(f"implementation gate: {error}" for error in gate_result["errors"])
-    gate_errors: list[str] = []
-    gate = load_json(issue_dir / "implementation_gate_result.json", gate_errors)
-    if gate.get("ok") is not True or gate.get("state_transition", {}).get("to") != "ready-for-implementation":
-        errors.append("readiness-check requires passing implementation gate")
+def spec_check_errors(issue_dir: Path) -> list[str]:
+    errors = state_errors(issue_dir)
+    state = load_json(issue_dir / "state.json", []) if (issue_dir / "state.json").is_file() else {}
+    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
 
-    evidence = load_json(issue_dir / "readiness_evidence.json", errors)
-    require_non_empty(evidence, "issue", errors)
-    require_non_empty(evidence, "branch", errors)
-    require_non_empty(evidence, "base_branch", errors)
-    require_non_empty(evidence, "commit_range", errors)
-    require_non_empty(evidence, "review_request.title", errors)
-    require_non_empty(evidence, "review_request.summary", errors)
-    require_non_empty(evidence, "review_request.issue_link", errors)
-    validate_validation_entries(evidence, errors)
-    require_true(evidence, "local_self_review.recorded", errors, "local self-review is not recorded")
-    progress_section = require_non_empty(evidence, "local_self_review.progress_section", errors)
-    require_non_empty(evidence, "planning_links.task_plan", errors)
-    require_non_empty(evidence, "planning_links.findings", errors)
-    require_non_empty(evidence, "planning_links.progress", errors)
-    require_non_empty(evidence, "progress_comment_url", errors)
-    require_non_empty(evidence, "risks", errors)
+    missing = [name for name in PLANNING_FILES if not (issue_dir / name).is_file()]
+    if missing:
+        errors.append(f"missing planning files: {', '.join(missing)}")
+    if evidence.get("planning_files_exist") is not True:
+        errors.append("planning_files_exist must be true")
+    if evidence.get("planning_commit_pushed") is not True:
+        errors.append("planning_commit_pushed must be true")
+    if not str(evidence.get("progress_comment_url", "")).strip():
+        errors.append("progress_comment_url is required")
+    if state.get("state") == "ready-for-implementation" and evidence.get("spec_check_passed") is not True:
+        errors.append("ready-for-implementation requires spec_check_passed true")
+    return errors
 
-    progress_path = issue_dir / "progress.md"
-    if progress_path.is_file() and isinstance(progress_section, str):
-        progress_text = progress_path.read_text(encoding="utf-8")
-        if progress_section not in progress_text:
-            errors.append("local self-review progress section is not present in progress.md")
 
-    return {"step": step_name, "ok": not errors, "errors": errors}
+def implement_check_errors(issue_dir: Path) -> list[str]:
+    errors = state_errors(issue_dir)
+    state = load_json(issue_dir / "state.json", []) if (issue_dir / "state.json").is_file() else {}
+    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
+    readiness = load_json(issue_dir / "readiness_evidence.json", errors)
+
+    if state.get("state") != "ready-for-review":
+        errors.append("implement-check requires state ready-for-review")
+    if evidence.get("implement_check_passed") is not True:
+        errors.append("implement_check_passed must be true")
+    if evidence.get("self_review_recorded") is not True:
+        errors.append("self_review_recorded must be true")
+
+    if readiness:
+        for key in ("issue", "branch", "base_branch", "commit_range", "review_request", "validation", "local_self_review", "planning_links", "progress_comment_url", "risks"):
+            if key not in readiness:
+                errors.append(f"readiness_evidence.json missing {key}")
+    return errors
+
+
+def pr_publish_errors(issue_dir: Path) -> list[str]:
+    errors = state_errors(issue_dir)
+    state = load_json(issue_dir / "state.json", []) if (issue_dir / "state.json").is_file() else {}
+    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
+    if state.get("state") != "reviewing":
+        errors.append("pr-publish requires state reviewing")
+    if not str(evidence.get("review_request_url", "")).strip():
+        errors.append("review_request_url is required")
+    return errors
+
+
+def run_check(args: argparse.Namespace) -> dict[str, Any]:
+    if args.command == "state":
+        errors = state_errors(args.issue_dir)
+    elif args.command == "spec-check":
+        errors = spec_check_errors(args.issue_dir)
+    elif args.command == "implement-check":
+        errors = implement_check_errors(args.issue_dir)
+    else:
+        errors = pr_publish_errors(args.issue_dir)
+    return {
+        "check": args.command,
+        "ok": not errors,
+        "errors": errors,
+    }
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Validate GCW state and evidence for the current workflow contract.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    for command in ("state", "spec-check", "implement-check", "pr-publish"):
+        subparser = subparsers.add_parser(command)
+        subparser.add_argument("--issue-dir", required=True, type=Path)
+        subparser.set_defaults(handler=run_check)
+    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate GCW issue workflow evidence.")
-    parser.add_argument("command", choices=("state", "implementation-gate", "readiness-check", "create-review-request"))
-    parser.add_argument("--issue-dir", required=True, type=Path)
+    parser = build_parser()
     args = parser.parse_args(argv)
-
-    issue_dir = args.issue_dir
-    if args.command == "state":
-        result = validate_state_file(issue_dir)
-    elif args.command == "implementation-gate":
-        result = validate_implementation_gate(issue_dir)
-    else:
-        result = validate_readiness(issue_dir, step_name=args.command)
-
+    result = args.handler(args)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["ok"] else 1
 

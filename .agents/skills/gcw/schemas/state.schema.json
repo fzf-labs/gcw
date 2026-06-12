@@ -34,20 +34,14 @@
       "type": "string",
       "enum": [
         "issue-opened",
-        "issue-triaging",
         "issue-clarifying",
         "ready-for-planning",
-        "planning",
         "planned",
         "ready-for-implementation",
         "implementing",
-        "ready-for-review-request",
         "ready-for-review",
-        "machine-reviewing",
-        "machine-review-failed",
-        "human-reviewing",
+        "reviewing",
         "changes-requested",
-        "approved",
         "blocked",
         "review-complete"
       ]
@@ -87,6 +81,8 @@
         "planning_files_exist",
         "planning_commit_pushed",
         "progress_comment_url",
+        "spec_check_passed",
+        "implement_check_passed",
         "self_review_recorded",
         "review_request_url"
       ],
@@ -94,12 +90,25 @@
         "planning_files_exist": { "type": "boolean" },
         "planning_commit_pushed": { "type": "boolean" },
         "progress_comment_url": { "type": "string" },
+        "spec_check_passed": { "type": "boolean" },
+        "implement_check_passed": { "type": "boolean" },
         "self_review_recorded": { "type": "boolean" },
-        "self_review_progress_section": { "type": "string" },
-        "review_request_url": { "type": "string" },
+        "review_request_url": { "type": "string" }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "feedback_source": {
+          "type": "string",
+          "enum": ["pr-review", "human-review"]
+        },
+        "resume_state": { "type": "string" },
+        "resume_step": { "type": "string" },
         "block_reason": { "type": "string" },
         "clarifying_question": { "type": "string" },
-        "handoff_reason": { "type": "string" }
+        "review_result": { "type": "string" }
       }
     }
   }

@@ -21,6 +21,29 @@ class GcwSchemaTest(unittest.TestCase):
                 self.assertIn("required", schema)
                 self.assertIn("properties", schema)
 
+    def test_state_schema_only_allows_current_states(self) -> None:
+        schema = json.loads((SCHEMA_DIR / "state.schema.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            schema["properties"]["state"]["enum"],
+            [
+                "issue-opened",
+                "issue-clarifying",
+                "ready-for-planning",
+                "planned",
+                "ready-for-implementation",
+                "implementing",
+                "ready-for-review",
+                "reviewing",
+                "changes-requested",
+                "blocked",
+                "review-complete",
+            ],
+        )
+
+    def test_spec_check_schema_uses_current_step_name(self) -> None:
+        schema = json.loads((SCHEMA_DIR / "implementation_gate_result.schema.json").read_text(encoding="utf-8"))
+        self.assertEqual(schema["properties"]["step"]["const"], "spec-check")
+
 
 if __name__ == "__main__":
     unittest.main()

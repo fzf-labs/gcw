@@ -33,8 +33,8 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(result.stdout.startswith("<!-- gcw-progress -->\n"))
-        self.assertIn("GCW Status: ready-for-review-request", result.stdout)
-        self.assertIn("Last completed step: readiness-check", result.stdout)
+        self.assertIn("GCW Status: ready-for-review", result.stdout)
+        self.assertIn("Last completed step: gcw-implement-check", result.stdout)
         self.assertIn("- Review request: Not created yet", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md", result.stdout)
@@ -61,19 +61,21 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             """{
   "branch": "feat/example-43",
   "evidence": {
+    "implement_check_passed": false,
     "planning_commit_pushed": true,
     "planning_files_exist": true,
     "progress_comment_url": "https://github.com/owner/repo/issues/43#issuecomment-1",
     "review_request_url": "",
-    "self_review_recorded": false
+    "self_review_recorded": false,
+    "spec_check_passed": false
   },
   "issue": 43,
-  "last_completed_step": "publish-planning",
-  "next_allowed_steps": ["implementation-gate"],
+  "last_completed_step": "gcw-issue-to-spec",
+  "next_allowed_steps": ["gcw-spec-check"],
   "owner": {"id": "workflow-run-1", "kind": "github-actions"},
   "platform": "github",
   "repository": "owner/repo",
-  "state": "planning"
+  "state": "planned"
 }
 """,
             encoding="utf-8",

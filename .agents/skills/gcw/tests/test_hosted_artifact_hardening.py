@@ -77,16 +77,18 @@ class HostedArtifactHardeningTest(unittest.TestCase):
   "issue": 42,
   "platform": "github",
   "repository": "owner/repo",
-  "state": "planning",
+  "state": "planned",
   "branch": "feat/example-42",
   "owner": {"kind": "local", "id": "cursor-session"},
-  "last_completed_step": "",
-  "next_allowed_steps": ["publish-planning"],
+  "last_completed_step": "gcw-issue-to-spec",
+  "next_allowed_steps": ["gcw-spec-check"],
   "evidence": {
     "planning_files_exist": false,
     "planning_commit_pushed": false,
+    "implement_check_passed": false,
     "progress_comment_url": "",
     "self_review_recorded": false,
+    "spec_check_passed": false,
     "review_request_url": ""
   }
 }

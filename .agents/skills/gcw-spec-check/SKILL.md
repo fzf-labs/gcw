@@ -1,0 +1,53 @@
+---
+name: gcw-spec-check
+description: Verify GCW spec files, state, issue links, and actionability before implementation. Use when a GCW issue is planned and must pass the implementation gate.
+---
+
+# GCW Spec Check
+
+Use this after `gcw-issue-to-spec` when the workflow is `planned`.
+
+## Scope
+
+Do:
+
+- Verify spec files exist on the issue branch.
+- Verify the Issue comment links to the current branch versions of the spec files.
+- Verify the issue is still actionable.
+- Move the workflow to `ready-for-implementation`, `issue-clarifying`, or `blocked`.
+
+Do not:
+
+- Modify product code.
+- Treat missing business decisions as implementation assumptions.
+
+## Inputs
+
+Require:
+
+- `.gcw/issues/<issue-id>/state.json`.
+- `.gcw/issues/<issue-id>/task_plan.md`.
+- `.gcw/issues/<issue-id>/findings.md`.
+- `.gcw/issues/<issue-id>/progress.md`.
+- Issue progress/comment link.
+
+## Procedure
+
+1. Read the issue directory and validate the expected spec files.
+2. Validate that the spec files have been pushed and linked from the Issue.
+3. Use `gh` or `glab` when needed to confirm the Issue has not changed in a way that invalidates the spec.
+4. Run the GCW validation scripts when available, especially `validate_gcw_evidence.py state` and any implementation gate checks.
+5. Record the resulting status in the issue progress artifact or report the exact missing evidence.
+
+## State Transition
+
+- Starts from: `planned`.
+- Completes as: `ready-for-implementation`.
+- Falls back to: `issue-clarifying` when Issue decisions are missing. Existing spec files remain as draft and are updated by rerunning `gcw-issue-to-spec`.
+- May move to: `blocked` for permissions, remote access, missing branch data, or validation failures that cannot be fixed without intervention.
+
+## Stop Conditions
+
+- Stop before implementation if any gate item is missing.
+- Stop in `issue-clarifying` if the spec cannot honestly answer the Issue.
+- Stop in `blocked` if infrastructure or permissions prevent validation.

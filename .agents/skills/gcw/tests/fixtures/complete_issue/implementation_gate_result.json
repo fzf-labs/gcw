@@ -11,5 +11,5 @@
     "from": "planned",
     "to": "ready-for-implementation"
   },
-  "step": "implementation-gate"
+  "step": "spec-check"
 }

@@ -1,142 +1,88 @@
 # GCW 工作流
 
-GCW 的完整流程从 Issue 提出开始，不是从写代码开始。一个 Issue 需要先创建、分类、讨论清楚，并被判断为可以开发；这些前置状态也会写入 `state.json`，之后才进入 planning files、实现、review request、机审、人审和审查结束。
+GCW 的完整流程从一个已经存在的 Issue 开始，不是从写代码开始。Issue 可以由人直接在 GitHub/GitLab 平台创建，也可以由 agent 预先创建；GCW 主流程负责接入这个 Issue、分类、讨论清楚，并判断是否可以开发。这些前置状态会在进入 spec files 阶段时写入 Issue 分支中的 `state.json`；在此之前可以由 Issue 评论、label 或 agent 上下文承载。之后才进入实现、review request、PR review、人审和审查结束。
+
+GCW 由人、agent、Action 三方协作推进：
+
+- **人**：在 GitHub/GitLab 上做判断和关键决策。
+- **agent**：Codex、Cursor、Claude Code 等 AI 编码工具，承担需要判断和代码能力的工作；可跑在本地 IDE，也可在 Action 里运行。
+- **Action**：GitHub Actions / GitLab CI 等托管流水线，跑在远端 runner 上，由平台事件触发。
 
 本文把三个层次拆开说明：
 
-- **步骤**：agent、Action 或人可以执行的具体动作。
+- **步骤**：人、agent 或 Action 可以承载或执行的具体动作。
 - **状态**：`state.json` 和 progress snapshot 中记录的稳定阶段。
 - **Action 流水线**：可以合并到同一个自动化入口中连续执行的步骤组。
 
 ## 主流程
 
 ```text
-创建 Issue
-  -> Issue 分类
-  -> Issue 评论和讨论
-  -> 判断 Issue 已经清楚、可以规划
-  -> 创建 planning files
-  -> 提交并推送 planning files
-  -> 在 Issue 评论中链接 planning files
-  -> 开发
-  -> 自查和 readiness check
-  -> 创建 review request
-  -> PR/MR 机审
-  -> 人类审查
-  -> 审查结束
+已有 Issue
+  -> gcw-issue-intake
+  -> gcw-issue-prepare
+  -> gcw-issue-to-spec
+  -> gcw-spec-check
+  -> gcw-implement
+  -> gcw-implement-check
+  -> gcw-pr-publish
+  -> gcw-pr-review
+  -> 等待 GitHub/GitLab 上的人类审查和结束结果
 ```
 
-planning files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到远程分支，然后通过 Issue 评论链接到这些文件。
+spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到远程分支，然后通过 Issue 评论链接到这些文件。当前 spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md`。
+
+如果 `gcw-spec-check` 发现 Issue 仍不清楚，会回到 `issue-clarifying`；已生成的 spec files 作为草稿保留，澄清后重新执行 `gcw-issue-to-spec` 更新。
 
 ## 步骤拆解
 
-| 顺序 | 步骤 | 目标 | 完成后的状态 | 可放入 Action |
-| --- | --- | --- | --- | --- |
-| 1 | `create-issue` | 创建 GitHub/GitLab Issue，写清背景、目标、期望结果和已知约束。 | `issue-opened` | 可以；也可以由人手动创建 |
-| 2 | `triage-issue` | 分类 Issue，判断类型、优先级、影响范围、是否重复，并补充 labels 或 metadata。 | `issue-triaging` | 是 |
-| 3 | `discuss-issue` | 通过 Issue 评论补充信息、确认边界、澄清验收标准和风险。 | `issue-clarifying` | 部分可以；关键答案必须来自人或可信来源 |
-| 4 | `mark-issue-actionable` | 判断 Issue 是否已经讨论清楚，能否安全进入开发规划。 | `ready-for-planning` 或 `issue-clarifying` | 是 |
-| 5 | `create-issue-worktree` | 为 Issue 创建隔离 worktree，避免污染当前工作区。 | `ready-for-planning` | 是 |
-| 6 | `create-planning-files` | 创建 `.gcw/issues/<issue-id>/` 下的 `task_plan.md`、`findings.md`、`progress.md`。 | `planning` | 是 |
-| 7 | `publish-planning` | 提交并推送 planning files，并在 Issue 评论中链接这些文件。 | `planned` | 是 |
-| 8 | `implementation-gate` | 检查 Issue 是否 actionable、planning files 是否已推送、Issue 评论是否已链接规划文件。 | `ready-for-implementation`、`issue-clarifying` 或 `blocked` | 是 |
-| 9 | `implement` | 按计划修改代码、补测试、更新必要文档。 | `implementing` | 可以，但需要 agent 具备代码能力 |
-| 10 | `local-self-review` | 创建 review request 前检查 diff、提交边界、风险、验证结果和 planning files。 | `implementing` | 是 |
-| 11 | `readiness-check` | 生成或验证 readiness evidence，确认分支具备创建 review request 的条件。 | `ready-for-review-request` | 是 |
-| 12 | `create-review-request` | 创建或更新 GitHub Pull Request / GitLab Merge Request，并写入完整 summary、Issue link、验证结果和风险说明。 | `ready-for-review` | 是 |
-| 13 | `machine-review-start` | 触发 CI、静态检查、remote artifact verification、可选 AI review。 | `machine-reviewing` | 是 |
-| 14 | `machine-review-result` | 汇总机审结果；通过则进入人审，失败则回到修复流程。 | `human-reviewing` 或 `machine-review-failed` | 是 |
-| 15 | `address-machine-feedback` | 根据 CI、静态检查或 AI review 的问题修复代码，并重新更新 review request。 | `implementing` | 可以，但需要 agent 具备代码能力 |
-| 16 | `human-review-result` | 记录人类 reviewer 的结论：通过、要求修改、阻塞、关闭或拒绝。 | `approved`、`changes-requested`、`blocked` 或 `review-complete` | 部分可以 |
-| 17 | `address-human-feedback` | 根据人审意见修复代码，并回到自查、readiness check、更新 review request、机审流程。 | `implementing` | 可以，但需要 agent 具备代码能力 |
-| 18 | `review-complete` | 记录审查结束结果，例如已批准、已合并、已关闭、拒绝或明确不再继续。 | `review-complete` | 是；合并或关闭必须有人类授权 |
+下表的 `Action` 指上文约定的托管流水线；它既能直接执行机械步骤，也能在流水线内启动 agent。当 agent 跑在本地时，它与远端 Action 通过 repo / issue / PR 交接，而不是被 Action 直接驱动。`执行方` 表示承担判断、内容生成或平台操作的主体；`Action 角色` 表示该步骤是否需要托管流水线入口，以及流水线承担的自动化范围。`GitHub Action 文件` 表示目标 GitHub Actions workflow 文件名，期望和步骤名称一致。目标步骤统一使用 `gcw-` 前缀。
+
+| 顺序 | 步骤 | GitHub Action 文件 | 目标 | 执行方 | Action 角色 | 完成后的状态 | 说明 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `gcw-issue-intake` | 无 | 接入已经存在的 GitHub/GitLab Issue，记录 Issue URL、编号和初始上下文，并初始化 GCW 状态。 | 人 / agent | 不需要：Issue 接入由人或 agent 发起，不由托管流水线自动接入 | `issue-opened` | Issue 创建属于流程外前置动作，可以由人或 agent 完成 |
+| 2 | `gcw-issue-prepare` | `gcw-issue-prepare.yml` | 分类 Issue、补充讨论并检查信息是否足以进入 spec 编写。 | 人 / agent / Action | 需要：收集上下文、运行 agent 分类和整理澄清问题、记录讨论和状态；不能替代关键业务判断 | `ready-for-planning` 或 `issue-clarifying` | 关键业务答案必须来自人类或可信来源，不能由 Action 猜测 |
+| 3 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | 创建隔离 worktree，将 Issue 生成 spec files，提交并推送，然后在 Issue 评论中链接。 | agent / Action | 建议有：运行 agent 生成 spec，或接收本地 agent 产物并完成推送和 Issue 评论 | `planned` | spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md` |
+| 4 | `gcw-spec-check` | `gcw-spec-check.yml` | 检查 spec files 是否已生成并推送、Issue 评论是否已链接、内容是否足以进入实现。 | agent / Action | 应该有：作为进入实现前的远端 gate | `ready-for-implementation`、`issue-clarifying` 或 `blocked` | 这是实现前的 spec 硬门槛 |
+| 5 | `gcw-implement` | `gcw-implement.yml` | 按计划修改代码、补测试、更新必要文档。 | agent / Action | 可以有：在 runner 内运行 agent，或记录本地 agent 通过 repo / issue / PR 的交接 | `implementing` | 表示实现阶段内的一次推进；实现是否足以进入 review 由 `gcw-implement-check` 判定。PR review 或人审反馈修复也回到这里 |
+| 6 | `gcw-implement-check` | `gcw-implement-check.yml` | 创建 review request 前检查 diff、提交边界、风险、验证结果和 spec files，并生成或验证 readiness evidence。 | agent / Action | 应该有：作为创建或更新 review request 前的远端 gate | `ready-for-review` | 把实现自查和 readiness 证据收敛成一个主步骤 |
+| 7 | `gcw-pr-publish` | `gcw-pr-publish.yml` | 幂等地创建或更新 review request：PR/MR 不存在则创建并写入完整 summary、Issue link、验证结果和风险说明，已存在则推送更新。 | agent / Action | 建议有：承载 PR/MR 创建或更新、Issue link 和 summary 发布 | `reviewing` | 首次提交与反馈修改都走它 |
+| 8 | `gcw-pr-review` | `gcw-pr-review.yml` | 触发 CI、静态检查、remote artifact verification、可选 AI review，并汇总 PR review 结果。 | Action | 必须有：承载 CI、静态检查、remote artifact verification 和 AI review 汇总 | `reviewing`、`changes-requested` 或 `blocked` | 只覆盖自动 PR review；自动检查通过后仍处于 `reviewing`，继续等待平台人审 |
+
+人类审查和 `review-complete` 状态不作为本流程的步骤拆解项；它们发生在 GitHub 或 GitLab 上，由 reviewer、merge 策略或平台事件产生。
+
+`gcw-block` 和 `gcw-clarify` 不是主步骤；它们是反馈循环动作。`gcw-block` 可以从任意非终态阶段切到 `blocked`，并在 metadata 中记录 `resume_state` / `resume_step`；阻塞解除后回到这个恢复点。`gcw-clarify` 可以从需要补充 Issue 信息的阶段切到 `issue-clarifying`。
+
+首次提交与反馈修改都以 `gcw-implement` -> `gcw-implement-check` -> `gcw-pr-publish` -> `gcw-pr-review` 收尾；区别在于反馈修改从 `changes-requested` 回到 `implementing`，再重新走这条收尾链路。`gcw-pr-publish` 幂等：首次创建 review request、之后推送更新都走它。
+
+当前 GitHub Actions 实现仍有聚合入口；目标上应拆成上表所列的 workflow 文件。`gcw-issue-intake` 没有对应 Action 文件。
 
 ## 状态拆解
 
 | 状态 | 含义 | 允许的典型下一步 |
 | --- | --- | --- |
-| `issue-opened` | Issue 已创建，但还没有完成分类和可执行性判断。 | `triage-issue` |
-| `issue-triaging` | 正在判断 Issue 类型、优先级、影响范围、重复关系和初始标签。 | `discuss-issue` 或 `mark-issue-actionable` |
-| `issue-clarifying` | Issue 信息不足或边界不清，需要通过评论继续讨论。 | `discuss-issue`、`mark-issue-actionable` |
-| `ready-for-planning` | Issue 已经讨论清楚，可以开始创建 worktree 和 planning files。 | `create-issue-worktree`、`create-planning-files` |
-| `planning` | 正在创建或更新 planning files。 | `publish-planning` |
-| `planned` | planning files 已提交并推送，Issue 评论已经链接到远程文件。 | `implementation-gate` |
-| `ready-for-implementation` | 实现前检查通过，可以开始开发。 | `implement` |
-| `implementing` | agent 正在实现功能、修复问题、补测试，或处理机审/人审反馈。 | `implement`、`local-self-review`、`readiness-check`、`block`、`clarify` |
-| `ready-for-review-request` | 分支已经具备创建或更新 review request 的证据。 | `create-review-request` |
-| `ready-for-review` | review request 已创建或更新，并包含代码审查所需的信息。它不是终点，只表示可以进入机审。 | `machine-review-start` |
-| `machine-reviewing` | CI、静态检查、remote artifact verification 或 AI review 正在运行。 | `machine-review-result` |
-| `machine-review-failed` | 机审发现失败项或高风险问题，需要 agent 修复或人类裁决。 | `address-machine-feedback`、`block`、`clarify` |
-| `human-reviewing` | 机审已经通过或被人类接受，正在等待 reviewer 审查。 | `human-review-result` |
-| `changes-requested` | reviewer 要求修改。agent 需要回到实现流程并更新 review request。 | `address-human-feedback` |
-| `approved` | reviewer 已批准。是否合并、关闭 Issue 或继续发布，仍受项目策略和人类授权控制。 | `review-complete`，或在需要额外处理时回到 `implementing` |
-| `blocked` | 当前无法继续推进，例如缺权限、缺依赖、外部服务不可用或需要人类决策。 | 阻塞解除后回到对应阶段 |
+| `issue-opened` | Issue 已被 GCW 接入，但还没有完成分类和可执行性判断。 | `gcw-issue-prepare` |
+| `issue-clarifying` | Issue 信息不足或边界不清，需要通过评论继续讨论。 | `gcw-issue-prepare` |
+| `ready-for-planning` | Issue 已经讨论清楚，可以开始从 Issue 生成 spec files。 | `gcw-issue-to-spec` |
+| `planned` | spec files 已提交并推送，Issue 评论已经链接到远程文件。 | `gcw-spec-check` |
+| `ready-for-implementation` | 实现前检查通过，可以开始开发。 | `gcw-implement` |
+| `implementing` | agent 正在实现功能、修复问题、补测试，或处理 PR review / 人审反馈。 | `gcw-implement`、`gcw-implement-check`，也可通过反馈动作进入 `blocked` 或 `issue-clarifying` |
+| `ready-for-review` | 分支已经通过实现自查和 readiness evidence，具备创建或更新 review request 的条件。 | `gcw-pr-publish`（幂等：首次创建，已有则更新） |
+| `reviewing` | PR/MR 已创建或更新，正在经历自动检查或等待人类 reviewer 审查。 | `gcw-pr-review`；平台要求修改 -> `changes-requested`；平台审查结束 -> `review-complete` |
+| `changes-requested` | PR review 或人类 reviewer 要求修改。通过 metadata 区分反馈来源。 | `gcw-implement` |
+| `blocked` | 当前无法继续推进，例如缺权限、缺依赖、外部服务不可用或需要人类决策。 | 阻塞解除后按 metadata 中的 `resume_state` / `resume_step` 回到恢复点 |
 | `review-complete` | 人类审查已经结束，结果已记录。这个状态可以代表已合并、已关闭、已接受不合并、拒绝，或明确终止。 | 无 |
 
-`ready-for-review` 只说明 review request 已经准备好进入审查。真正的闭环终点是 `review-complete`。
+`reviewing` 只说明 review request 已经进入审查过程。自动 PR review 通过后仍保持 `reviewing`，直到平台人审事件产生 `review-complete` 或 `changes-requested`。当进入 `changes-requested` 时，应通过 metadata 区分反馈来源，例如 `feedback_source: pr-review` 或 `feedback_source: human-review`。
 
-## 推荐流程
+## Action 流水线
 
-```mermaid
-flowchart TD
-  StartNode((start)) -->|"create-issue"| IssueOpened["issue-opened"]
-  IssueOpened -->|"triage-issue"| IssueTriaging["issue-triaging"]
-  IssueTriaging -->|"discuss-issue"| IssueClarifying["issue-clarifying"]
-  IssueTriaging -->|"mark-issue-actionable (already clear)"| ReadyForPlanning["ready-for-planning"]
-  IssueClarifying -->|"discuss-issue (still unclear)"| IssueClarifying
-  IssueClarifying -->|"mark-issue-actionable (clear)"| ReadyForPlanning
-  IssueClarifying -->|"mark-issue-actionable (still missing)"| IssueClarifying
-  ReadyForPlanning -->|"create-issue-worktree"| ReadyForPlanning
-  ReadyForPlanning -->|"create-planning-files"| Planning["planning"]
-  Planning -->|"publish-planning"| Planned["planned"]
-  Planned -->|"implementation-gate (passes)"| ReadyForImplementation["ready-for-implementation"]
-  Planned -->|"implementation-gate (missing decision)"| IssueClarifying
-  Planned -->|"implementation-gate (blocked)"| Blocked["blocked"]
-  ReadyForImplementation -->|"implement"| Implementing["implementing"]
-  Implementing -->|"local-self-review"| Implementing
-  Implementing -->|"readiness-check"| ReadyForReviewRequest["ready-for-review-request"]
-  ReadyForReviewRequest -->|"create-review-request"| ReadyForReview["ready-for-review"]
-  ReadyForReview -->|"machine-review-start"| MachineReviewing["machine-reviewing"]
-  MachineReviewing -->|"machine-review-result (passed)"| HumanReviewing["human-reviewing"]
-  MachineReviewing -->|"machine-review-result (failed)"| MachineFailed["machine-review-failed"]
-  MachineFailed -->|"address-machine-feedback"| Implementing
-  HumanReviewing -->|"human-review-result (changes requested)"| ChangesRequested["changes-requested"]
-  ChangesRequested -->|"address-human-feedback"| Implementing
-  HumanReviewing -->|"human-review-result (approved)"| Approved["approved"]
-  HumanReviewing -->|"human-review-result (blocked)"| Blocked
-  HumanReviewing -->|"human-review-result (closed/rejected)"| ReviewComplete["review-complete"]
-  Approved -->|"review-complete"| ReviewComplete
-  Approved -->|"needs more work"| Implementing
-  Blocked -->|"resolved: resume issue clarification"| IssueClarifying
-  Blocked -->|"resolved: resume implementation"| Implementing
-```
+主步骤是最小拆解单位；除 `gcw-issue-intake` 外，需要 Action 的主步骤对应一个同名 workflow 文件。Action 流水线把连续的主步骤合并到同一个自动化入口中编排执行：Action 负责触发、串联和记录，并在流水线内运行 agent（或与本地 agent 通过 repo / issue / PR 交接）；agent 指 Codex、Cursor、Claude Code 等工具，负责需要判断和代码能力的工作；人负责无法被自动化替代的关键决策。下表 Action 列描述流水线的托管流水线职责，和步骤表中的 `Action 角色` 保持一致；“运行 agent”指在流水线内启动 agent，若 agent 跑在本地，则替换为通过 repo / issue / PR 交接。产出状态列只列流水线的最终或停顿状态，不列中间状态。
 
-图为主推荐流程。`block` 和 `clarify` 是大多数工作状态都可触发的逃逸转换（详见状态拆解表）：触发后分别进入 `blocked` 或 `issue-clarifying`，为保持可读性未在每个状态重复绘制。
+| 流水线 | 包含主步骤 | 人 | agent | Action | 产出状态 |
+| --- | --- | --- | --- | --- | --- |
+| 接入与准备 | `gcw-issue-intake`、`gcw-issue-prepare` | 创建或确认 Issue，回答关键业务问题 | 接入、分类、起草讨论与检查 | 不执行 `gcw-issue-intake`；准备阶段负责收集上下文、运行 agent 分类和整理澄清问题、记录讨论和状态 | `ready-for-planning` 或 `issue-clarifying` |
+| 规划 | `gcw-issue-to-spec`、`gcw-spec-check` | spec 信息不足时补充澄清 | 生成 spec files、自检内容 | 运行 agent 生成 spec、推送分支、校验硬门槛 | `ready-for-implementation`、`issue-clarifying` 或 `blocked` |
+| 实现 | `gcw-implement`、`gcw-implement-check`、`gcw-pr-publish` | 必要时介入决策 | 写代码、补测试、自查、发 review request | 可运行 agent 实现或接收本地 agent 交接；必须承担检查 gate，并建议承担 PR/MR 发布 | `reviewing` |
+| 审查 | `gcw-pr-review` | 根据自动检查结果继续平台人审；平台事件可要求修改或结束审查 | 按反馈修复时回到实现流水线 | 跑 CI、静态检查、AI review 并汇总结果 | 自动检查产出 `reviewing`、`changes-requested` 或 `blocked`；平台事件可产出 `review-complete` 或 `changes-requested` |
 
-## Action 流水线边界
-
-GitHub Actions 和 GitLab CI 目前提供 7 个 Action pipeline 入口：
-
-| Action 流水线 | 可合并步骤 | 适合自动化的原因 | 边界 |
-| --- | --- | --- | --- |
-| `issue-intake` | `triage-issue`、`mark-issue-actionable` | Issue 分类和可执行性判断可以标准化，适合自动补 labels、metadata 和初始问题。 | 不应替人决定不明确的需求；复杂需求应进入 `issue-clarifying`。 |
-| `issue-clarify` | `discuss-issue`、`mark-issue-actionable` | 可以检测缺失信息、生成澄清问题、在信息齐全后标记为 `ready-for-planning`。 | 关键业务决策必须来自人类或可信来源，不能由 Action 猜测。 |
-| `planning` | `create-issue-worktree`、`create-planning-files`、`publish-planning` | Issue 已清楚后，创建 planning files、提交、推送和更新 Issue 评论都是可自动化的准备工作。 | 只能从 `ready-for-planning` 开始；planning files 必须推送到分支并从 Issue 评论链接。 |
-| `machine-review` | `machine-review-start`、`machine-review-result` | PR/MR 创建或更新后可以由 Action 自动运行，并把结果写回状态。 | 自动检查失败时只能进入 `machine-review-failed`，不能直接合并或关闭。 |
-| `machine-feedback-loop` | `address-machine-feedback`、`local-self-review`、`readiness-check` | 反馈修复和重新验证可以由 agent 连续执行。 | 必须保留 reviewer 意见和修复摘要；高风险操作仍需人类批准。 |
-| `human-feedback-loop` | `address-human-feedback`、`local-self-review`、`readiness-check` | 人审反馈修复后可以连续自查并重新生成 readiness evidence。 | 必须保留 reviewer 意见和修复摘要；高风险操作仍需人类批准。 |
-| `review-complete` | `review-complete` | 审查结束后的记录可以自动化，保证 Issue 与 review request 状态一致。 | merge、close issue、删除分支等操作必须先获得明确的人类授权。 |
-
-理论上，一个具备完整权限和代码能力的 agent 可以按顺序跑完整流程；工程上更推荐拆成上述 Action 流水线，因为每段的权限边界、失败恢复方式和人类参与点不同。
-
-## Step Runner
-
-支持的步骤优先通过统一的 step runner 执行：
-
-```bash
-python3 .agents/skills/gcw/scripts/gcw_step.py state --mode check --issue-dir .gcw/issues/<issue-id>
-python3 .agents/skills/gcw/scripts/gcw_step.py readiness-check --mode check --issue-dir .gcw/issues/<issue-id>
-python3 .agents/skills/gcw/scripts/gcw_step.py implementation-gate --mode apply --runner-kind local --runner-id <agent-session-id> --issue-dir .gcw/issues/<issue-id> --progress-comment-url <issue-progress-comment-url>
-```
-
-Apply mode 是会写入状态或更新远程内容的执行模式，受 ownership gate 保护。Hosted runner 需要传入 `--runner-kind github-actions` 或 `--runner-kind gitlab-ci`，并提供匹配的 `--runner-id`；本地 agent 使用默认值 `local`。
+流水线只是编排粒度，不改变主步骤的状态语义；任意流水线遇到硬门槛或需要人类判断时都会停下，把控制权交回人，或进入 `issue-clarifying` / `blocked`。
