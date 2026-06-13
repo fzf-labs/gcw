@@ -51,7 +51,13 @@
 - Risks: documentation-only deliverable; repo CI may still expect other guiding docs outside scope
 
 ### Phase 5: Delivery
-- **Status:** in_progress
+- **Status:** complete
+- Actions taken:
+  - 发布 [PR #6](https://github.com/fzf-labs/gcw/pull/6)
+  - `gcw-pr-review`：远程 PR body 校验通过；GCW 单元测试通过
+- Files created/modified:
+  - `.gcw/issues/5/events/006-gcw-pr-publish.json`
+  - `.gcw/issues/5/events/007-gcw-pr-review.json` (pending commit)
 
 ### Phase 5: Delivery
 - **Status:** pending

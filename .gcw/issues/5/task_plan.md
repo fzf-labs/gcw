@@ -34,8 +34,9 @@ Phase 4
 - **Status:** complete
 
 ### Phase 5: Delivery
-- [ ] 通过 `gcw-implement-check` 与 `gcw-pr-publish` 发布 PR
-- **Status:** in_progress
+- [x] 通过 `gcw-implement-check` 与 `gcw-pr-publish` 发布 PR
+- [x] `gcw-pr-review` 自动检查通过（本地验证 + 远程 PR body 校验）
+- **Status:** complete
 
 ## Key Questions
 

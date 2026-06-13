@@ -1,13 +1,13 @@
 {
   "generated_from": {
-    "events_hash": "sha256:0d0557498c643eb251f1d77f0a658d8289a5c14fbc1d37f3dbaec7f4d8c501b6",
-    "generated_at": "2026-06-13T13:55:00Z",
-    "last_seq": 6
+    "events_hash": "sha256:67a87c97ab145ce2b0cb0fe19cee83f0b35c7484ca2ddc077aee68244b700b01",
+    "generated_at": "2026-06-13T14:18:20Z",
+    "last_seq": 7
   },
   "projection": {
     "branch": "gcw/issue-5",
     "issue": "5",
-    "last_completed_step": "gcw-pr-publish",
+    "last_completed_step": "gcw-pr-review",
     "next_allowed_steps": [
       "gcw-pr-review"
     ],
