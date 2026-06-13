@@ -1,0 +1,32 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-spec-check",
+  "event_id": "gcw-42-003-gcw-spec-check",
+  "parent": {
+    "expected_last_seq": 2
+  },
+  "payload": {
+    "gate": {
+      "checks": {
+        "issue_actionable": true,
+        "planning_commit_pushed": true,
+        "planning_files_exist": true,
+        "progress_comment_linked": true
+      },
+      "errors": [],
+      "ok": true
+    },
+    "result": "passed"
+  },
+  "refs": {
+    "base_branch": "",
+    "branch": "feat/example-42",
+    "issue": 42
+  },
+  "schema": "gcw.event/v1",
+  "seq": 3
+}

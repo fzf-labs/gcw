@@ -1,6 +1,6 @@
 ---
 name: gcw-implement-check
-description: Check a GCW implementation before review by validating diff boundaries, tests, readiness evidence, risks, and spec synchronization. Use before publishing a PR or MR.
+description: Check a GCW implementation before review by validating diff boundaries, tests, implement-check event payload, risks, and spec synchronization. Use before publishing a PR or MR.
 ---
 
 # GCW Implement Check
@@ -14,7 +14,7 @@ Do:
 - Review the branch diff for accidental files, secrets, conflict markers, and unrelated changes.
 - Confirm validation results and skipped-test reasons.
 - Confirm spec files and progress reflect the current implementation.
-- Generate or validate readiness evidence.
+- Generate or validate the `gcw-implement-check` event payload used for PR/MR rendering.
 - Move the workflow to `ready-for-review`.
 
 Do not:
@@ -36,8 +36,8 @@ Require:
 1. Inspect the current branch diff and commit boundaries.
 2. Confirm tests, linters, or validation commands have been run, or record why they were skipped.
 3. Confirm planning files are current.
-4. Write or validate readiness evidence for summary, issue link, validation, risks, scope, and reviewer notes.
-5. Reuse GCW validation scripts when available, especially readiness checks.
+4. Write or validate the implement-check payload for summary, issue link, validation, risks, scope, reviewer notes, self-review, and spec refs.
+5. Append a `gcw-implement-check` event, rebuild `workflow.json`, and reuse GCW validation scripts when available, especially `validate_gcw_evidence.py implement-check`.
 
 ## State Transition
 
@@ -47,6 +47,6 @@ Require:
 
 ## Stop Conditions
 
-- Stop in `implementing` if the diff, tests, or readiness evidence is incomplete.
+- Stop in `implementing` if the diff, tests, or implement-check payload is incomplete.
 - Stop in `blocked` if required validation cannot run for external reasons.
 - Stop in `issue-clarifying` if final review uncovers missing Issue decisions.

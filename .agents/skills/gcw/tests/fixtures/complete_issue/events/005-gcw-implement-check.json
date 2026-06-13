@@ -1,0 +1,60 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-implement-check",
+  "event_id": "gcw-42-005-gcw-implement-check",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+    "base_branch": "main",
+    "gate": {
+      "checks": [
+        {
+          "id": "implementation_readiness",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "validation": [
+        {
+          "command": "python3 -m unittest discover -s .agents/skills/gcw/tests",
+          "exit_code": 0,
+          "result": "passed"
+        }
+      ]
+    },
+    "planning_links": {
+      "findings": "https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md",
+      "progress": "https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md",
+      "task_plan": "https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md"
+    },
+    "review_request": {
+      "issue_link": "Closes #42",
+      "summary": "Adds the example capability.",
+      "title": "feat: add example"
+    },
+    "reviewer_notes": "",
+    "risks": "Low risk; fixture only.",
+    "scope": "",
+    "self_review": {
+      "progress_section": "## Local Self-Review",
+      "recorded": true
+    },
+    "spec_refs": {
+      "findings_sha": "sha256:bd871bb61a66e46b4737e2cbb97dc50f9c180a1367d945c0e527685875b434a0",
+      "progress_sha": "sha256:276b4ef60a7b236c88635f93903524eceb526fdfb3710b2a3621011710f79795",
+      "task_plan_sha": "sha256:474fc868ea7cfd21619dc8a58130ecc642b721c8d9ede28a1b952d0ea1f056dd"
+    }
+  },
+  "refs": {
+    "base_branch": "main",
+    "branch": "feat/example-42",
+    "issue": 42
+  },
+  "schema": "gcw.event/v1",
+  "seq": 5
+}

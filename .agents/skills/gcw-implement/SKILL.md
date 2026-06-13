@@ -29,11 +29,11 @@ Require:
 
 - `ready-for-implementation`, `implementing`, or `changes-requested` state.
 - Issue branch/worktree.
-- `.gcw/issues/<issue-id>/task_plan.md`, `findings.md`, `progress.md`, and `state.json`.
+- `.gcw/issues/<issue-id>/task_plan.md`, `findings.md`, `progress.md`, `events/`, and current `workflow.json` projection.
 
 ## Procedure
 
-1. If starting from `ready-for-implementation` or `changes-requested`, record or treat the workflow as `implementing` before editing product code.
+1. If starting from `ready-for-implementation` or `changes-requested`, append a `gcw-implement` event and rebuild `workflow.json` before editing product code.
 2. Read the spec files and current progress.
 3. Reuse `tdd` for behavior changes.
 4. Make focused code, test, and necessary documentation changes.

@@ -18,7 +18,7 @@ Do:
 Do not:
 
 - Create a GitHub Action / GitLab CI workflow for this step.
-- Create an issue branch, worktree, `state.json`, or spec files.
+- Create an issue branch, worktree, event files, projection files, or spec files.
 - Decide whether the issue is actionable beyond basic intake.
 
 ## Inputs
@@ -42,7 +42,7 @@ If the issue identity is ambiguous, ask for clarification before proceeding.
 
 - Starts from: existing Issue outside GCW.
 - Completes as: `issue-opened`.
-- Persistence: before spec files exist, this state may be carried by Issue comments, labels, or agent context. `state.json` is first written during `gcw-issue-to-spec`.
+- Persistence: before issue-branch files exist, this state may be carried by Issue comments, labels, or agent context. Once files are created, append `gcw-issue-intake` under `.gcw/issues/<issue-id>/events/` and rebuild `workflow.json`.
 
 ## Stop Conditions
 

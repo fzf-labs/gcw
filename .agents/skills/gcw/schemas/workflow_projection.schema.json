@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fzf-labs.local/gcw/workflow_projection.schema.json",
+  "title": "GCW Workflow Projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generated_from", "projection"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "gcw.workflow_projection/v1"
+    },
+    "generated_from": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["last_seq", "events_hash", "generated_at"],
+      "properties": {
+        "last_seq": { "type": "integer" },
+        "events_hash": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "minLength": 1 }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "issue",
+        "platform",
+        "repository",
+        "branch",
+        "owner",
+        "phase",
+        "last_completed_step",
+        "next_allowed_steps",
+        "refs"
+      ],
+      "properties": {
+        "issue": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["github", "gitlab"]
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["kind", "id"]
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "issue-opened",
+            "issue-clarifying",
+            "ready-for-planning",
+            "planned",
+            "ready-for-implementation",
+            "implementing",
+            "ready-for-review",
+            "reviewing",
+            "changes-requested",
+            "blocked",
+            "review-complete"
+          ]
+        },
+        "last_completed_step": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next_allowed_steps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "refs": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "active_feedback": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "active_blocker": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

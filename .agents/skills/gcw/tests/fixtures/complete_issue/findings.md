@@ -3,7 +3,7 @@
 ## Facts
 
 - This fixture is intentionally static.
-- It represents a branch still in `implementing` after readiness evidence has been recorded.
+- It represents a branch at `ready-for-review` after a passing `gcw-implement-check` event has been recorded.
 
 ## Risks
 

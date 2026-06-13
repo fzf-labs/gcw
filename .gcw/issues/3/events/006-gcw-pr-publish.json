@@ -1,0 +1,34 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-pr-publish",
+  "event_id": "gcw-3-006-gcw-pr-publish",
+  "parent": {
+    "expected_last_seq": 5
+  },
+  "payload": {
+    "body_hash": "sha256:not-recorded",
+    "effects": [
+      {
+        "body_hash": "sha256:not-recorded",
+        "kind": "github_pr_upsert",
+        "operation_id": "gcw-3-pr-publish-006",
+        "remote_updated_at": "",
+        "status": "applied",
+        "target": "https://github.com/fzf-labs/gcw/pull/4"
+      }
+    ],
+    "rendered_from_event_id": "",
+    "review_request_url": "https://github.com/fzf-labs/gcw/pull/4"
+  },
+  "refs": {
+    "base_branch": "",
+    "branch": "gcw/issue-3",
+    "issue": 3
+  },
+  "schema": "gcw.event/v1",
+  "seq": 6
+}
