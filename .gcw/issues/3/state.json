@@ -1,0 +1,25 @@
+{
+  "issue": 3,
+  "platform": "github",
+  "repository": "fzf-labs/gcw",
+  "state": "planned",
+  "branch": "gcw/issue-3",
+  "owner": {
+    "kind": "local",
+    "id": "cursor-session"
+  },
+  "last_completed_step": "gcw-issue-to-spec",
+  "next_allowed_steps": [
+    "gcw-spec-check"
+  ],
+  "evidence": {
+    "planning_files_exist": true,
+    "planning_commit_pushed": true,
+    "progress_comment_url": "",
+    "spec_check_passed": false,
+    "implement_check_passed": false,
+    "self_review_recorded": false,
+    "review_request_url": ""
+  },
+  "metadata": {}
+}
