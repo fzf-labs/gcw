@@ -16,13 +16,20 @@
       "required": ["last_seq", "events_hash", "generated_at"],
       "properties": {
         "last_seq": { "type": "integer" },
-        "events_hash": { "type": "string", "minLength": 1 },
-        "generated_at": { "type": "string", "minLength": 1 }
+        "events_hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "minLength": 1
+        }
       }
     },
     "projection": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "required": [
         "issue",
         "platform",
@@ -55,8 +62,18 @@
         },
         "owner": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["kind", "id"]
+          "additionalProperties": false,
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["local", "github-actions", "gitlab-ci", "manual"]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
         "phase": {
           "type": "string",
@@ -76,23 +93,90 @@
         },
         "last_completed_step": {
           "type": "string",
-          "minLength": 1
+          "enum": [
+            "gcw-issue-intake",
+            "gcw-issue-prepare",
+            "gcw-issue-to-spec",
+            "gcw-spec-check",
+            "gcw-implement",
+            "gcw-implement-check",
+            "gcw-pr-publish",
+            "gcw-pr-review",
+            "gcw-block",
+            "gcw-clarify",
+            "review-complete"
+          ]
         },
         "next_allowed_steps": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string",
+            "enum": [
+              "gcw-issue-prepare",
+              "gcw-issue-to-spec",
+              "gcw-spec-check",
+              "gcw-implement",
+              "gcw-implement-check",
+              "gcw-pr-publish",
+              "gcw-pr-review",
+              "gcw-block",
+              "gcw-clarify"
+            ]
+          }
         },
         "refs": {
           "type": "object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "properties": {
+            "progress_comment_url": {
+              "type": "string"
+            },
+            "review_request_url": {
+              "type": "string"
+            }
+          }
         },
         "active_feedback": {
           "type": "object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "required": ["source", "from_event_id"],
+          "properties": {
+            "source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string"
+            },
+            "from_event_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
         "active_blocker": {
           "type": "object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "required": ["source", "from_event_id"],
+          "properties": {
+            "source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string"
+            },
+            "from_event_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resume_phase": {
+              "type": "string"
+            },
+            "resume_step": {
+              "type": "string"
+            }
+          }
         }
       }
     }

@@ -3,8 +3,8 @@
   "$id": "https://fzf-labs.local/gcw/event.schema.json",
   "title": "GCW Event",
   "type": "object",
-  "additionalProperties": true,
-  "required": ["schema", "seq", "event", "event_id", "at", "actor", "payload"],
+  "additionalProperties": false,
+  "required": ["schema", "seq", "event", "event_id", "at", "actor", "parent", "refs", "payload"],
   "properties": {
     "schema": {
       "type": "string",
@@ -15,40 +15,86 @@
       "minimum": 0
     },
     "event": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "gcw-issue-intake",
+        "gcw-issue-prepare",
+        "gcw-issue-to-spec",
+        "gcw-spec-check",
+        "gcw-implement",
+        "gcw-implement-check",
+        "gcw-pr-publish",
+        "gcw-pr-review",
+        "gcw-block",
+        "gcw-clarify",
+        "review-complete"
+      ]
     },
     "event_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^gcw-"
     },
     "at": {
       "type": "string",
+      "format": "date-time",
       "minLength": 1
     },
     "actor": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "required": ["kind", "id"],
       "properties": {
-        "kind": { "type": "string", "minLength": 1 },
-        "id": { "type": "string", "minLength": 1 }
+        "kind": {
+          "type": "string",
+          "enum": ["local", "github-actions", "gitlab-ci", "manual"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "parent": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
+      "required": ["expected_last_seq"],
       "properties": {
-        "expected_last_seq": { "type": "integer" },
-        "parent_projection_hash": { "type": "string" }
+        "expected_last_seq": {
+          "type": "integer"
+        },
+        "parent_projection_hash": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "refs": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": false,
+      "properties": {
+        "issue": {
+          "oneOf": [
+            {"type": "integer"},
+            {"type": "string", "minLength": 1}
+          ]
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code_head_sha": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "payload": {
-      "type": "object",
-      "additionalProperties": true
+      "type": "object"
     }
   },
   "oneOf": [
@@ -58,8 +104,43 @@
         "event": { "const": "gcw-issue-intake" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["issue", "platform", "repository", "branch", "owner"]
+          "additionalProperties": false,
+          "required": ["issue", "platform", "repository", "branch", "owner"],
+          "properties": {
+            "issue": {
+              "oneOf": [
+                {"type": "integer"},
+                {"type": "string", "minLength": 1}
+              ]
+            },
+            "platform": {
+              "type": "string",
+              "enum": ["github", "gitlab"]
+            },
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "branch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "id"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["local", "github-actions", "gitlab-ci", "manual"]
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -69,8 +150,48 @@
         "event": { "const": "gcw-issue-prepare" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["ready"]
+          "additionalProperties": false,
+          "required": ["ready"],
+          "properties": {
+            "ready": {
+              "type": "boolean"
+            },
+            "question": {
+              "type": "string",
+              "minLength": 1
+            },
+            "summary": {
+              "type": "string"
+            },
+            "classification": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["bug", "documentation", "enhancement", "question", "duplicate", "invalid", "wontfix"]
+                },
+                "area": {
+                  "type": "string",
+                  "enum": ["area:workflow", "area:skills", "area:specs", "area:tests"]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": ["priority:p0", "priority:p1", "priority:p2", "priority:p3"]
+                },
+                "repro": {
+                  "type": "string"
+                }
+              }
+            },
+            "labels_applied": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     },
@@ -80,8 +201,35 @@
         "event": { "const": "gcw-issue-to-spec" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["planning_commit_pushed", "progress_comment_url", "spec_refs"]
+          "additionalProperties": false,
+          "required": ["planning_commit_pushed", "progress_comment_url", "spec_refs"],
+          "properties": {
+            "planning_commit_pushed": {
+              "type": "boolean"
+            },
+            "progress_comment_url": {
+              "type": "string"
+            },
+            "spec_refs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["task_plan_sha", "findings_sha", "progress_sha"],
+              "properties": {
+                "task_plan_sha": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                },
+                "findings_sha": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                },
+                "progress_sha": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -91,8 +239,56 @@
         "event": { "const": "gcw-spec-check" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["gate"]
+          "additionalProperties": false,
+          "required": ["gate"],
+          "properties": {
+            "result": {
+              "type": "string",
+              "enum": ["passed", "clarifying", "blocked"]
+            },
+            "gate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ok"],
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "checks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id", "ok"],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "question": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -102,8 +298,21 @@
         "event": { "const": "gcw-implement" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["work_summary"]
+          "additionalProperties": false,
+          "required": ["work_summary"],
+          "properties": {
+            "work_summary": {
+              "type": "string",
+              "minLength": 1
+            },
+            "feedback_source": {
+              "type": "string",
+              "enum": ["pr-review", "human-review"]
+            },
+            "feedback_ref": {
+              "type": "string"
+            }
+          }
         }
       }
     },
@@ -113,8 +322,134 @@
         "event": { "const": "gcw-implement-check" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["gate", "review_request", "risks", "scope", "reviewer_notes", "self_review", "spec_refs"]
+          "additionalProperties": false,
+          "required": ["gate", "review_request", "risks", "scope", "reviewer_notes", "self_review", "spec_refs"],
+          "properties": {
+            "gate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ok"],
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                },
+                "checks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id", "ok"],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "validation": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["command", "exit_code", "result"],
+                    "properties": {
+                      "command": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "exit_code": {
+                        "type": "integer"
+                      },
+                      "result": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "review_request": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["title", "summary", "issue_link"],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "issue_link": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "risks": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scope": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reviewer_notes": {
+              "type": "string",
+              "minLength": 1
+            },
+            "self_review": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["recorded"],
+              "properties": {
+                "recorded": {
+                  "type": "boolean"
+                },
+                "progress_section": {
+                  "type": "string"
+                }
+              }
+            },
+            "spec_refs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["task_plan_sha", "findings_sha", "progress_sha"],
+              "properties": {
+                "task_plan_sha": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                },
+                "findings_sha": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                },
+                "progress_sha": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                }
+              }
+            },
+            "planning_links": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
@@ -124,8 +459,56 @@
         "event": { "const": "gcw-pr-publish" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["review_request_url", "rendered_from_event_id", "body_hash", "effects"]
+          "additionalProperties": false,
+          "required": ["review_request_url", "rendered_from_event_id", "body_hash", "effects"],
+          "properties": {
+            "review_request_url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rendered_from_event_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "body_hash": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            },
+            "effects": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "operation_id", "target", "body_hash", "status"],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["github_pr_upsert", "gitlab_mr_upsert"]
+                  },
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "target": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "body_hash": {
+                    "type": "string",
+                    "pattern": "^sha256:[a-f0-9]{64}$"
+                  },
+                  "remote_updated_at": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["applied", "skipped", "failed"]
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -135,8 +518,24 @@
         "event": { "const": "gcw-pr-review" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["result"]
+          "additionalProperties": false,
+          "required": ["result"],
+          "properties": {
+            "result": {
+              "type": "string",
+              "enum": ["passed", "changes-requested", "blocked"]
+            },
+            "feedback_source": {
+              "type": "string",
+              "enum": ["pr-review", "human-review"]
+            },
+            "reason": {
+              "type": "string"
+            },
+            "block_reason": {
+              "type": "string"
+            }
+          }
         }
       }
     },
@@ -146,8 +545,40 @@
         "event": { "const": "gcw-block" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["reason", "resume_phase", "resume_step"]
+          "additionalProperties": false,
+          "required": ["reason", "resume_phase", "resume_step"],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resume_phase": {
+              "type": "string",
+              "enum": [
+                "issue-opened",
+                "issue-clarifying",
+                "ready-for-planning",
+                "planned",
+                "ready-for-implementation",
+                "implementing",
+                "ready-for-review",
+                "reviewing",
+                "changes-requested"
+              ]
+            },
+            "resume_step": {
+              "type": "string",
+              "enum": [
+                "gcw-issue-prepare",
+                "gcw-issue-to-spec",
+                "gcw-spec-check",
+                "gcw-implement",
+                "gcw-implement-check",
+                "gcw-pr-publish",
+                "gcw-pr-review"
+              ]
+            }
+          }
         }
       }
     },
@@ -157,8 +588,28 @@
         "event": { "const": "gcw-clarify" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["question", "source_phase"]
+          "additionalProperties": false,
+          "required": ["question", "source_phase"],
+          "properties": {
+            "question": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_phase": {
+              "type": "string",
+              "enum": [
+                "issue-opened",
+                "issue-clarifying",
+                "ready-for-planning",
+                "planned",
+                "ready-for-implementation",
+                "implementing",
+                "ready-for-review",
+                "reviewing",
+                "changes-requested"
+              ]
+            }
+          }
         }
       }
     },
@@ -168,8 +619,14 @@
         "event": { "const": "review-complete" },
         "payload": {
           "type": "object",
-          "additionalProperties": true,
-          "required": ["result"]
+          "additionalProperties": false,
+          "required": ["result"],
+          "properties": {
+            "result": {
+              "type": "string",
+              "enum": ["merged", "closed", "accepted", "rejected"]
+            }
+          }
         }
       }
     }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -11,6 +12,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 VALIDATOR = ROOT / ".agents/skills/gcw/scripts/validate_gcw_evidence.py"
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
+
+_FAKE_SHA = "sha256:" + "a" * 64
+
+
+def _file_sha(path: Path) -> str:
+    return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
 
 
 class ValidateGcwEvidenceTest(unittest.TestCase):
@@ -37,6 +44,13 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (self.issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
 
+    def _planning_shas(self) -> dict[str, str]:
+        return {
+            "task_plan_sha": _file_sha(self.issue_dir / "task_plan.md"),
+            "findings_sha": _file_sha(self.issue_dir / "findings.md"),
+            "progress_sha": _file_sha(self.issue_dir / "progress.md"),
+        }
+
     def init(self) -> None:
         self.run_manager(
             "init-workflow",
@@ -60,6 +74,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.init()
         self.run_manager("record-issue-prepare", "--issue-dir", str(self.issue_dir), "--ready")
         self.write_planning_files()
+        shas = self._planning_shas()
         self.run_manager(
             "record-issue-to-spec",
             "--issue-dir",
@@ -67,9 +82,16 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             "--planning-commit-pushed",
             "--progress-comment-url",
             "https://github.com/owner/repo/issues/42#issuecomment-1",
+            "--task-plan-sha",
+            shas["task_plan_sha"],
+            "--findings-sha",
+            shas["findings_sha"],
+            "--progress-sha",
+            shas["progress_sha"],
         )
 
     def implement_check_payload(self) -> dict:
+        shas = self._planning_shas()
         return {
             "gate": {
                 "ok": True,
@@ -81,7 +103,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             "scope": "Example only.",
             "reviewer_notes": "Review transitions.",
             "self_review": {"recorded": True, "progress_section": "## Local Self-Review"},
-            "spec_refs": {"task_plan_sha": "sha256:task", "findings_sha": "sha256:findings", "progress_sha": "sha256:progress"},
+            "spec_refs": shas,
         }
 
     def prepare_to_implement_check(self) -> None:
@@ -91,6 +113,21 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         payload_file = self.issue_dir / "implement-check-payload.json"
         payload_file.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
         self.run_manager("record-implement-check", "--issue-dir", str(self.issue_dir), "--payload-file", str(payload_file))
+
+    def _record_pr_publish(self) -> None:
+        self.run_manager(
+            "record-pr-publish",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--review-request-url",
+            "https://github.com/owner/repo/pull/7",
+            "--body-hash",
+            _FAKE_SHA,
+            "--target",
+            "owner/repo#7",
+            "--rendered-from-event-id",
+            "gcw-42-005-gcw-implement-check",
+        )
 
     def run_validate(self, command: str) -> dict:
         result = subprocess.run(
@@ -121,18 +158,94 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
 
     def test_pr_publish_requires_review_request_url(self) -> None:
         self.prepare_to_implement_check()
+        self._record_pr_publish()
+        output = self.run_validate("pr-publish")
+        self.assertTrue(output["ok"], output)
+
+    def test_workflow_rejects_invalid_payload(self) -> None:
+        self.init()
+        events_dir = self.issue_dir / "events"
+        intake_file = list(events_dir.glob("*gcw-issue-intake*.json"))[0]
+        data = json.loads(intake_file.read_text(encoding="utf-8"))
+        del data["payload"]["platform"]
+        intake_file.write_text(json.dumps(data), encoding="utf-8")
+        output = self.run_validate("workflow")
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("platform" in e for e in output["errors"]))
+
+    def test_implement_check_validates_self_review(self) -> None:
+        self.prepare_to_implement_check()
+        latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
+        data = json.loads(latest_file.read_text(encoding="utf-8"))
+        del data["payload"]["self_review"]["recorded"]
+        latest_file.write_text(json.dumps(data), encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
+        output = self.run_validate("implement-check")
+        self.assertFalse(output["ok"], output)
+
+    def test_implement_check_validates_spec_refs(self) -> None:
+        self.prepare_to_implement_check()
+        latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
+        data = json.loads(latest_file.read_text(encoding="utf-8"))
+        del data["payload"]["spec_refs"]["task_plan_sha"]
+        latest_file.write_text(json.dumps(data), encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
+        output = self.run_validate("implement-check")
+        self.assertFalse(output["ok"], output)
+
+    def test_pr_publish_validates_effects_structure(self) -> None:
+        self.prepare_to_implement_check()
+        self._record_pr_publish()
+        latest_file = list((self.issue_dir / "events").glob("*gcw-pr-publish*.json"))[0]
+        data = json.loads(latest_file.read_text(encoding="utf-8"))
+        del data["payload"]["effects"][0]["kind"]
+        latest_file.write_text(json.dumps(data), encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
+        output = self.run_validate("pr-publish")
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("kind" in e for e in output["errors"]))
+
+    def test_review_check_command(self) -> None:
+        self.prepare_to_implement_check()
+        self._record_pr_publish()
         self.run_manager(
-            "record-pr-publish",
+            "record-pr-review",
             "--issue-dir",
             str(self.issue_dir),
-            "--review-request-url",
-            "https://github.com/owner/repo/pull/7",
-            "--body-hash",
-            "sha256:body",
-            "--target",
-            "owner/repo#7",
+            "--result",
+            "passed",
         )
-        output = self.run_validate("pr-publish")
+        output = self.run_validate("review-check")
+        self.assertTrue(output["ok"], output)
+
+    def test_block_check_command(self) -> None:
+        self.prepare_to_implement_check()
+        self.run_manager(
+            "record-block",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--reason",
+            "Blocked by dependency",
+            "--resume-phase",
+            "implementing",
+            "--resume-step",
+            "gcw-implement",
+        )
+        output = self.run_validate("block-check")
+        self.assertTrue(output["ok"], output)
+
+    def test_clarify_check_command(self) -> None:
+        self.init()
+        self.run_manager(
+            "record-clarify",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--question",
+            "Need more details",
+            "--source-phase",
+            "issue-opened",
+        )
+        output = self.run_validate("clarify-check")
         self.assertTrue(output["ok"], output)
 
 

@@ -13,7 +13,6 @@
     "classification": {
       "area": "area:workflow",
       "priority": "priority:p0",
-      "repro": null,
       "type": "enhancement"
     },
     "labels_applied": [

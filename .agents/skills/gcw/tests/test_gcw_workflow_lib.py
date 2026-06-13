@@ -11,10 +11,13 @@ ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
 from gcw_workflow_lib import (  # noqa: E402
+    WorkflowError,
     append_event,
     assert_projection_current,
     load_events,
     reduce_workflow,
+    validate_events_integrity,
+    validate_payload,
     write_projection,
 )
 
@@ -125,6 +128,143 @@ class GcwWorkflowLibTest(unittest.TestCase):
 
         self.assertEqual(rebuilt["projection"]["phase"], "issue-opened")
         self.assertTrue(assert_projection_current(self.issue_dir)["ok"])
+
+
+    def test_reducer_rejects_unknown_event(self) -> None:
+        self.append(
+            "gcw-issue-intake",
+            {
+                "issue": 42,
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "gcw/issue-42",
+                "owner": {"kind": "local", "id": "cursor-session"},
+            },
+        )
+        with self.assertRaises(WorkflowError):
+            self.append("gcw-unknown-event", {})
+
+    def test_reducer_rejects_invalid_phase_transition(self) -> None:
+        self.append(
+            "gcw-issue-intake",
+            {
+                "issue": 42,
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "gcw/issue-42",
+                "owner": {"kind": "local", "id": "cursor-session"},
+            },
+        )
+        self.append("gcw-implement", {"work_summary": "Invalid transition."})
+        with self.assertRaises(WorkflowError):
+            reduce_workflow(load_events(self.issue_dir))
+
+    def test_reducer_rejects_empty_events(self) -> None:
+        with self.assertRaises(WorkflowError):
+            reduce_workflow([])
+
+    def test_reducer_rejects_first_event_not_intake(self) -> None:
+        events = [
+            {
+                "seq": 0,
+                "event": "gcw-issue-prepare",
+                "payload": {"ready": True},
+                "refs": {},
+                "actor": {"kind": "local", "id": "cursor-session"},
+            }
+        ]
+        with self.assertRaises(WorkflowError):
+            reduce_workflow(events)
+
+    def test_reducer_rejects_discontinuous_seq(self) -> None:
+        events = [
+            {
+                "seq": 0,
+                "event": "gcw-issue-intake",
+                "payload": {
+                    "issue": 42,
+                    "platform": "github",
+                    "repository": "owner/repo",
+                    "branch": "gcw/issue-42",
+                    "owner": {"kind": "local", "id": "cursor-session"},
+                },
+                "refs": {},
+                "actor": {"kind": "local", "id": "cursor-session"},
+            },
+            {
+                "seq": 3,
+                "event": "gcw-issue-prepare",
+                "payload": {"ready": True},
+                "refs": {},
+                "actor": {"kind": "local", "id": "cursor-session"},
+            },
+        ]
+        with self.assertRaises(WorkflowError):
+            reduce_workflow(events)
+
+    def test_append_event_rejects_duplicate_seq(self) -> None:
+        self.append(
+            "gcw-issue-intake",
+            {
+                "issue": 42,
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "gcw/issue-42",
+                "owner": {"kind": "local", "id": "cursor-session"},
+            },
+        )
+        events_dir = self.issue_dir / "events"
+        existing_file = list(events_dir.glob("*.json"))[0]
+        with self.assertRaises(WorkflowError):
+            append_event(
+                self.issue_dir,
+                {
+                    "event": "gcw-issue-intake",
+                    "actor": {"kind": "local", "id": "cursor-session"},
+                    "refs": {"issue": 42, "branch": "gcw/issue-42", "base_branch": "main"},
+                    "payload": {
+                        "issue": 42,
+                        "platform": "github",
+                        "repository": "owner/repo",
+                        "branch": "gcw/issue-42",
+                        "owner": {"kind": "local", "id": "cursor-session"},
+                    },
+                },
+                expected_last_seq=-1,
+            )
+
+    def test_validate_payload_rejects_missing_fields(self) -> None:
+        errors = validate_payload("gcw-issue-intake", {})
+        self.assertTrue(len(errors) > 0)
+        self.assertTrue(any("issue" in e for e in errors))
+        self.assertTrue(any("platform" in e for e in errors))
+        self.assertTrue(any("repository" in e for e in errors))
+        self.assertTrue(any("branch" in e for e in errors))
+
+    def test_validate_payload_rejects_invalid_platform(self) -> None:
+        errors = validate_payload(
+            "gcw-issue-intake",
+            {
+                "issue": 42,
+                "platform": "svn",
+                "repository": "owner/repo",
+                "branch": "gcw/issue-42",
+                "owner": {"kind": "local", "id": "cursor-session"},
+            },
+        )
+        self.assertTrue(any("platform" in e for e in errors))
+
+    def test_validate_events_integrity_detects_filename_mismatch(self) -> None:
+        events_dir = self.issue_dir / "events"
+        events_dir.mkdir(parents=True, exist_ok=True)
+        mismatch_file = events_dir / "005-gcw-issue-prepare.json"
+        mismatch_file.write_text(
+            '{"seq": 3, "event": "gcw-issue-intake", "payload": {}, "refs": {}, "actor": {"kind": "local", "id": "test"}}',
+            encoding="utf-8",
+        )
+        errors = validate_events_integrity(self.issue_dir)
+        self.assertTrue(len(errors) > 0)
+        self.assertTrue(any("filename" in e.lower() for e in errors))
 
 
 if __name__ == "__main__":
