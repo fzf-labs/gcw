@@ -2,15 +2,15 @@
   "issue": 3,
   "platform": "github",
   "repository": "fzf-labs/gcw",
-  "state": "ready-for-review",
+  "state": "reviewing",
   "branch": "gcw/issue-3",
   "owner": {
     "kind": "local",
     "id": "cursor-session"
   },
-  "last_completed_step": "gcw-implement-check",
+  "last_completed_step": "gcw-pr-publish",
   "next_allowed_steps": [
-    "gcw-pr-publish"
+    "gcw-pr-review"
   ],
   "evidence": {
     "planning_files_exist": true,
@@ -19,7 +19,7 @@
     "spec_check_passed": true,
     "implement_check_passed": true,
     "self_review_recorded": true,
-    "review_request_url": ""
+    "review_request_url": "https://github.com/fzf-labs/gcw/pull/4"
   },
   "metadata": {}
 }
