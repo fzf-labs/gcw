@@ -37,6 +37,20 @@
   - `.gcw/issues/5/events/004-gcw-implement.json` (created)
 
 ### Phase 4: Testing & Verification
+- **Status:** complete
+- Actions taken:
+  - 确认 `docs/quickstart.md` 存在且链接指向 Issue #3 / PR #4 / `gcw/issue-3`
+  - 运行 GCW 单元测试套件（28 tests, OK）
+
+## Local Self-Review
+
+- Diff reviewed: `docs/quickstart.md`, `README.md`, `docs/workflow.md`, gcw-issue-prepare labeling, `.gcw/issues/5/` events
+- Validation: `python3 -m unittest discover -s .agents/skills/gcw/tests` passed
+- Planning state: task_plan / findings / progress updated
+- Commit boundaries: docs commit separate from gcw event commits
+- Risks: documentation-only deliverable; repo CI may still expect other guiding docs outside scope
+
+### Phase 5: Delivery
 - **Status:** in_progress
 
 ### Phase 5: Delivery

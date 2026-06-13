@@ -30,12 +30,12 @@ Phase 4
 ### Phase 4: Testing & Verification
 - [x] 检查所有远程链接可访问（Issue #3 评论、分支 spec、PR #4）
 - [x] 确认 Quickstart 不重复 `docs/workflow.md` 步骤表全文
-- [ ] 运行文档相关 CI（若适用）
-- **Status:** in_progress
+- [x] 运行 `python3 -m unittest discover -s .agents/skills/gcw/tests`
+- **Status:** complete
 
 ### Phase 5: Delivery
 - [ ] 通过 `gcw-implement-check` 与 `gcw-pr-publish` 发布 PR
-- **Status:** pending
+- **Status:** in_progress
 
 ## Key Questions
 
