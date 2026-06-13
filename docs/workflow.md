@@ -1,5 +1,7 @@
 # GCW 工作流
 
+若希望先跟着真实 Issue 走一遍端到端流程，请参阅 [GCW Quickstart](quickstart.md)。
+
 GCW 的完整流程从一个已经存在的 Issue 开始，不是从写代码开始。Issue 可以由人直接在 GitHub/GitLab 平台创建，也可以由 agent 预先创建；GCW 主流程负责接入这个 Issue、分类、讨论清楚，并判断是否可以开发。进入 GCW 文件化阶段后，稳定事实会追加写入 Issue 分支中的 `.gcw/issues/<issue-id>/events/`；`workflow.json` 只是由事件日志通过 reducer 生成的投影缓存，删除后必须能重建。在文件化之前，状态可以由 Issue 评论、label 或 agent 上下文承载。之后才进入实现、review request、PR review、人审和审查结束。
 
 GCW 由人、agent、Action 三方协作推进：
