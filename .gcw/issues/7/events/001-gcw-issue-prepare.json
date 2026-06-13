@@ -1,0 +1,32 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T16:58:04Z",
+  "event": "gcw-issue-prepare",
+  "event_id": "gcw-unknown-001-gcw-issue-prepare",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "classification": {
+      "area": "area:workflow",
+      "priority": "priority:p0",
+      "repro": null,
+      "type": "enhancement"
+    },
+    "labels_applied": [
+      "enhancement",
+      "triaged",
+      "area:workflow",
+      "priority:p0",
+      "ready-to-spec"
+    ],
+    "ready": true,
+    "summary": "P0 enhancement: add hard validation for GCW events and projections"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 1
+}
