@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from gcw_workflow_lib import WorkflowError, assert_projection_current, find_latest_event
+
 
 PROGRESS_MARKER = "<!-- gcw-progress -->"
 REVIEW_REQUEST_START = "<!-- gcw-review-request:start -->"
@@ -30,13 +32,13 @@ def planning_link(platform: str, repository: str, branch: str, issue: Any, filen
     return f"https://github.com/{repository}/blob/{branch}/.gcw/issues/{issue}/{filename}"
 
 
-def planning_links_from_state(state: dict[str, Any]) -> dict[str, str]:
-    issue = state.get("issue")
-    repository = state.get("repository")
-    branch = state.get("branch")
+def planning_links_from_projection(projection: dict[str, Any]) -> dict[str, str]:
+    issue = projection.get("issue")
+    repository = projection.get("repository")
+    branch = projection.get("branch")
     if not issue or not repository or not branch:
         return {}
-    platform = str(state.get("platform", "github"))
+    platform = str(projection.get("platform", "github"))
     return {
         "task_plan": planning_link(platform, str(repository), str(branch), issue, "task_plan.md"),
         "findings": planning_link(platform, str(repository), str(branch), issue, "findings.md"),
@@ -44,10 +46,10 @@ def planning_links_from_state(state: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def planning_links_markdown(evidence: dict[str, Any], state: dict[str, Any] | None = None) -> list[str]:
+def planning_links_markdown(evidence: dict[str, Any], projection: dict[str, Any] | None = None) -> list[str]:
     links = evidence.get("planning_links") if isinstance(evidence.get("planning_links"), dict) else {}
-    if not links and state is not None:
-        links = planning_links_from_state(state)
+    if not links and projection is not None:
+        links = planning_links_from_projection(projection)
     rows: list[str] = []
     for label, key in (("Task plan", "task_plan"), ("Findings", "findings"), ("Progress", "progress")):
         value = links.get(key)
@@ -57,26 +59,33 @@ def planning_links_markdown(evidence: dict[str, Any], state: dict[str, Any] | No
 
 
 def render_progress_comment(args: argparse.Namespace) -> str:
-    state = load_json(args.issue_dir / "state.json")
-    readiness = load_json(args.issue_dir / "readiness_evidence.json")
-    evidence = state.get("evidence") if isinstance(state.get("evidence"), dict) else {}
-    owner = state.get("owner") if isinstance(state.get("owner"), dict) else {}
-    handoff_reason = evidence.get("handoff_reason", "")
-    review_request_url = str(evidence.get("review_request_url", "")).strip()
+    current = assert_projection_current(args.issue_dir)
+    if not current["ok"]:
+        raise ValueError("; ".join(current["errors"]))
+    projection = current["projection"]
+    owner = projection.get("owner") if isinstance(projection.get("owner"), dict) else {}
+    refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
+    review_request_url = str(refs.get("review_request_url", "")).strip()
+    latest_ready = find_latest_event(args.issue_dir, "gcw-implement-check", lambda event: event.get("payload", {}).get("gate", {}).get("ok") is True)
+    readiness = latest_ready.get("payload", {}) if latest_ready else {}
     lines = [
         PROGRESS_MARKER,
-        f"GCW Status: {state.get('state', 'unknown')}",
+        f"GCW Status: {projection.get('phase', 'unknown')}",
         "",
-        f"- Issue: {state.get('issue', '')}",
-        f"- Branch: {state.get('branch', '')}",
+        f"- Issue: {projection.get('issue', '')}",
+        f"- Branch: {projection.get('branch', '')}",
         f"- Owner: {owner.get('kind', '')}/{owner.get('id', '')}",
-        f"- Last completed step: {state.get('last_completed_step', '')}",
+        f"- Last completed step: {projection.get('last_completed_step', '')}",
         f"- Review request: {review_request_url or 'Not created yet'}",
     ]
-    if handoff_reason:
-        lines.append(f"- Handoff reason: {handoff_reason}")
+    active_feedback = projection.get("active_feedback") if isinstance(projection.get("active_feedback"), dict) else {}
+    active_blocker = projection.get("active_blocker") if isinstance(projection.get("active_blocker"), dict) else {}
+    if active_feedback.get("reason"):
+        lines.append(f"- Active feedback: {active_feedback['reason']}")
+    if active_blocker.get("reason"):
+        lines.append(f"- Active blocker: {active_blocker['reason']}")
     lines.extend(["", "Planning files:"])
-    links = planning_links_markdown(readiness, state)
+    links = planning_links_markdown(readiness, projection)
     lines.extend(links if links else ["- Not recorded yet."])
     if readiness.get("risks"):
         lines.extend(["", f"Risks: {readiness['risks']}"])
@@ -84,9 +93,16 @@ def render_progress_comment(args: argparse.Namespace) -> str:
 
 
 def render_review_request(args: argparse.Namespace) -> str:
-    readiness = load_json(args.issue_dir / "readiness_evidence.json")
+    current = assert_projection_current(args.issue_dir)
+    if not current["ok"]:
+        raise ValueError("; ".join(current["errors"]))
+    latest_ready = find_latest_event(args.issue_dir, "gcw-implement-check", lambda event: event.get("payload", {}).get("gate", {}).get("ok") is True)
+    if latest_ready is None:
+        raise ValueError("passing gcw-implement-check event is missing")
+    readiness = latest_ready.get("payload", {})
     review_request = readiness.get("review_request") if isinstance(readiness.get("review_request"), dict) else {}
-    validations = readiness.get("validation") if isinstance(readiness.get("validation"), list) else []
+    gate = readiness.get("gate") if isinstance(readiness.get("gate"), dict) else {}
+    validations = readiness.get("validation") if isinstance(readiness.get("validation"), list) else gate.get("validation", [])
     lines = [
         REVIEW_REQUEST_START,
         str(review_request.get("title", "")).strip(),
@@ -111,14 +127,14 @@ def render_review_request(args: argparse.Namespace) -> str:
     if readiness.get("scope"):
         lines.extend(["", "## Scope", "", str(readiness["scope"]).strip()])
     lines.extend(["", "## Planning", ""])
-    links = planning_links_markdown(readiness)
+    links = planning_links_markdown(readiness, current["projection"])
     lines.extend(links if links else ["- Not recorded."])
     lines.extend(
         [
             "",
             "## Progress Comment",
             "",
-            str(readiness.get("progress_comment_url", "")).strip(),
+            str(current["projection"].get("refs", {}).get("progress_comment_url", "")).strip(),
             "",
             "## Risks",
             "",

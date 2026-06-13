@@ -1,0 +1,51 @@
+{
+  "deleted_legacy_files": [
+    "state.json",
+    "readiness_evidence.json",
+    "implementation_gate_result.json"
+  ],
+  "events_hash": "sha256:f8d0b9e47bab69da58742686a7de6aa4f10c92aab096982789e2fbc29a54f6bc",
+  "generated_events": [
+    "gcw-issue-intake",
+    "gcw-issue-prepare",
+    "gcw-issue-to-spec",
+    "gcw-spec-check",
+    "gcw-implement",
+    "gcw-implement-check"
+  ],
+  "legacy_hashes": {
+    "implementation_gate_result.json": "sha256:5d7f5856d6b8916443ee574054e94d328df26866893fc76e021b366a9cbc7d87",
+    "readiness_evidence.json": "sha256:03845ce16e59b0ce842d6974d177f5abaf2e3fcdea0a2c98ed5a2676a1934a42",
+    "state.json": "sha256:9e154b17b6d29722f9fb07cc4feb3a7f40c284924b880d52a9358837d7ab0a8c"
+  },
+  "projection": {
+    "branch": "feat/example-42",
+    "issue": 42,
+    "last_completed_step": "gcw-implement-check",
+    "next_allowed_steps": [
+      "gcw-pr-publish"
+    ],
+    "owner": {
+      "id": "cursor-session",
+      "kind": "local"
+    },
+    "phase": "ready-for-review",
+    "platform": "github",
+    "refs": {
+      "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1"
+    },
+    "repository": "owner/repo"
+  },
+  "synthetic_events": [
+    "gcw-issue-intake",
+    "gcw-issue-prepare",
+    "gcw-issue-to-spec",
+    "gcw-spec-check",
+    "gcw-implement",
+    "gcw-implement-check"
+  ],
+  "unrestored_fields": [
+    "precise event timestamps",
+    "exact git tree shas"
+  ]
+}

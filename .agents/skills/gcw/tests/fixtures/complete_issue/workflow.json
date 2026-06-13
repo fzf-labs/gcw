@@ -1,0 +1,26 @@
+{
+  "generated_from": {
+    "events_hash": "sha256:f8d0b9e47bab69da58742686a7de6aa4f10c92aab096982789e2fbc29a54f6bc",
+    "generated_at": "2026-06-13T11:12:08Z",
+    "last_seq": 5
+  },
+  "projection": {
+    "branch": "feat/example-42",
+    "issue": 42,
+    "last_completed_step": "gcw-implement-check",
+    "next_allowed_steps": [
+      "gcw-pr-publish"
+    ],
+    "owner": {
+      "id": "cursor-session",
+      "kind": "local"
+    },
+    "phase": "ready-for-review",
+    "platform": "github",
+    "refs": {
+      "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1"
+    },
+    "repository": "owner/repo"
+  },
+  "schema": "gcw.workflow_projection/v1"
+}

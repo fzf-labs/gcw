@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[4]
-MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_state.py"
+MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 
 
 class ManageGcwStateTest(unittest.TestCase):
@@ -33,12 +33,18 @@ class ManageGcwStateTest(unittest.TestCase):
             self.fail(f"command failed: {data}")
         return data
 
-    def state(self) -> dict:
-        return json.loads((self.issue_dir / "state.json").read_text(encoding="utf-8"))
+    def workflow(self) -> dict:
+        return json.loads((self.issue_dir / "workflow.json").read_text(encoding="utf-8"))
+
+    def events(self) -> list[dict]:
+        return [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((self.issue_dir / "events").glob("*.json"))
+        ]
 
     def init(self, state: str = "issue-opened") -> None:
-        self.run_manager(
-            "init-state",
+        result = self.run_manager(
+            "init-workflow",
             "--issue-dir",
             str(self.issue_dir),
             "--issue",
@@ -53,13 +59,67 @@ class ManageGcwStateTest(unittest.TestCase):
             "local",
             "--owner-id",
             "cursor-session",
-            "--state",
-            state,
         )
+        if state != "issue-opened":
+            self.run_manager("record-issue-prepare", "--issue-dir", str(self.issue_dir), "--ready")
+        if state == "implementing":
+            self.write_planning_files()
+            self.run_manager(
+                "record-issue-to-spec",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--planning-commit-pushed",
+                "--progress-comment-url",
+                "https://github.com/owner/repo/issues/42#issuecomment-1",
+            )
+            self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
+            self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Started work.")
+        elif state == "reviewing":
+            self.write_planning_files()
+            self.run_manager(
+                "record-issue-to-spec",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--planning-commit-pushed",
+                "--progress-comment-url",
+                "https://github.com/owner/repo/issues/42#issuecomment-1",
+            )
+            self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
+            self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Implemented.")
+            payload = self.issue_dir / "implement-check-payload.json"
+            payload.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
+            self.run_manager("record-implement-check", "--issue-dir", str(self.issue_dir), "--payload-file", str(payload))
+            self.run_manager(
+                "record-pr-publish",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--review-request-url",
+                "https://github.com/owner/repo/pull/7",
+                "--body-hash",
+                "sha256:body",
+                "--target",
+                "owner/repo#7",
+            )
+        self.assertTrue(result["ok"])
 
     def write_planning_files(self) -> None:
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (self.issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
+
+    def implement_check_payload(self) -> dict:
+        return {
+            "gate": {
+                "ok": True,
+                "checks": [{"id": "diff_boundary", "ok": True}],
+                "validation": [{"command": "python3 -m unittest", "exit_code": 0, "result": "passed"}],
+            },
+            "review_request": {"title": "feat: example", "summary": "Adds example.", "issue_link": "Closes #42"},
+            "risks": "Low.",
+            "scope": "Example only.",
+            "reviewer_notes": "Review state transitions.",
+            "self_review": {"recorded": True, "progress_section": "## Local Self-Review"},
+            "spec_refs": {"task_plan_sha": "sha256:task", "findings_sha": "sha256:findings", "progress_sha": "sha256:progress"},
+        }
 
     def test_main_path_reaches_reviewing(self) -> None:
         self.init()
@@ -74,20 +134,27 @@ class ManageGcwStateTest(unittest.TestCase):
             "https://github.com/owner/repo/issues/42#issuecomment-1",
         )
         self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
-        self.run_manager("record-implement", "--issue-dir", str(self.issue_dir))
-        self.run_manager("record-implement-check", "--issue-dir", str(self.issue_dir), "--passed")
+        self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Implemented.")
+        payload = self.issue_dir / "implement-check-payload.json"
+        payload.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
+        self.run_manager("record-implement-check", "--issue-dir", str(self.issue_dir), "--payload-file", str(payload))
         self.run_manager(
             "record-pr-publish",
             "--issue-dir",
             str(self.issue_dir),
             "--review-request-url",
             "https://github.com/owner/repo/pull/7",
+            "--body-hash",
+            "sha256:body",
+            "--target",
+            "owner/repo#7",
         )
 
-        state = self.state()
-        self.assertEqual(state["state"], "reviewing")
-        self.assertEqual(state["last_completed_step"], "gcw-pr-publish")
-        self.assertEqual(state["next_allowed_steps"], ["gcw-pr-review"])
+        projection = self.workflow()["projection"]
+        self.assertEqual(projection["phase"], "reviewing")
+        self.assertEqual(projection["last_completed_step"], "gcw-pr-publish")
+        self.assertEqual(projection["next_allowed_steps"], ["gcw-pr-review"])
+        self.assertEqual(self.events()[-1]["payload"]["effects"][0]["status"], "applied")
 
     def test_changes_requested_preserves_feedback_source(self) -> None:
         self.init("reviewing")
@@ -100,10 +167,10 @@ class ManageGcwStateTest(unittest.TestCase):
             "--feedback-source",
             "human-review",
         )
-        state = self.state()
-        self.assertEqual(state["state"], "changes-requested")
-        self.assertEqual(state["metadata"]["feedback_source"], "human-review")
-        self.assertEqual(state["next_allowed_steps"], ["gcw-implement"])
+        projection = self.workflow()["projection"]
+        self.assertEqual(projection["phase"], "changes-requested")
+        self.assertEqual(projection["active_feedback"]["source"], "human-review")
+        self.assertEqual(projection["next_allowed_steps"], ["gcw-implement"])
 
     def test_block_records_resume_point(self) -> None:
         self.init("implementing")
@@ -114,10 +181,10 @@ class ManageGcwStateTest(unittest.TestCase):
             "--reason",
             "dependency unavailable",
         )
-        state = self.state()
-        self.assertEqual(state["state"], "blocked")
-        self.assertEqual(state["metadata"]["resume_state"], "implementing")
-        self.assertEqual(state["metadata"]["resume_step"], "gcw-implement")
+        projection = self.workflow()["projection"]
+        self.assertEqual(projection["phase"], "blocked")
+        self.assertEqual(projection["active_blocker"]["resume_phase"], "implementing")
+        self.assertEqual(projection["active_blocker"]["resume_step"], "gcw-implement")
 
 
 if __name__ == "__main__":

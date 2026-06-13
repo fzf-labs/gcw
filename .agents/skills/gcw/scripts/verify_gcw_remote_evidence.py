@@ -13,20 +13,6 @@ from render_gcw_hosted_artifacts import (
     render_review_request,
 )
 
-def load_json(path: Path, errors: list[str]) -> dict[str, Any]:
-    if not path.is_file():
-        errors.append(f"{path.name} is missing")
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        errors.append(f"{path.name} is not valid JSON: {exc.msg}")
-        return {}
-    if not isinstance(data, dict):
-        errors.append(f"{path.name} must contain a JSON object")
-        return {}
-    return data
-
 
 def read_remote_text(path: Path, errors: list[str], artifact_name: str) -> str:
     if not path.is_file():
@@ -52,7 +38,6 @@ def extract_marked_body(remote_text: str, start_marker: str, end_marker: str) ->
 
 def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
-    _ = load_json(args.issue_dir / "readiness_evidence.json", errors)
     remote_text = read_remote_text(args.remote_file, errors, "progress comment")
     can_compare = not errors
     expected_text = ""
@@ -74,7 +59,6 @@ def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
 
 def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
-    _ = load_json(args.issue_dir / "readiness_evidence.json", errors)
     remote_text = read_remote_text(args.remote_file, errors, "review request")
     can_compare = not errors
     expected_text = ""
@@ -103,7 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     progress_parser = subparsers.add_parser(
         "progress-comment",
-        help="Verify a hosted issue progress comment body against readiness evidence.",
+        help="Verify a hosted issue progress comment body against local GCW events.",
     )
     progress_parser.add_argument("--issue-dir", required=True, type=Path)
     progress_parser.add_argument("--remote-file", required=True, type=Path)
@@ -111,7 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     review_parser = subparsers.add_parser(
         "review-request",
-        help="Verify a hosted review request body against readiness evidence.",
+        help="Verify a hosted review request body against local GCW events.",
     )
     review_parser.add_argument("--issue-dir", required=True, type=Path)
     review_parser.add_argument("--remote-file", required=True, type=Path)

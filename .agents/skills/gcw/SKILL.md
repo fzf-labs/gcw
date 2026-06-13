@@ -13,7 +13,7 @@ This skill is self-contained. It includes the GCW steps, states, Action roles, p
 
 GCW starts from exactly one existing GitHub or GitLab issue. It does not start from implementation. The issue may be created by a human on the platform or by an agent before GCW starts. The GCW main flow intakes the issue, classifies it, clarifies it, and decides whether it is ready for development.
 
-After the spec files stage starts, stable state is written to `.gcw/issues/<issue-id>/state.json` on the issue branch. Before that point, state may be carried by issue comments, labels, or agent context.
+After GCW intake starts, stable workflow facts are appended under `.gcw/issues/<issue-id>/events/` on the issue branch. `.gcw/issues/<issue-id>/workflow.json` is a generated projection cache; validate it against the event log before using it for routing.
 
 GCW has three collaborators:
 
@@ -25,10 +25,11 @@ GCW has three collaborators:
 
 Before routing, identify the current workflow state in this order:
 
-1. If `.gcw/issues/<issue-id>/state.json` exists on the issue branch or current worktree, treat it as the authoritative state source.
-2. If spec files do not exist yet, infer state from issue comments, labels, and the current conversation or handoff context.
-3. If a PR/MR exists, inspect platform metadata and review/check results to distinguish `reviewing`, `changes-requested`, and `review-complete`.
-4. If state is ambiguous or sources conflict, stop and ask the user to resolve the state before running a step.
+1. If `.gcw/issues/<issue-id>/events/` exists on the issue branch or current worktree, treat the event log as the authoritative state source.
+2. Validate `.gcw/issues/<issue-id>/workflow.json` with the GCW validation scripts; if it is missing or stale, rebuild it from events before routing.
+3. If event files do not exist yet, infer state from issue comments, labels, and the current conversation or handoff context.
+4. If a PR/MR exists, inspect platform metadata and review/check results to distinguish `reviewing`, `changes-requested`, and `review-complete`.
+5. If state is ambiguous or sources conflict, stop and ask the user to resolve the state before running a step.
 
 ## Steps
 
@@ -69,7 +70,7 @@ If `gcw-spec-check` finds that the issue is still unclear, return to `issue-clar
 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | Create an isolated worktree, generate spec files from the issue, commit and push them, and link them from an issue comment. | Agent / Action | Recommended. Run an agent to generate the spec, or receive local agent output and complete push plus issue comment. | `planned` |
 | `gcw-spec-check` | `gcw-spec-check.yml` | Check that spec files were generated and pushed, the issue comment links them, and the content is sufficient for implementation. | Agent / Action | Should exist. This is the remote gate before implementation. | `ready-for-implementation`, `issue-clarifying`, or `blocked` |
 | `gcw-implement` | `gcw-implement.yml` | Modify code according to the plan, add tests, and update necessary documentation. | Agent / Action | Optional. Run an agent inside a runner, or record handoff from a local agent through repo / issue / PR artifacts. | `implementing` |
-| `gcw-implement-check` | `gcw-implement-check.yml` | Before creating a review request, check diff boundaries, commits, risks, validation results, and spec files; generate or verify readiness evidence. | Agent / Action | Should exist. This is the remote gate before creating or updating a review request. | `ready-for-review` |
+| `gcw-implement-check` | `gcw-implement-check.yml` | Before creating a review request, check diff boundaries, commits, risks, validation results, and spec files; append the implement-check event payload used for PR rendering. | Agent / Action | Should exist. This is the remote gate before creating or updating a review request. | `ready-for-review` |
 | `gcw-pr-publish` | `gcw-pr-publish.yml` | Idempotently create or update the PR/MR with summary, issue link, validation results, and risk notes. | Agent / Action | Recommended. Handles PR/MR creation or update, issue link, and summary publishing. | `reviewing` |
 | `gcw-pr-review` | `gcw-pr-review.yml` | Trigger CI, static checks, remote artifact verification, optional AI review, and summarize PR review results. | Action | Required. The hosted Action owns the automatic review gate; a local agent may summarize existing remote checks and review evidence, but must not replace the gate. | `reviewing`, `changes-requested`, or `blocked` |
 

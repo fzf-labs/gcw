@@ -1,0 +1,23 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-issue-prepare",
+  "event_id": "gcw-42-001-gcw-issue-prepare",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "ready": true
+  },
+  "refs": {
+    "base_branch": "",
+    "branch": "feat/example-42",
+    "issue": 42
+  },
+  "schema": "gcw.event/v1",
+  "seq": 1,
+  "synthetic": true
+}

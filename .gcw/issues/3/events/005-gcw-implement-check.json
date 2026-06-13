@@ -1,0 +1,66 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-implement-check",
+  "event_id": "gcw-3-005-gcw-implement-check",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+    "base_branch": "master",
+    "gate": {
+      "checks": [
+        {
+          "id": "legacy_readiness_evidence",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "validation": [
+        {
+          "command": "python3 -c \"from pathlib import Path; assert Path('README.md').is_file()\"",
+          "exit_code": 0,
+          "result": "passed"
+        },
+        {
+          "command": "python3 -m unittest discover -s .github/tests -p test_documentation_structure.py -k test_repository_markdown",
+          "exit_code": 0,
+          "result": "passed"
+        }
+      ]
+    },
+    "planning_links": {
+      "findings": "https://github.com/fzf-labs/gcw/blob/gcw/issue-3/.gcw/issues/3/findings.md",
+      "progress": "https://github.com/fzf-labs/gcw/blob/gcw/issue-3/.gcw/issues/3/progress.md",
+      "task_plan": "https://github.com/fzf-labs/gcw/blob/gcw/issue-3/.gcw/issues/3/task_plan.md"
+    },
+    "review_request": {
+      "issue_link": "Closes #3",
+      "summary": "Add root README.md as the GCW project entry point with overview, collaborator roles, main flow summary, and navigation to docs/workflow.md.",
+      "title": "docs: add project README.md"
+    },
+    "reviewer_notes": "Verify README content matches issue acceptance criteria and links to docs/workflow.md correctly.",
+    "risks": "Low risk documentation-only change. Full documentation structure CI still expects other files (CONTRIBUTING.md, CONTEXT.md, etc.) outside this issue scope.",
+    "scope": "README.md only; does not add CONTRIBUTING.md, CONTEXT.md, or other docs/*.md files.",
+    "self_review": {
+      "progress_section": "## Local Self-Review",
+      "recorded": true
+    },
+    "spec_refs": {
+      "findings_sha": "legacy:unknown",
+      "progress_sha": "legacy:unknown",
+      "task_plan_sha": "legacy:unknown"
+    }
+  },
+  "refs": {
+    "base_branch": "master",
+    "branch": "gcw/issue-3",
+    "issue": 3
+  },
+  "schema": "gcw.event/v1",
+  "seq": 5,
+  "synthetic": true
+}

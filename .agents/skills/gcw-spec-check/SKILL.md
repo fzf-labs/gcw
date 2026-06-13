@@ -1,6 +1,6 @@
 ---
 name: gcw-spec-check
-description: Verify GCW spec files, state, issue links, and actionability before implementation. Use when a GCW issue is planned and must pass the implementation gate.
+description: Verify GCW spec files, event-log projection, issue links, and actionability before implementation. Use when a GCW issue is planned and must pass the implementation gate.
 ---
 
 # GCW Spec Check
@@ -25,7 +25,7 @@ Do not:
 
 Require:
 
-- `.gcw/issues/<issue-id>/state.json`.
+- `.gcw/issues/<issue-id>/events/` and current `workflow.json` projection.
 - `.gcw/issues/<issue-id>/task_plan.md`.
 - `.gcw/issues/<issue-id>/findings.md`.
 - `.gcw/issues/<issue-id>/progress.md`.
@@ -36,8 +36,8 @@ Require:
 1. Read the issue directory and validate the expected spec files.
 2. Validate that the spec files have been pushed and linked from the Issue.
 3. Use `gh` or `glab` when needed to confirm the Issue has not changed in a way that invalidates the spec.
-4. Run the GCW validation scripts when available, especially `validate_gcw_evidence.py state` and any implementation gate checks.
-5. Record the resulting status in the issue progress artifact or report the exact missing evidence.
+4. Run the GCW validation scripts when available, especially `validate_gcw_evidence.py workflow` and `validate_gcw_evidence.py spec-check`.
+5. Append a `gcw-spec-check` event with the gate result, rebuild `workflow.json`, and report the exact missing evidence when the gate cannot pass.
 
 ## State Transition
 

@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
+MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
 
 
@@ -28,6 +29,16 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
 
+    def run_manager(self, *args: str) -> None:
+        result = subprocess.run(
+            [sys.executable, str(MANAGER), *args],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+
     def test_render_progress_comment_includes_state_and_planning_links(self) -> None:
         result = self.run_render("progress-comment", "--issue-dir", str(COMPLETE_FIXTURE))
 
@@ -40,7 +51,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md", result.stdout)
 
-    def test_render_review_request_body_includes_readiness_evidence(self) -> None:
+    def test_render_review_request_body_includes_implement_check_event_payload(self) -> None:
         result = self.run_render("review-request", "--issue-dir", str(COMPLETE_FIXTURE))
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -57,28 +68,33 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
     def test_render_progress_comment_can_derive_planning_links_before_readiness(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/43"
         issue_dir.mkdir(parents=True)
-        (issue_dir / "state.json").write_text(
-            """{
-  "branch": "feat/example-43",
-  "evidence": {
-    "implement_check_passed": false,
-    "planning_commit_pushed": true,
-    "planning_files_exist": true,
-    "progress_comment_url": "https://github.com/owner/repo/issues/43#issuecomment-1",
-    "review_request_url": "",
-    "self_review_recorded": false,
-    "spec_check_passed": false
-  },
-  "issue": 43,
-  "last_completed_step": "gcw-issue-to-spec",
-  "next_allowed_steps": ["gcw-spec-check"],
-  "owner": {"id": "workflow-run-1", "kind": "github-actions"},
-  "platform": "github",
-  "repository": "owner/repo",
-  "state": "planned"
-}
-""",
-            encoding="utf-8",
+        self.run_manager(
+            "init-workflow",
+            "--issue-dir",
+            str(issue_dir),
+            "--issue",
+            "43",
+            "--platform",
+            "github",
+            "--repository",
+            "owner/repo",
+            "--branch",
+            "feat/example-43",
+            "--owner-kind",
+            "github-actions",
+            "--owner-id",
+            "workflow-run-1",
+        )
+        self.run_manager("record-issue-prepare", "--issue-dir", str(issue_dir), "--ready")
+        for name in ("task_plan.md", "findings.md", "progress.md"):
+            (issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
+        self.run_manager(
+            "record-issue-to-spec",
+            "--issue-dir",
+            str(issue_dir),
+            "--planning-commit-pushed",
+            "--progress-comment-url",
+            "https://github.com/owner/repo/issues/43#issuecomment-1",
         )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
@@ -88,26 +104,45 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/findings.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/progress.md", result.stdout)
 
-    def test_render_progress_comment_includes_handoff_reason_when_present(self) -> None:
+    def test_render_progress_comment_includes_active_feedback_when_present(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        state = json.loads((issue_dir / "state.json").read_text(encoding="utf-8"))
-        state["evidence"]["handoff_reason"] = "Hosted apply workflow owns the next transition."
-        (issue_dir / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+        self.run_manager(
+            "record-pr-publish",
+            "--issue-dir",
+            str(issue_dir),
+            "--review-request-url",
+            "https://github.com/owner/repo/pull/7",
+            "--body-hash",
+            "sha256:body",
+            "--target",
+            "owner/repo#7",
+        )
+        self.run_manager(
+            "record-pr-review",
+            "--issue-dir",
+            str(issue_dir),
+            "--result",
+            "changes-requested",
+            "--reason",
+            "Hosted apply workflow owns the next transition.",
+        )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Handoff reason: Hosted apply workflow owns the next transition.", result.stdout)
+        self.assertIn("Active feedback: Hosted apply workflow owns the next transition.", result.stdout)
 
 
     def test_render_review_request_includes_optional_scope_and_reviewer_notes(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        evidence = json.loads((issue_dir / "readiness_evidence.json").read_text(encoding="utf-8"))
-        evidence["scope"] = "Only the example module."
-        evidence["reviewer_notes"] = "Focus on the state transitions."
-        (issue_dir / "readiness_evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+        event_path = issue_dir / "events/005-gcw-implement-check.json"
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+        event["payload"]["scope"] = "Only the example module."
+        event["payload"]["reviewer_notes"] = "Focus on the state transitions."
+        event_path.write_text(json.dumps(event, indent=2), encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(issue_dir))
 
         result = self.run_render("review-request", "--issue-dir", str(issue_dir))
 

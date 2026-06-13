@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fzf-labs.local/gcw/event.schema.json",
+  "title": "GCW Event",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "seq", "event", "event_id", "at", "actor", "payload"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "gcw.event/v1"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "event": {
+      "type": "string"
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "parent": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "expected_last_seq": { "type": "integer" },
+        "parent_projection_hash": { "type": "string" }
+      }
+    },
+    "refs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "oneOf": [
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-issue-intake" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["issue", "platform", "repository", "branch", "owner"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-issue-prepare" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["ready"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-issue-to-spec" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["planning_commit_pushed", "progress_comment_url", "spec_refs"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-spec-check" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["gate"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-implement" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["work_summary"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-implement-check" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["gate", "review_request", "risks", "scope", "reviewer_notes", "self_review", "spec_refs"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-pr-publish" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["review_request_url", "rendered_from_event_id", "body_hash", "effects"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-pr-review" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["result"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-block" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["reason", "resume_phase", "resume_step"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-clarify" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["question", "source_phase"]
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "review-complete" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["result"]
+        }
+      }
+    }
+  ]
+}

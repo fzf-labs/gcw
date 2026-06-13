@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -71,47 +72,19 @@ class HostedArtifactHardeningTest(unittest.TestCase):
 
     def test_render_progress_comment_reports_malformed_json(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
-        issue_dir.mkdir(parents=True)
-        (issue_dir / "state.json").write_text(
-            """{
-  "issue": 42,
-  "platform": "github",
-  "repository": "owner/repo",
-  "state": "planned",
-  "branch": "feat/example-42",
-  "owner": {"kind": "local", "id": "cursor-session"},
-  "last_completed_step": "gcw-issue-to-spec",
-  "next_allowed_steps": ["gcw-spec-check"],
-  "evidence": {
-    "planning_files_exist": false,
-    "planning_commit_pushed": false,
-    "implement_check_passed": false,
-    "progress_comment_url": "",
-    "self_review_recorded": false,
-    "spec_check_passed": false,
-    "review_request_url": ""
-  }
-}
-""",
-            encoding="utf-8",
-        )
-        (issue_dir / "readiness_evidence.json").write_text("{not valid json", encoding="utf-8")
+        (issue_dir / "events").mkdir(parents=True)
+        (issue_dir / "events/000-gcw-issue-intake.json").write_text("{not valid json", encoding="utf-8")
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("readiness_evidence.json is not valid JSON", result.stderr)
+        self.assertIn("000-gcw-issue-intake.json is not valid JSON", result.stderr)
         self.assertEqual(result.stdout, "")
 
     def test_verify_review_request_reports_malformed_json(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42-verify"
-        issue_dir.mkdir(parents=True)
-        for name in ("state.json", "task_plan.md", "findings.md", "progress.md", "implementation_gate_result.json"):
-            source = COMPLETE_FIXTURE / name
-            target = issue_dir / name
-            if source.is_file():
-                target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-        (issue_dir / "readiness_evidence.json").write_text("{not valid json", encoding="utf-8")
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        (issue_dir / "events/005-gcw-implement-check.json").write_text("{not valid json", encoding="utf-8")
         remote_file = Path(self.tmp.name) / "remote-review.md"
         remote_file.write_text("<!-- gcw-review-request:start -->\nGenerated body.\n<!-- gcw-review-request:end -->\n", encoding="utf-8")
 
@@ -127,17 +100,12 @@ class HostedArtifactHardeningTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertTrue(
-            any("readiness_evidence.json is not valid JSON" in error for error in output["errors"])
+            any("005-gcw-implement-check.json is not valid JSON" in error for error in output["errors"])
         )
 
     def test_verify_review_request_finds_generated_section_after_marker_text(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42-verify-marker"
-        issue_dir.mkdir(parents=True)
-        for name in ("state.json", "task_plan.md", "findings.md", "progress.md", "implementation_gate_result.json", "readiness_evidence.json"):
-            source = COMPLETE_FIXTURE / name
-            target = issue_dir / name
-            if source.is_file():
-                target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
         rendered = subprocess.run(
             [sys.executable, str(RENDER), "review-request", "--issue-dir", str(COMPLETE_FIXTURE)],
             check=True,

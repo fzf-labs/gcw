@@ -10,7 +10,8 @@
   - 执行 `gcw-issue-prepare`，分类为 documentation，判定 `ready-for-planning`
   - 执行 `gcw-issue-to-spec`，创建 issue 分支与 spec files
 - Files created/modified:
-  - `.gcw/issues/3/state.json` (created)
+  - `.gcw/issues/3/events/` (created by migration from legacy state)
+  - `.gcw/issues/3/workflow.json` (generated projection)
   - `.gcw/issues/3/task_plan.md` (created)
   - `.gcw/issues/3/findings.md` (created)
   - `.gcw/issues/3/progress.md` (created)
@@ -29,7 +30,8 @@
   - 新增根目录 `README.md`（概览、协作分工、主流程示意、文档导航）
 - Files created/modified:
   - `README.md` (created)
-  - `.gcw/issues/3/state.json` (updated to implementing)
+  - `.gcw/issues/3/events/` (updated through `gcw-implement`)
+  - `.gcw/issues/3/workflow.json` (regenerated projection)
 
 ### Phase 4: Testing & Verification
 - **Status:** complete
