@@ -1,0 +1,23 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T12:41:13Z",
+  "event": "gcw-spec-check",
+  "event_id": "gcw-unknown-003-gcw-spec-check",
+  "parent": {
+    "expected_last_seq": 2
+  },
+  "payload": {
+    "gate": {
+      "checks": [],
+      "errors": [],
+      "ok": true
+    },
+    "result": "passed"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 3
+}
