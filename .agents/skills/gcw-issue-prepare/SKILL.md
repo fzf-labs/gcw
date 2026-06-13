@@ -26,14 +26,48 @@ Do not:
 - Apply labels outside [labels.json](labels.json).
 - Apply post-prepare workflow labels such as `ready-to-implement`; later GCW steps own those.
 
+## Platform Selection
+
+Infer the platform from the issue URL or repository remote:
+
+- `github.com` → `github` with `gh`
+- `gitlab.com` or self-hosted GitLab → `gitlab` with `glab`
+
+Repository formats:
+
+- GitHub: `OWNER/REPO`
+- GitLab: `GROUP/PROJECT` or `GROUP/NAMESPACE/PROJECT`
+
+Prefer [scripts/manage_triage_labels.py](scripts/manage_triage_labels.py) for label sync and application on both platforms.
+
 ## Label Vocabulary
 
-[labels.json](labels.json) defines **16 labels** in five groups. Sync definitions to the platform before applying:
+[labels.json](labels.json) defines **16 labels** in five groups.
+
+### Sync label definitions
 
 ```bash
+# GitHub
+python .agents/skills/gcw-issue-prepare/scripts/manage_triage_labels.py sync \
+  --platform github --repo OWNER/REPO
+
+# GitLab
+python .agents/skills/gcw-issue-prepare/scripts/manage_triage_labels.py sync \
+  --platform gitlab --repo GROUP/PROJECT
+```
+
+Manual fallback:
+
+```bash
+# GitHub
 gh label create "triaged" --color "C2E0C6" --description "Reviewed and categorized" --repo OWNER/REPO 2>/dev/null \
   || gh label edit "triaged" --color "C2E0C6" --description "Reviewed and categorized" --repo OWNER/REPO
+
+# GitLab
+glab label create --name "triaged" --color "#C2E0C6" --description "Reviewed and categorized" --repo GROUP/PROJECT
 ```
+
+GitLab label colors must use `#RRGGBB`. Label names with `:` (for example `area:skills`) are supported.
 
 ## Classification Rules
 
@@ -54,7 +88,7 @@ Rules:
 
 Area hints for this repository:
 
-- `area:workflow` — `.github/workflows`, CI scripts
+- `area:workflow` — `.github/workflows`, `.gitlab/ci`, automation scripts
 - `area:skills` — `.agents/skills`
 - `area:specs` — `.gcw/issues/*/`, planning docs
 - `area:tests` — tests and fixtures
@@ -64,10 +98,24 @@ Area hints for this repository:
 1. Read the issue with `gh` or `glab`.
 2. Classify type, area, and whether clarification is needed.
 3. Sync label definitions from [labels.json](labels.json).
-4. Apply labels:
+4. Apply labels on the hosting platform:
+
+```bash
+# GitHub or GitLab — replaces conflicting labels in type/area/readiness/triage groups
+python .agents/skills/gcw-issue-prepare/scripts/manage_triage_labels.py apply \
+  --platform github --repo OWNER/REPO --issue 42 \
+  --add "documentation,triaged,area:specs,ready-to-spec"
+
+python .agents/skills/gcw-issue-prepare/scripts/manage_triage_labels.py apply \
+  --platform gitlab --repo GROUP/PROJECT --issue 42 \
+  --add "documentation,triaged,area:specs,ready-to-spec"
+```
+
+Manual fallback:
 
 ```bash
 gh issue edit 42 --repo OWNER/REPO --add-label "documentation,triaged,area:specs,ready-to-spec"
+glab issue update 42 --repo GROUP/PROJECT --label "documentation,triaged,area:specs,ready-to-spec"
 ```
 
 5. If unclear, comment with questions, apply `needs-info`, stay at `issue-clarifying`.
@@ -96,4 +144,4 @@ gh issue edit 42 --repo OWNER/REPO --add-label "documentation,triaged,area:specs
 ## Stop Conditions
 
 - Stop in `issue-clarifying` if critical information is missing.
-- Stop in `blocked` if permissions or remote access prevent reading or updating the issue.
+- Stop in `blocked` if permissions or remote access prevents reading or updating the issue.
