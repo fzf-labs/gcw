@@ -27,14 +27,14 @@ Phase 4
 - **Status:** complete
 
 ### Phase 4: Testing & Verification
-- [ ] 运行 `.github/tests/test_documentation_structure.py` 中 `README.md` 相关检查
-- [ ] 人工检查链接与排版
-- **Status:** pending
+- [x] 运行 `.github/tests/test_documentation_structure.py` 中 `README.md` 相关检查
+- [x] 人工检查链接与排版
+- **Status:** complete
 
 ### Phase 5: Delivery
 - [ ] 提交实现变更并推送 issue 分支
 - [ ] 通过 `gcw-implement-check` 与 `gcw-pr-publish`
-- **Status:** pending
+- **Status:** in_progress
 
 ## Key Questions
 

@@ -32,14 +32,24 @@
   - `.gcw/issues/3/state.json` (updated to implementing)
 
 ### Phase 4: Testing & Verification
-- **Status:** in_progress
+- **Status:** complete
+- Actions taken:
+  - 验证 `README.md` 存在性与链接规范测试
+
+## Test Results
 
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | README.md 存在性 | `Path('README.md').is_file()` | 文件存在且非空 | 1450 bytes | ✓ |
 | 旧 workflow 链接检查 | `test_repository_markdown_does_not_link_old_workflow_name` | 无违规链接 | ok | ✓ |
 
-## Test Results
+## Local Self-Review
+
+- Diff 仅包含 `README.md` 与 `.gcw/issues/3/` 规划/进度文件，无密钥或无关变更
+- Issue 验收标准已覆盖：概览、协作分工、主流程示意、`docs/workflow.md` 链接
+- 完整 `test_guiding_documentation_uses_focused_names` 仍会因其他缺失文档失败，属 Issue 范围外
+
+## 5-Question Reboot Check
 
 | Question | Answer |
 |----------|--------|
