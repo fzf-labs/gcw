@@ -23,71 +23,57 @@ Do not:
 - Invent product decisions or business answers.
 - Create spec files, branches, or implementation changes.
 - Force an unclear issue into planning.
-- Create repository labels outside the vocabulary in `labels.json`.
-
-## Inputs
-
-Require:
-
-- Issue URL or platform/repository/issue number.
-- Current status: `issue-opened` or `issue-clarifying`.
-
-Optional:
-
-- Existing clarifying questions and answers.
-- Labels or comments that indicate scope, priority, owner, or constraints.
+- Apply labels outside [labels.json](labels.json).
+- Apply post-prepare workflow labels such as `ready-to-implement`; later GCW steps own those.
 
 ## Label Vocabulary
 
-Use [labels.json](labels.json) as the canonical label set. Before applying labels, ensure each required label exists on the hosting platform:
+[labels.json](labels.json) defines **16 labels** in five groups. Sync definitions to the platform before applying:
 
 ```bash
-# GitHub — create or update one label
-gh label create "triaged" --color "C2E0C6" --description "Issue has been reviewed and categorized" --repo OWNER/REPO 2>/dev/null \
-  || gh label edit "triaged" --color "C2E0C6" --description "Issue has been reviewed and categorized" --repo OWNER/REPO
-
-# GitLab
-glab label create "triaged" --color "#C2E0C6" --description "Issue has been reviewed and categorized" --repo OWNER/REPO
+gh label create "triaged" --color "C2E0C6" --description "Reviewed and categorized" --repo OWNER/REPO 2>/dev/null \
+  || gh label edit "triaged" --color "C2E0C6" --description "Reviewed and categorized" --repo OWNER/REPO
 ```
 
 ## Classification Rules
 
-Apply labels in these groups:
-
 | Group | Cardinality | Labels |
 | --- | --- | --- |
-| Type | exactly 1 | `bug`, `documentation`, `enhancement`, `question`, `duplicate`, `invalid`, `wontfix` |
-| Area | 0–1 | `area:workflow`, `area:skills`, `area:specs`, `area:tests` |
-| Reproducibility | 0–1, bugs only | `repro:high`, `repro:medium`, `repro:low`, `repro:unknown` |
-| GCW readiness | exactly 1 | `ready-to-spec` when clear; `needs-info` when clarifying |
-| Triage marker | 1 when classified | `triaged` after classification is recorded |
-| Optional | any | `good first issue`, `help wanted` |
+| `type` | exactly 1 | `bug`, `documentation`, `enhancement`, `question`, `duplicate`, `invalid`, `wontfix` |
+| `area` | 0–1 | `area:workflow`, `area:skills`, `area:specs`, `area:tests` |
+| `readiness` | exactly 1 | `ready-to-spec` when clear; `needs-info` when clarifying |
+| `triage` | 1 when clear | `triaged` |
+| `optional` | any | `good first issue`, `help wanted` |
 
-When `ready` is true, add `triaged` and `ready-to-spec`, and remove `needs-info` if present. When `ready` is false, add `needs-info`, remove `ready-to-spec`, and do not add `triaged` until the issue is actionable.
+Rules:
 
-Replace conflicting labels in the same group instead of accumulating duplicates. Preserve unrelated labels already on the issue unless they contradict the new classification.
+- When `ready` is true: add `triaged` + `ready-to-spec`; remove `needs-info`.
+- When `ready` is false: add `needs-info`; remove `ready-to-spec` and `triaged`.
+- Terminal types (`duplicate`, `invalid`, `wontfix`) must not carry `ready-to-spec`.
+- Replace conflicting labels in the same group; do not stack duplicates.
+
+Area hints for this repository:
+
+- `area:workflow` — `.github/workflows`, CI scripts
+- `area:skills` — `.agents/skills`
+- `area:specs` — `.gcw/issues/*/`, planning docs
+- `area:tests` — tests and fixtures
 
 ## Procedure
 
-1. Use `gh` or `glab` to read the current issue, comments, labels, assignees, and linked context.
-2. Classify the issue: type, area, reproducibility (for bugs), actionability, missing information, and likely owner/reviewer context when available.
-3. Ensure required labels from [labels.json](labels.json) exist on the platform; create or update missing definitions.
-4. Apply the classification labels to the issue:
+1. Read the issue with `gh` or `glab`.
+2. Classify type, area, and whether clarification is needed.
+3. Sync label definitions from [labels.json](labels.json).
+4. Apply labels:
 
 ```bash
-# GitHub
 gh issue edit 42 --repo OWNER/REPO --add-label "documentation,triaged,area:specs,ready-to-spec"
-
-# GitLab
-glab issue update 42 --repo OWNER/REPO --label "documentation,triaged,area:specs,ready-to-spec"
 ```
 
-5. If details are missing, write focused clarifying questions to the Issue, apply `needs-info`, and keep the state at `issue-clarifying`.
-6. If the issue is sufficiently clear, apply `triaged` and `ready-to-spec`, record `ready-for-planning`, and append a `gcw-issue-prepare` event with `labels_applied` in the payload.
+5. If unclear, comment with questions, apply `needs-info`, stay at `issue-clarifying`.
+6. If clear, record `ready-for-planning` and append `gcw-issue-prepare` with `labels_applied`.
 
 ## Event Payload
-
-Record classification in the event:
 
 ```json
 {
@@ -95,14 +81,11 @@ Record classification in the event:
   "summary": "documentation quickstart; scope clear",
   "classification": {
     "type": "documentation",
-    "area": "area:specs",
-    "repro": null
+    "area": "area:specs"
   },
   "labels_applied": ["documentation", "triaged", "area:specs", "ready-to-spec"]
 }
 ```
-
-When `ready` is false, include `question` and set `labels_applied` to include `needs-info` instead of `ready-to-spec`.
 
 ## State Transition
 
@@ -110,11 +93,7 @@ When `ready` is false, include `question` and set `labels_applied` to include `n
 - Completes as: `ready-for-planning` when the issue is clear.
 - Falls back to: `issue-clarifying` when more information is needed.
 
-## Action Role
-
-This step needs Action support. The hosted workflow may collect context, run agent classification, sync label definitions, apply triage labels, organize clarification questions, and record discussion/status. It must not replace human or trusted-source business judgment.
-
 ## Stop Conditions
 
 - Stop in `issue-clarifying` if critical information is missing.
-- Stop in `blocked` if permissions, authentication, or remote access prevents reading or updating the issue or labels.
+- Stop in `blocked` if permissions or remote access prevent reading or updating the issue.
