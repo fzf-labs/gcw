@@ -1,0 +1,19 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T12:40:19Z",
+  "event": "gcw-issue-prepare",
+  "event_id": "gcw-unknown-001-gcw-issue-prepare",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "ready": true,
+    "summary": "documentation quickstart; scope clear; ready for planning"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 1
+}
