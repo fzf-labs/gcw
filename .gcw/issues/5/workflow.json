@@ -1,24 +1,25 @@
 {
   "generated_from": {
-    "events_hash": "sha256:f355d79f6baad0dab830b5a83e04633c7bfa4b659de7ea1df59ec029a0e210bd",
-    "generated_at": "2026-06-13T13:54:27Z",
-    "last_seq": 5
+    "events_hash": "sha256:0d0557498c643eb251f1d77f0a658d8289a5c14fbc1d37f3dbaec7f4d8c501b6",
+    "generated_at": "2026-06-13T13:55:00Z",
+    "last_seq": 6
   },
   "projection": {
     "branch": "gcw/issue-5",
     "issue": "5",
-    "last_completed_step": "gcw-implement-check",
+    "last_completed_step": "gcw-pr-publish",
     "next_allowed_steps": [
-      "gcw-pr-publish"
+      "gcw-pr-review"
     ],
     "owner": {
       "id": "cursor-session",
       "kind": "local"
     },
-    "phase": "ready-for-review",
+    "phase": "reviewing",
     "platform": "github",
     "refs": {
-      "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/5#issuecomment-4698546518"
+      "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/5#issuecomment-4698546518",
+      "review_request_url": "https://github.com/fzf-labs/gcw/pull/6"
     },
     "repository": "fzf-labs/gcw"
   },
