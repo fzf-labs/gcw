@@ -1,0 +1,104 @@
+{
+  "labels": {
+    "bug": {
+      "group": "type",
+      "color": "D73A4A",
+      "description": "Something is not working as expected"
+    },
+    "documentation": {
+      "group": "type",
+      "color": "0075CA",
+      "description": "Documentation or guidance update"
+    },
+    "enhancement": {
+      "group": "type",
+      "color": "A2EEEF",
+      "description": "New capability or improvement request"
+    },
+    "question": {
+      "group": "type",
+      "color": "D876E3",
+      "description": "The issue is primarily a question or discussion"
+    },
+    "duplicate": {
+      "group": "type",
+      "color": "CFD3D7",
+      "description": "Duplicate of an existing issue"
+    },
+    "invalid": {
+      "group": "type",
+      "color": "E4E669",
+      "description": "Not a valid task or problem"
+    },
+    "wontfix": {
+      "group": "type",
+      "color": "FFFFFF",
+      "description": "Will not be worked on"
+    },
+    "area:workflow": {
+      "group": "area",
+      "color": "7057FF",
+      "description": "CI workflows and automation scripts"
+    },
+    "area:skills": {
+      "group": "area",
+      "color": "D4C5F9",
+      "description": "Agent skills and behavior guidance"
+    },
+    "area:specs": {
+      "group": "area",
+      "color": "5319E7",
+      "description": "Specs and planning artifacts"
+    },
+    "area:tests": {
+      "group": "area",
+      "color": "BFDADC",
+      "description": "Automated tests and fixtures"
+    },
+    "priority:p0": {
+      "group": "priority",
+      "color": "B60205",
+      "description": "Critical priority"
+    },
+    "priority:p1": {
+      "group": "priority",
+      "color": "D93F0B",
+      "description": "High priority"
+    },
+    "priority:p2": {
+      "group": "priority",
+      "color": "FBCA04",
+      "description": "Normal priority"
+    },
+    "priority:p3": {
+      "group": "priority",
+      "color": "C5DEF5",
+      "description": "Low priority"
+    },
+    "ready-to-spec": {
+      "group": "readiness",
+      "color": "1D76DB",
+      "description": "Clear enough to write the spec"
+    },
+    "needs-info": {
+      "group": "readiness",
+      "color": "FBCA04",
+      "description": "More information needed before planning"
+    },
+    "triaged": {
+      "group": "triage",
+      "color": "C2E0C6",
+      "description": "Reviewed and categorized"
+    },
+    "good first issue": {
+      "group": "optional",
+      "color": "7057FF",
+      "description": "Suitable for a first contribution"
+    },
+    "help wanted": {
+      "group": "optional",
+      "color": "008672",
+      "description": "Extra contributor attention needed"
+    }
+  }
+}

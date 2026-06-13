@@ -1,0 +1,21 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T14:18:20Z",
+  "event": "gcw-pr-review",
+  "event_id": "gcw-unknown-007-gcw-pr-review",
+  "parent": {
+    "expected_last_seq": 6
+  },
+  "payload": {
+    "block_reason": "No GitHub Actions checks reported on PR #6; local GCW tests (28) passed; remote review-request body verified against implement-check payload.",
+    "feedback_source": "pr-review",
+    "reason": "No GitHub Actions checks reported on PR #6; local GCW tests (28) passed; remote review-request body verified against implement-check payload.",
+    "result": "passed"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 7
+}

@@ -3,32 +3,30 @@
     "id": "cursor-session",
     "kind": "local"
   },
-  "at": "2026-06-13T11:12:08Z",
+  "at": "2026-06-13T12:40:19Z",
   "event": "gcw-issue-prepare",
-  "event_id": "gcw-42-001-gcw-issue-prepare",
+  "event_id": "gcw-unknown-001-gcw-issue-prepare",
   "parent": {
     "expected_last_seq": 0
   },
   "payload": {
     "ready": true,
+    "summary": "documentation quickstart; scope clear; ready for planning",
     "classification": {
-      "type": "enhancement",
-      "area": "area:tests",
+      "type": "documentation",
+      "area": "area:specs",
       "priority": "priority:p2"
     },
     "labels_applied": [
-      "enhancement",
+      "documentation",
       "triaged",
-      "area:tests",
+      "area:specs",
       "priority:p2",
+      "good first issue",
       "ready-to-spec"
     ]
   },
-  "refs": {
-    "base_branch": "",
-    "branch": "feat/example-42",
-    "issue": 42
-  },
+  "refs": {},
   "schema": "gcw.event/v1",
   "seq": 1
 }
