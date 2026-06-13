@@ -2,21 +2,21 @@
   "issue": 3,
   "platform": "github",
   "repository": "fzf-labs/gcw",
-  "state": "planned",
+  "state": "ready-for-implementation",
   "branch": "gcw/issue-3",
   "owner": {
     "kind": "local",
     "id": "cursor-session"
   },
-  "last_completed_step": "gcw-issue-to-spec",
+  "last_completed_step": "gcw-spec-check",
   "next_allowed_steps": [
-    "gcw-spec-check"
+    "gcw-implement"
   ],
   "evidence": {
     "planning_files_exist": true,
     "planning_commit_pushed": true,
-    "progress_comment_url": "",
-    "spec_check_passed": false,
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697976894",
+    "spec_check_passed": true,
     "implement_check_passed": false,
     "self_review_recorded": false,
     "review_request_url": ""
