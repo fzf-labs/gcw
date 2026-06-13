@@ -23,6 +23,5 @@
     "issue": 3
   },
   "schema": "gcw.event/v1",
-  "seq": 3,
-  "synthetic": true
+  "seq": 3
 }

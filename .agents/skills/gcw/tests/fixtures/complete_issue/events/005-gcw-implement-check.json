@@ -14,7 +14,7 @@
     "gate": {
       "checks": [
         {
-          "id": "legacy_readiness_evidence",
+          "id": "implementation_readiness",
           "ok": true
         }
       ],
@@ -45,9 +45,9 @@
       "recorded": true
     },
     "spec_refs": {
-      "findings_sha": "legacy:unknown",
-      "progress_sha": "legacy:unknown",
-      "task_plan_sha": "legacy:unknown"
+      "findings_sha": "sha256:bd871bb61a66e46b4737e2cbb97dc50f9c180a1367d945c0e527685875b434a0",
+      "progress_sha": "sha256:276b4ef60a7b236c88635f93903524eceb526fdfb3710b2a3621011710f79795",
+      "task_plan_sha": "sha256:474fc868ea7cfd21619dc8a58130ecc642b721c8d9ede28a1b952d0ea1f056dd"
     }
   },
   "refs": {
@@ -56,6 +56,5 @@
     "issue": 42
   },
   "schema": "gcw.event/v1",
-  "seq": 5,
-  "synthetic": true
+  "seq": 5
 }

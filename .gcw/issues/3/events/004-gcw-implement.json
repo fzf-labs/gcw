@@ -10,7 +10,7 @@
     "expected_last_seq": 3
   },
   "payload": {
-    "work_summary": "Migrated legacy implementation state."
+    "work_summary": "Implemented the README documentation update for issue #3."
   },
   "refs": {
     "base_branch": "",
@@ -18,6 +18,5 @@
     "issue": 3
   },
   "schema": "gcw.event/v1",
-  "seq": 4,
-  "synthetic": true
+  "seq": 4
 }
