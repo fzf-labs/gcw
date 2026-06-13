@@ -88,6 +88,7 @@ def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
         payload["classification"] = {
             "type": args.classification_type,
             "area": args.classification_area or None,
+            "priority": args.classification_priority or None,
             "repro": args.classification_repro or None,
         }
     if args.labels_applied:
@@ -230,6 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--summary", default="")
     prepare.add_argument("--classification-type", default="")
     prepare.add_argument("--classification-area", default="")
+    prepare.add_argument("--classification-priority", default="")
     prepare.add_argument("--classification-repro", default="")
     prepare.add_argument("--labels-applied", default="")
     prepare.set_defaults(handler=record_issue_prepare)

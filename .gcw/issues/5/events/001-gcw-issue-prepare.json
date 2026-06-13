@@ -14,12 +14,14 @@
     "summary": "documentation quickstart; scope clear; ready for planning",
     "classification": {
       "type": "documentation",
-      "area": "area:specs"
+      "area": "area:specs",
+      "priority": "priority:p2"
     },
     "labels_applied": [
       "documentation",
       "triaged",
       "area:specs",
+      "priority:p2",
       "good first issue",
       "ready-to-spec"
     ]

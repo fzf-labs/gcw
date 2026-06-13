@@ -58,6 +58,233 @@ def planning_links_markdown(evidence: dict[str, Any], projection: dict[str, Any]
     return rows
 
 
+def _progress_header(phase: str) -> list[str]:
+    return [PROGRESS_MARKER, f"GCW Status: {phase}", ""]
+
+
+def _context_section(projection: dict[str, Any], owner: dict[str, Any]) -> list[str]:
+    return [
+        "## Context",
+        f"- Issue: {projection.get('issue', '')}",
+        f"- Branch: {projection.get('branch', '')}",
+        f"- Owner: {owner.get('kind', '')}/{owner.get('id', '')}",
+        f"- Last completed step: {projection.get('last_completed_step', '')}",
+    ]
+
+
+def _classification_from_prepare(issue_dir: Path) -> dict[str, Any]:
+    prepare = find_latest_event(
+        issue_dir,
+        "gcw-issue-prepare",
+        lambda event: event.get("payload", {}).get("ready") is True,
+    )
+    if prepare is None:
+        prepare = find_latest_event(issue_dir, "gcw-issue-prepare")
+    if prepare is None:
+        return {}
+    payload = prepare.get("payload") if isinstance(prepare.get("payload"), dict) else {}
+    classification = payload.get("classification")
+    return classification if isinstance(classification, dict) else {}
+
+
+def _triage_lines(issue_dir: Path, phase: str) -> list[str]:
+    if phase == "issue-opened":
+        return []
+    classification = _classification_from_prepare(issue_dir)
+
+    def field(name: str, key: str) -> str:
+        value = classification.get(key)
+        if value is None or str(value).strip() == "":
+            return f"- {name}: Not recorded"
+        return f"- {name}: {value}"
+
+    return [
+        field("Type", "type"),
+        field("Area", "area"),
+        field("Priority", "priority"),
+    ]
+
+
+def _append_context_and_triage(
+    lines: list[str],
+    issue_dir: Path,
+    phase: str,
+    projection: dict[str, Any],
+    owner: dict[str, Any],
+) -> None:
+    lines.extend(_context_section(projection, owner))
+    triage_lines = _triage_lines(issue_dir, phase)
+    if triage_lines:
+        _append_section(lines, "## Triage", triage_lines)
+
+
+def _validation_lines(validations: list[Any]) -> list[str]:
+    lines: list[str] = []
+    for validation in validations:
+        if isinstance(validation, dict):
+            command = str(validation.get("command", "")).strip()
+            result = str(validation.get("result", "")).strip()
+            if command and result:
+                lines.append(f"- {command}: {result}")
+    return lines
+
+
+def _append_section(lines: list[str], title: str, body_lines: list[str]) -> None:
+    if not body_lines:
+        return
+    lines.extend(["", title, *body_lines])
+
+
+def _render_early_progress(
+    issue_dir: Path,
+    phase: str,
+    projection: dict[str, Any],
+    owner: dict[str, Any],
+) -> str:
+    lines = _progress_header(phase)
+    _append_context_and_triage(lines, issue_dir, phase, projection, owner)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_issue_clarifying(
+    issue_dir: Path,
+    projection: dict[str, Any],
+    owner: dict[str, Any],
+) -> str:
+    lines = _progress_header("issue-clarifying")
+    _append_context_and_triage(lines, issue_dir, "issue-clarifying", projection, owner)
+    question = ""
+    clarify = find_latest_event(issue_dir, "gcw-clarify")
+    if clarify:
+        question = str(clarify.get("payload", {}).get("question", "")).strip()
+    if not question:
+        prepare = find_latest_event(
+            issue_dir,
+            "gcw-issue-prepare",
+            lambda event: event.get("payload", {}).get("ready") is not True,
+        )
+        if prepare:
+            question = str(prepare.get("payload", {}).get("question", "")).strip()
+    feedback = projection.get("active_feedback") if isinstance(projection.get("active_feedback"), dict) else {}
+    if not question:
+        question = str(feedback.get("reason", "")).strip()
+    _append_section(lines, "## Clarification", [f"- Question: {question}"] if question else ["- Question: Not recorded."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_planned_progress(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any]) -> str:
+    lines = _progress_header("planned")
+    _append_context_and_triage(lines, issue_dir, "planned", projection, owner)
+    links = planning_links_markdown({}, projection)
+    _append_section(lines, "## Planning files", links if links else ["- Not recorded yet."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_ready_for_implementation(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any]) -> str:
+    lines = _progress_header("ready-for-implementation")
+    _append_context_and_triage(lines, issue_dir, "ready-for-implementation", projection, owner)
+    spec_check = find_latest_event(
+        issue_dir,
+        "gcw-spec-check",
+        lambda event: event.get("payload", {}).get("gate", {}).get("ok") is True,
+    )
+    result = "passed"
+    if spec_check:
+        result = str(spec_check.get("payload", {}).get("result", "passed")).strip() or "passed"
+    _append_section(lines, "## Spec gate", [f"- Result: {result}"])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_implementing(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any]) -> str:
+    lines = _progress_header("implementing")
+    _append_context_and_triage(lines, issue_dir, "implementing", projection, owner)
+    implement = find_latest_event(issue_dir, "gcw-implement")
+    summary = str(implement.get("payload", {}).get("work_summary", "")).strip() if implement else ""
+    _append_section(lines, "## Implementation", [f"- Work: {summary}"] if summary else ["- Work: In progress."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_ready_for_review(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any]) -> str:
+    lines = _progress_header("ready-for-review")
+    _append_context_and_triage(lines, issue_dir, "ready-for-review", projection, owner)
+    implement_check = find_latest_event(
+        issue_dir,
+        "gcw-implement-check",
+        lambda event: event.get("payload", {}).get("gate", {}).get("ok") is True,
+    )
+    payload = implement_check.get("payload", {}) if implement_check else {}
+    gate = payload.get("gate") if isinstance(payload.get("gate"), dict) else {}
+    validations = payload.get("validation") if isinstance(payload.get("validation"), list) else gate.get("validation", [])
+    readiness_lines = ["- Gate: passed", *_validation_lines(validations if isinstance(validations, list) else [])]
+    _append_section(lines, "## Readiness", readiness_lines or ["- Gate: passed"])
+    risks = str(payload.get("risks", "")).strip()
+    if risks:
+        _append_section(lines, "## Risks", [risks])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_reviewing(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any], refs: dict[str, Any]) -> str:
+    lines = _progress_header("reviewing")
+    _append_context_and_triage(lines, issue_dir, "reviewing", projection, owner)
+    review_request_url = str(refs.get("review_request_url", "")).strip()
+    review_lines = [f"- Request: {review_request_url}"] if review_request_url else ["- Request: Not created yet."]
+    pr_review = find_latest_event(issue_dir, "gcw-pr-review")
+    if pr_review:
+        result = str(pr_review.get("payload", {}).get("result", "")).strip()
+        if result:
+            review_lines.append(f"- Automatic review: {result}")
+    _append_section(lines, "## Review", review_lines)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_changes_requested(
+    issue_dir: Path,
+    projection: dict[str, Any],
+    owner: dict[str, Any],
+    refs: dict[str, Any],
+) -> str:
+    lines = _progress_header("changes-requested")
+    _append_context_and_triage(lines, issue_dir, "changes-requested", projection, owner)
+    review_request_url = str(refs.get("review_request_url", "")).strip()
+    review_lines = [f"- Request: {review_request_url}"] if review_request_url else ["- Request: Not recorded."]
+    _append_section(lines, "## Review", review_lines)
+    feedback = projection.get("active_feedback") if isinstance(projection.get("active_feedback"), dict) else {}
+    source = str(feedback.get("source", "")).strip()
+    reason = str(feedback.get("reason", "")).strip()
+    feedback_lines: list[str] = []
+    if source:
+        feedback_lines.append(f"- Source: {source}")
+    if reason:
+        feedback_lines.append(f"- Reason: {reason}")
+    _append_section(lines, "## Feedback", feedback_lines or ["- Reason: Not recorded."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_blocked(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any]) -> str:
+    lines = _progress_header("blocked")
+    _append_context_and_triage(lines, issue_dir, "blocked", projection, owner)
+    blocker = projection.get("active_blocker") if isinstance(projection.get("active_blocker"), dict) else {}
+    reason = str(blocker.get("reason", "")).strip()
+    resume_phase = str(blocker.get("resume_phase", "")).strip()
+    resume_step = str(blocker.get("resume_step", "")).strip()
+    blocker_lines = []
+    if reason:
+        blocker_lines.append(f"- Reason: {reason}")
+    if resume_phase and resume_step:
+        blocker_lines.append(f"- Resume: {resume_step} at {resume_phase}")
+    _append_section(lines, "## Blocker", blocker_lines or ["- Reason: Not recorded."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_review_complete(issue_dir: Path, projection: dict[str, Any], owner: dict[str, Any]) -> str:
+    lines = _progress_header("review-complete")
+    _append_context_and_triage(lines, issue_dir, "review-complete", projection, owner)
+    complete = find_latest_event(issue_dir, "review-complete")
+    outcome = str(complete.get("payload", {}).get("result", "")).strip() if complete else ""
+    _append_section(lines, "## Outcome", [f"- Result: {outcome}"] if outcome else ["- Result: Not recorded."])
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def render_progress_comment(args: argparse.Namespace) -> str:
     current = assert_projection_current(args.issue_dir)
     if not current["ok"]:
@@ -65,31 +292,27 @@ def render_progress_comment(args: argparse.Namespace) -> str:
     projection = current["projection"]
     owner = projection.get("owner") if isinstance(projection.get("owner"), dict) else {}
     refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
-    review_request_url = str(refs.get("review_request_url", "")).strip()
-    latest_ready = find_latest_event(args.issue_dir, "gcw-implement-check", lambda event: event.get("payload", {}).get("gate", {}).get("ok") is True)
-    readiness = latest_ready.get("payload", {}) if latest_ready else {}
-    lines = [
-        PROGRESS_MARKER,
-        f"GCW Status: {projection.get('phase', 'unknown')}",
-        "",
-        f"- Issue: {projection.get('issue', '')}",
-        f"- Branch: {projection.get('branch', '')}",
-        f"- Owner: {owner.get('kind', '')}/{owner.get('id', '')}",
-        f"- Last completed step: {projection.get('last_completed_step', '')}",
-        f"- Review request: {review_request_url or 'Not created yet'}",
-    ]
-    active_feedback = projection.get("active_feedback") if isinstance(projection.get("active_feedback"), dict) else {}
-    active_blocker = projection.get("active_blocker") if isinstance(projection.get("active_blocker"), dict) else {}
-    if active_feedback.get("reason"):
-        lines.append(f"- Active feedback: {active_feedback['reason']}")
-    if active_blocker.get("reason"):
-        lines.append(f"- Active blocker: {active_blocker['reason']}")
-    lines.extend(["", "Planning files:"])
-    links = planning_links_markdown(readiness, projection)
-    lines.extend(links if links else ["- Not recorded yet."])
-    if readiness.get("risks"):
-        lines.extend(["", f"Risks: {readiness['risks']}"])
-    return "\n".join(lines).rstrip() + "\n"
+    phase = str(projection.get("phase", "unknown"))
+
+    if phase == "issue-clarifying":
+        return _render_issue_clarifying(args.issue_dir, projection, owner)
+    if phase == "planned":
+        return _render_planned_progress(args.issue_dir, projection, owner)
+    if phase == "ready-for-implementation":
+        return _render_ready_for_implementation(args.issue_dir, projection, owner)
+    if phase == "implementing":
+        return _render_implementing(args.issue_dir, projection, owner)
+    if phase == "ready-for-review":
+        return _render_ready_for_review(args.issue_dir, projection, owner)
+    if phase == "reviewing":
+        return _render_reviewing(args.issue_dir, projection, owner, refs)
+    if phase == "changes-requested":
+        return _render_changes_requested(args.issue_dir, projection, owner, refs)
+    if phase == "blocked":
+        return _render_blocked(args.issue_dir, projection, owner)
+    if phase == "review-complete":
+        return _render_review_complete(args.issue_dir, projection, owner)
+    return _render_early_progress(args.issue_dir, phase, projection, owner)
 
 
 def render_review_request(args: argparse.Namespace) -> str:

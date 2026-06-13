@@ -55,6 +55,26 @@
       "color": "BFDADC",
       "description": "Automated tests and fixtures"
     },
+    "priority:p0": {
+      "group": "priority",
+      "color": "B60205",
+      "description": "Critical priority"
+    },
+    "priority:p1": {
+      "group": "priority",
+      "color": "D93F0B",
+      "description": "High priority"
+    },
+    "priority:p2": {
+      "group": "priority",
+      "color": "FBCA04",
+      "description": "Normal priority"
+    },
+    "priority:p3": {
+      "group": "priority",
+      "color": "C5DEF5",
+      "description": "Low priority"
+    },
     "ready-to-spec": {
       "group": "readiness",
       "color": "1D76DB",

@@ -34,7 +34,23 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 - **观察**：平台上应出现的产物
 - **状态**：`workflow.json` 投影中的 `phase`（或由 Issue 评论中的 `<!-- gcw-progress -->` 块反映）
 
-进度评论以 HTML 注释 `<!-- gcw-progress -->` 开头，便于人与 agent 在 Issue 时间线中定位 GCW 状态，例如 Issue #3 上的三条评论：
+进度评论以 HTML 注释 `<!-- gcw-progress -->` 开头，便于人与 agent 在 Issue 时间线中定位 GCW 状态。每种 `GCW Status` 只展示该阶段相关的段落，而不是把所有字段塞进同一条评论：
+
+| `GCW Status` | 评论段落 |
+| --- | --- |
+| `issue-opened` | `## Context` |
+| `ready-for-planning` 及之后 | `## Context`、`## Triage`（Type / Area / Priority） |
+| `issue-clarifying` | `## Context`、`## Triage`、`## Clarification` |
+| `planned` | `## Context`、`## Triage`、`## Planning files` |
+| `ready-for-implementation` | `## Context`、`## Triage`、`## Spec gate` |
+| `implementing` | `## Context`、`## Triage`、`## Implementation` |
+| `ready-for-review` | `## Context`、`## Triage`、`## Readiness`、`## Risks` |
+| `reviewing` | `## Context`、`## Triage`、`## Review` |
+| `changes-requested` | `## Context`、`## Triage`、`## Review`、`## Feedback` |
+| `blocked` | `## Context`、`## Triage`、`## Blocker` |
+| `review-complete` | `## Context`、`## Triage`、`## Outcome` |
+
+例如 Issue #3 上的三条评论：
 
 - [`planned`](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697976894)
 - [`ready-for-implementation`](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697978196)

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 LABELS_FILE = Path(__file__).resolve().parents[1] / "labels.json"
-GROUPS_WITH_SINGLE_VALUE = {"type", "area", "readiness", "triage"}
+GROUPS_WITH_SINGLE_VALUE = {"type", "area", "priority", "readiness", "triage"}
 
 
 def load_labels() -> dict[str, dict[str, Any]]:

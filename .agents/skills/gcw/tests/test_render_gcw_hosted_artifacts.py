@@ -39,33 +39,25 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
-    def test_render_progress_comment_includes_state_and_planning_links(self) -> None:
+    def test_render_progress_comment_uses_readiness_format_after_planned(self) -> None:
         result = self.run_render("progress-comment", "--issue-dir", str(COMPLETE_FIXTURE))
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(result.stdout.startswith("<!-- gcw-progress -->\n"))
         self.assertIn("GCW Status: ready-for-review", result.stdout)
-        self.assertIn("Last completed step: gcw-implement-check", result.stdout)
-        self.assertIn("- Review request: Not created yet", result.stdout)
-        self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/task_plan.md", result.stdout)
-        self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md", result.stdout)
-        self.assertIn("https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md", result.stdout)
+        self.assertIn("## Context", result.stdout)
+        self.assertIn("## Triage", result.stdout)
+        self.assertIn("- Type: enhancement", result.stdout)
+        self.assertIn("- Area: area:tests", result.stdout)
+        self.assertIn("- Priority: priority:p2", result.stdout)
+        self.assertIn("## Readiness", result.stdout)
+        self.assertIn("- Gate: passed", result.stdout)
+        self.assertIn("python3 -m unittest discover -s .agents/skills/gcw/tests: passed", result.stdout)
+        self.assertIn("## Risks", result.stdout)
+        self.assertNotIn("## Planning files", result.stdout)
+        self.assertNotIn("Review request:", result.stdout)
 
-    def test_render_review_request_body_includes_implement_check_event_payload(self) -> None:
-        result = self.run_render("review-request", "--issue-dir", str(COMPLETE_FIXTURE))
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(result.stdout.startswith("<!-- gcw-review-request:start -->\n"))
-        self.assertTrue(result.stdout.rstrip().endswith("<!-- gcw-review-request:end -->"))
-        self.assertIn("feat: add example", result.stdout)
-        self.assertIn("Adds the example capability.", result.stdout)
-        self.assertIn("Closes #42", result.stdout)
-        self.assertIn("python3 -m unittest discover -s .agents/skills/gcw/tests", result.stdout)
-        self.assertIn("passed", result.stdout)
-        self.assertIn("Low risk; fixture only.", result.stdout)
-        self.assertIn("https://github.com/owner/repo/issues/42#issuecomment-1", result.stdout)
-
-    def test_render_progress_comment_can_derive_planning_links_before_readiness(self) -> None:
+    def test_render_progress_comment_includes_planning_links_only_when_planned(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/43"
         issue_dir.mkdir(parents=True)
         self.run_manager(
@@ -103,6 +95,46 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/task_plan.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/findings.md", result.stdout)
         self.assertIn("https://github.com/owner/repo/blob/feat/example-43/.gcw/issues/43/progress.md", result.stdout)
+        self.assertIn("GCW Status: planned", result.stdout)
+        self.assertIn("## Planning files", result.stdout)
+
+    def test_render_progress_comment_uses_review_format_when_reviewing(self) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/45"
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        self.run_manager(
+            "record-pr-publish",
+            "--issue-dir",
+            str(issue_dir),
+            "--review-request-url",
+            "https://github.com/owner/repo/pull/7",
+            "--body-hash",
+            "sha256:body",
+            "--target",
+            "owner/repo#7",
+        )
+
+        result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GCW Status: reviewing", result.stdout)
+        self.assertIn("## Review", result.stdout)
+        self.assertIn("- Request: https://github.com/owner/repo/pull/7", result.stdout)
+        self.assertNotIn("## Planning files", result.stdout)
+        self.assertNotIn("## Readiness", result.stdout)
+
+    def test_render_review_request_body_includes_implement_check_event_payload(self) -> None:
+        result = self.run_render("review-request", "--issue-dir", str(COMPLETE_FIXTURE))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.startswith("<!-- gcw-review-request:start -->\n"))
+        self.assertTrue(result.stdout.rstrip().endswith("<!-- gcw-review-request:end -->"))
+        self.assertIn("feat: add example", result.stdout)
+        self.assertIn("Adds the example capability.", result.stdout)
+        self.assertIn("Closes #42", result.stdout)
+        self.assertIn("python3 -m unittest discover -s .agents/skills/gcw/tests", result.stdout)
+        self.assertIn("passed", result.stdout)
+        self.assertIn("Low risk; fixture only.", result.stdout)
+        self.assertIn("https://github.com/owner/repo/issues/42#issuecomment-1", result.stdout)
 
     def test_render_progress_comment_includes_active_feedback_when_present(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
@@ -131,7 +163,10 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Active feedback: Hosted apply workflow owns the next transition.", result.stdout)
+        self.assertIn("GCW Status: changes-requested", result.stdout)
+        self.assertIn("## Feedback", result.stdout)
+        self.assertIn("- Reason: Hosted apply workflow owns the next transition.", result.stdout)
+        self.assertIn("## Review", result.stdout)
 
 
     def test_render_review_request_includes_optional_scope_and_reviewer_notes(self) -> None:

@@ -42,7 +42,7 @@ Prefer [scripts/manage_triage_labels.py](scripts/manage_triage_labels.py) for la
 
 ## Label Vocabulary
 
-[labels.json](labels.json) defines **16 labels** in five groups.
+[labels.json](labels.json) defines **20 labels** in six groups.
 
 ### Sync label definitions
 
@@ -75,9 +75,17 @@ GitLab label colors must use `#RRGGBB`. Label names with `:` (for example `area:
 | --- | --- | --- |
 | `type` | exactly 1 | `bug`, `documentation`, `enhancement`, `question`, `duplicate`, `invalid`, `wontfix` |
 | `area` | 0–1 | `area:workflow`, `area:skills`, `area:specs`, `area:tests` |
+| `priority` | exactly 1 | `priority:p0`, `priority:p1`, `priority:p2`, `priority:p3` |
 | `readiness` | exactly 1 | `ready-to-spec` when clear; `needs-info` when clarifying |
 | `triage` | 1 when clear | `triaged` |
 | `optional` | any | `good first issue`, `help wanted` |
+
+Priority hints:
+
+- `priority:p0` — production outage, security incident, or blocking release
+- `priority:p1` — important; should land soon
+- `priority:p2` — normal backlog (default for documentation and routine enhancements)
+- `priority:p3` — nice-to-have or deferrable
 
 Rules:
 
@@ -96,19 +104,19 @@ Area hints for this repository:
 ## Procedure
 
 1. Read the issue with `gh` or `glab`.
-2. Classify type, area, and whether clarification is needed.
+2. Classify type, area, priority, and whether clarification is needed.
 3. Sync label definitions from [labels.json](labels.json).
 4. Apply labels on the hosting platform:
 
 ```bash
-# GitHub or GitLab — replaces conflicting labels in type/area/readiness/triage groups
+# GitHub or GitLab — replaces conflicting labels in type/area/priority/readiness/triage groups
 python .agents/skills/gcw-issue-prepare/scripts/manage_triage_labels.py apply \
   --platform github --repo OWNER/REPO --issue 42 \
-  --add "documentation,triaged,area:specs,ready-to-spec"
+  --add "documentation,triaged,area:specs,priority:p2,ready-to-spec"
 
 python .agents/skills/gcw-issue-prepare/scripts/manage_triage_labels.py apply \
   --platform gitlab --repo GROUP/PROJECT --issue 42 \
-  --add "documentation,triaged,area:specs,ready-to-spec"
+  --add "documentation,triaged,area:specs,priority:p2,ready-to-spec"
 ```
 
 Manual fallback:
@@ -129,9 +137,10 @@ glab issue update 42 --repo GROUP/PROJECT --label "documentation,triaged,area:sp
   "summary": "documentation quickstart; scope clear",
   "classification": {
     "type": "documentation",
-    "area": "area:specs"
+    "area": "area:specs",
+    "priority": "priority:p2"
   },
-  "labels_applied": ["documentation", "triaged", "area:specs", "ready-to-spec"]
+  "labels_applied": ["documentation", "triaged", "area:specs", "priority:p2", "ready-to-spec"]
 }
 ```
 
