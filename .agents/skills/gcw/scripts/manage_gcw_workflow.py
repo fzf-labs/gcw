@@ -89,8 +89,8 @@ def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
             "type": args.classification_type,
             "area": args.classification_area or None,
             "priority": args.classification_priority or None,
-            "repro": args.classification_repro or None,
         }
+        payload["classification"] = {k: v for k, v in payload["classification"].items() if v is not None}
     if args.labels_applied:
         payload["labels_applied"] = [label.strip() for label in args.labels_applied.split(",") if label.strip()]
     return append_and_finish(args, "gcw-issue-prepare", payload)
