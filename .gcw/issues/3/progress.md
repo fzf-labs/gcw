@@ -23,24 +23,28 @@
   - `.gcw/issues/3/task_plan.md` (updated)
 
 ### Phase 3: Implementation
-- **Status:** pending
+- **Status:** complete
+- **Started:** 2026-06-13
 - Actions taken:
-  -
+  - 新增根目录 `README.md`（概览、协作分工、主流程示意、文档导航）
 - Files created/modified:
-  -
+  - `README.md` (created)
+  - `.gcw/issues/3/state.json` (updated to implementing)
 
-## Test Results
+### Phase 4: Testing & Verification
+- **Status:** in_progress
 
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-|      |       |          |        |        |
+| README.md 存在性 | `Path('README.md').is_file()` | 文件存在且非空 | 1450 bytes | ✓ |
+| 旧 workflow 链接检查 | `test_repository_markdown_does_not_link_old_workflow_name` | 无违规链接 | ok | ✓ |
 
-## 5-Question Reboot Check
+## Test Results
 
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 — Implementation（spec 已就绪，待写 README） |
-| Where am I going? | 实现 → 验证 → 交付 PR |
+| Where am I? | Phase 4 — Testing & Verification |
+| Where am I going? | implement-check → PR publish → review |
 | What's the goal? | 新增项目入口 `README.md` |
 | What have I learned? | 见 `findings.md` |
-| What have I done? | 完成 intake / prepare / to-spec |
+| What have I done? | 已创建 `README.md`，待 implement-check |

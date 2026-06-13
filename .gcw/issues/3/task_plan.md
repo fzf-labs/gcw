@@ -6,7 +6,7 @@
 
 ## Current Phase
 
-Phase 1
+Phase 4
 
 ## Phases
 
@@ -22,9 +22,9 @@ Phase 1
 - **Status:** complete
 
 ### Phase 3: Implementation
-- [ ] 撰写 `README.md` 正文（中文，专有名词保留英文）
-- [ ] 链接到 `docs/workflow.md`
-- **Status:** pending
+- [x] 撰写 `README.md` 正文（中文，专有名词保留英文）
+- [x] 链接到 `docs/workflow.md`
+- **Status:** complete
 
 ### Phase 4: Testing & Verification
 - [ ] 运行 `.github/tests/test_documentation_structure.py` 中 `README.md` 相关检查

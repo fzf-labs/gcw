@@ -2,15 +2,16 @@
   "issue": 3,
   "platform": "github",
   "repository": "fzf-labs/gcw",
-  "state": "ready-for-implementation",
+  "state": "implementing",
   "branch": "gcw/issue-3",
   "owner": {
     "kind": "local",
     "id": "cursor-session"
   },
-  "last_completed_step": "gcw-spec-check",
+  "last_completed_step": "gcw-implement",
   "next_allowed_steps": [
-    "gcw-implement"
+    "gcw-implement",
+    "gcw-implement-check"
   ],
   "evidence": {
     "planning_files_exist": true,
