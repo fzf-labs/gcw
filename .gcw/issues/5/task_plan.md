@@ -6,7 +6,7 @@
 
 ## Current Phase
 
-Phase 2
+Phase 4
 
 ## Phases
 
@@ -22,16 +22,16 @@ Phase 2
 - **Status:** complete
 
 ### Phase 3: Implementation
-- [ ] 撰写 `docs/quickstart.md`（中文正文，专有名词保留英文）
-- [ ] 更新 `README.md` 文档导航
-- [ ] 在 `docs/workflow.md` 增加一句指向 Quickstart 的链接
-- **Status:** pending
+- [x] 撰写 `docs/quickstart.md`（中文正文，专有名词保留英文）
+- [x] 更新 `README.md` 文档导航
+- [x] 在 `docs/workflow.md` 增加一句指向 Quickstart 的链接
+- **Status:** complete
 
 ### Phase 4: Testing & Verification
-- [ ] 检查所有远程链接可访问
-- [ ] 确认 Quickstart 不重复 `docs/workflow.md` 步骤表全文
+- [x] 检查所有远程链接可访问（Issue #3 评论、分支 spec、PR #4）
+- [x] 确认 Quickstart 不重复 `docs/workflow.md` 步骤表全文
 - [ ] 运行文档相关 CI（若适用）
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 5: Delivery
 - [ ] 通过 `gcw-implement-check` 与 `gcw-pr-publish` 发布 PR

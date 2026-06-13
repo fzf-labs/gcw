@@ -24,14 +24,20 @@
   - `.gcw/issues/5/findings.md` (updated)
 
 ### Phase 3: Implementation
-- **Status:** pending
+- **Status:** complete
+- **Started:** 2026-06-13
 - Actions taken:
-  - （待 `gcw-spec-check` 通过后开始）
+  - 记录 `gcw-implement` 事件
+  - 新增 `docs/quickstart.md`（Issue #3 / PR #4 端到端示例）
+  - 更新 `README.md`、`docs/workflow.md` 导航链接
 - Files created/modified:
-  - （待创建 `docs/quickstart.md`）
+  - `docs/quickstart.md` (created)
+  - `README.md` (updated)
+  - `docs/workflow.md` (updated)
+  - `.gcw/issues/5/events/004-gcw-implement.json` (created)
 
 ### Phase 4: Testing & Verification
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 5: Delivery
 - **Status:** pending
