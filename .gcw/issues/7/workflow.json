@@ -1,21 +1,21 @@
 {
   "generated_from": {
-    "events_hash": "sha256:d106a978c92c43c95bf576ca7b43c0ddb11cb25187012320d50f855df3331e1d",
-    "generated_at": "2026-06-13T17:02:11Z",
-    "last_seq": 2
+    "events_hash": "sha256:5a46a8495f729714cdf7c686358aef12eebff74c4f73c5b7948e780c1fab0f80",
+    "generated_at": "2026-06-13T17:03:12Z",
+    "last_seq": 3
   },
   "projection": {
     "branch": "gcw/issue-7",
     "issue": "7",
-    "last_completed_step": "gcw-issue-to-spec",
+    "last_completed_step": "gcw-spec-check",
     "next_allowed_steps": [
-      "gcw-spec-check"
+      "gcw-implement"
     ],
     "owner": {
       "id": "cursor-session",
       "kind": "local"
     },
-    "phase": "planned",
+    "phase": "ready-for-implementation",
     "platform": "github",
     "refs": {
       "progress_comment_url": ""
