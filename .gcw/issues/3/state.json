@@ -2,15 +2,15 @@
   "issue": 3,
   "platform": "github",
   "repository": "fzf-labs/gcw",
-  "state": "reviewing",
+  "state": "changes-requested",
   "branch": "gcw/issue-3",
   "owner": {
     "kind": "local",
     "id": "cursor-session"
   },
-  "last_completed_step": "gcw-pr-publish",
+  "last_completed_step": "gcw-pr-review",
   "next_allowed_steps": [
-    "gcw-pr-review"
+    "gcw-implement"
   ],
   "evidence": {
     "planning_files_exist": true,
@@ -21,5 +21,8 @@
     "self_review_recorded": true,
     "review_request_url": "https://github.com/fzf-labs/gcw/pull/4"
   },
-  "metadata": {}
+  "metadata": {
+    "feedback_source": "pr-review",
+    "block_reason": "CI validate failed: test_guiding_documentation_uses_focused_names requires CONTRIBUTING.md, CONTEXT.md, docs/evidence.md, docs/hosted-runners.md, docs/validation.md (outside issue #3 scope; README.md passes)."
+  }
 }
