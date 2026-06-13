@@ -11,7 +11,19 @@
   },
   "payload": {
     "ready": true,
-    "summary": "documentation quickstart; scope clear; ready for planning"
+    "summary": "documentation quickstart; scope clear; ready for planning",
+    "classification": {
+      "type": "documentation",
+      "area": "area:specs",
+      "repro": null
+    },
+    "labels_applied": [
+      "documentation",
+      "triaged",
+      "area:specs",
+      "good first issue",
+      "ready-to-implement"
+    ]
   },
   "refs": {},
   "schema": "gcw.event/v1",
