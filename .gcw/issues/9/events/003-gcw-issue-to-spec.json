@@ -1,0 +1,24 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T06:31:48Z",
+  "event": "gcw-issue-to-spec",
+  "event_id": "gcw-unknown-003-gcw-issue-to-spec",
+  "parent": {
+    "expected_last_seq": 2
+  },
+  "payload": {
+    "planning_commit_pushed": true,
+      "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/9#issuecomment-4700929631",
+    "spec_refs": {
+      "findings_sha": "sha256:e9f901367da6c5f2348d3dabe7a88d03b78b7739403c6d0197bdc808136622ab",
+      "progress_sha": "sha256:7bade2bdf3e1e71c8cd043ee0403c113a8a2a42a3c7b4e1400f8dbdf223b687b",
+      "task_plan_sha": "sha256:85040a2f91469910840e74b84757d1288aa0286430ff8f0d49356ab809c933e5"
+    }
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 3
+}
