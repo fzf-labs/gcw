@@ -8,13 +8,22 @@
 - Completed `gcw-issue-triage`: enhancement / area:workflow / priority:p0.
 - Completed `gcw-issue-clarify`: all structural readiness checks passed → `ready-for-planning`.
 - Generated initial spec files (`task_plan.md`, `findings.md`, `progress.md`).
+- Completed `gcw-issue-to-spec` and `gcw-spec-check` → `ready-for-implementation`.
+
+### 2026-06-14 — Hosted workflow implementation
+
+- Recorded `gcw-implement` milestone; phase is `implementing`.
+- Added `.github/actions/gcw-setup` composite action.
+- Added `.github/scripts/prepare_gcw_hosted_step.py` phase gate helper.
+- Added hosted workflows for GCW steps 2–9 under `.github/workflows/gcw-*.yml`.
+- Added `test_gcw_hosted_workflows.py` YAML shape and phase-gate tests.
 
 ## Next Actions
 
-1. Run `gcw-issue-to-spec` to record planning commit and link spec from progress comment.
-2. Run `gcw-spec-check` to enter `ready-for-implementation`.
-3. Implement workflow YAML files per `task_plan.md` phases.
+1. Run `gcw-implement-check` after self-review and implement-check payload is ready.
+2. Create/update PR via `gcw-pr-publish` hosted workflow or local `run_gcw_step.py`.
+3. Update `docs/workflow.md` and `docs/quickstart.md` for hosted vs local ownership.
 
 ## Open Questions
 
-- Confirm with maintainers: separate `gcw-issue-triage` + `gcw-issue-clarify` workflows vs single `gcw-issue-prepare` orchestrator (spec prefers separate per contract).
+- None blocking.

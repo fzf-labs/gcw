@@ -1,0 +1,23 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T14:37:07Z",
+  "event": "gcw-implement",
+  "event_id": "gcw-12-005-gcw-implement",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+    "progress_comment_body_hash": "sha256:748d663ee25da2790bb6cd83b1d4f1f8ab8bc5f1f56a36c0924df782b0217844",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/12#issuecomment-4702060587",
+    "work_summary": "Implement hosted GitHub Actions workflows for GCW steps 2-9 with shared setup action, gate/mutating permissions split, and workflow YAML validation tests."
+  },
+  "refs": {
+    "branch": "gcw/issue-12",
+    "issue": "12"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 5
+}

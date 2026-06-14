@@ -1,0 +1,119 @@
+name: GCW Issue Triage
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number
+        required: true
+      issue_branch:
+        description: Issue branch (default gcw/issue-<number>)
+        required: false
+        default: ""
+      dry_run:
+        description: Validate only; do not record milestone
+        type: boolean
+        default: false
+      classification_type:
+        description: GCW classification type
+        required: true
+        default: enhancement
+      classification_priority:
+        description: GCW priority label
+        required: true
+        default: priority:p2
+      classification_area:
+        description: Optional area label (e.g. area:workflow)
+        required: false
+        default: ""
+      labels_applied:
+        description: Comma-separated workflow labels to apply
+        required: true
+        default: triaged
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: gcw-issue-triage-${{ inputs.issue_number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+          fetch-depth: 0
+
+      - name: Prepare hosted step
+        id: prepare
+        run: |
+          python3 .github/scripts/prepare_gcw_hosted_step.py \
+            --step gcw-issue-triage \
+            --issue-number "${{ inputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --issue-branch "${{ inputs.issue_branch }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Report skip
+        if: steps.prepare.outputs.should_run != 'true'
+        run: echo "${{ steps.prepare.outputs.skip_reason }}"
+
+      - name: Sync triage label definitions
+        if: steps.prepare.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
+            --platform github --repo "${{ github.repository }}"
+
+      - name: Apply triage metadata
+        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        id: remote_sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          labels="${{ inputs.labels_applied }}"
+          area="${{ inputs.classification_area }}"
+          if [ -n "$area" ]; then
+            labels="$labels,$area"
+          fi
+          python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py apply-metadata \
+            --platform github --repo "${{ github.repository }}" \
+            --issue "${{ inputs.issue_number }}" \
+            --type "${{ inputs.classification_type }}" \
+            --priority "${{ inputs.classification_priority }}" \
+            --labels "$labels" \
+            > /tmp/triage_remote_sync.json
+
+      - name: Run GCW issue triage step
+        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > /tmp/triage_options.json
+          import json
+          options = {
+              "classification_type": "${{ inputs.classification_type }}",
+              "classification_priority": "${{ inputs.classification_priority }}",
+              "labels_applied": [x.strip() for x in "${{ inputs.labels_applied }}".split(",") if x.strip()],
+              "remote_sync_file": "/tmp/triage_remote_sync.json",
+          }
+          area = "${{ inputs.classification_area }}".strip()
+          if area:
+              options["classification_area"] = area
+          print(json.dumps(options))
+          PY
+          python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --options-file /tmp/triage_options.json
+
+      - name: Dry-run workflow validation
+        if: steps.prepare.outputs.should_run == 'true' && inputs.dry_run
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
