@@ -1,0 +1,40 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-issue-triage",
+  "event_id": "gcw-42-001-gcw-issue-triage",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "classification": {
+      "area": "area:tests",
+      "priority": "priority:p2",
+      "type": "enhancement"
+    },
+    "labels_applied": [
+      "triaged",
+      "area:tests"
+    ],
+    "progress_comment_body_hash": "sha256:8153ea5bea8a09078df056f3bf97ba2f0fee452ba230da47e372404eb4b6d019",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
+    "remote_sync": {
+      "issue_type": "Feature",
+      "labels": [
+        "triaged",
+        "area:tests"
+      ],
+      "platform": "github",
+      "priority": "Medium"
+    }
+  },
+  "refs": {
+    "branch": "feat/example-42",
+    "issue": "42"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 1
+}

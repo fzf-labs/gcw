@@ -1,12 +1,12 @@
 {
   "generated_from": {
-    "events_hash": "sha256:d96901bbca6585bb523af95b350a12ba07922a7c7e51d1b66b56039d5a107d1b",
-    "generated_at": "2026-06-14T05:35:06Z",
-    "last_seq": 5
+    "events_hash": "sha256:04ff6099ce46cccdc7e109fb3b4eda5820429bbe009c2966df1a65dbe721bbe1",
+    "generated_at": "2026-06-14T13:45:42Z",
+    "last_seq": 6
   },
   "projection": {
     "branch": "feat/example-42",
-    "issue": 42,
+    "issue": "42",
     "last_completed_step": "gcw-implement-check",
     "next_allowed_steps": [
       "gcw-pr-publish"
@@ -18,7 +18,7 @@
     "phase": "ready-for-review",
     "platform": "github",
     "refs": {
-      "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-4"
+      "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-5"
     },
     "repository": "owner/repo"
   },

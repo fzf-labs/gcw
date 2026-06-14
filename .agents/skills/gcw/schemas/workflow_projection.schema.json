@@ -79,6 +79,7 @@
           "type": "string",
           "enum": [
             "issue-opened",
+            "issue-triaged",
             "issue-clarifying",
             "ready-for-planning",
             "planned",
@@ -95,7 +96,8 @@
           "type": "string",
           "enum": [
             "gcw-issue-intake",
-            "gcw-issue-prepare",
+            "gcw-issue-triage",
+            "gcw-issue-clarify",
             "gcw-issue-to-spec",
             "gcw-spec-check",
             "gcw-implement",
@@ -112,7 +114,8 @@
           "items": {
             "type": "string",
             "enum": [
-              "gcw-issue-prepare",
+              "gcw-issue-triage",
+              "gcw-issue-clarify",
               "gcw-issue-to-spec",
               "gcw-spec-check",
               "gcw-implement",

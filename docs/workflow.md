@@ -21,7 +21,8 @@ GCW 由人、agent、Action 三方协作推进：
 ```text
 已有 Issue
   -> gcw-issue-intake
-  -> gcw-issue-prepare
+  -> gcw-issue-triage
+  -> gcw-issue-clarify
   -> gcw-issue-to-spec
   -> gcw-spec-check
   -> gcw-implement
@@ -31,9 +32,9 @@ GCW 由人、agent、Action 三方协作推进：
   -> 等待 GitHub/GitLab 上的人类审查和结束结果
 ```
 
-spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到远程分支，然后通过 Issue 评论链接到这些文件。当前 spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md`。
+spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到远程分支，然后通过标准 `<!-- gcw-progress -->` Issue 评论链接到这些文件；不要额外发布非结构化的 planning-links 评论。当前 spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md`。
 
-**进度评论策略**：从 `gcw-issue-prepare` 起，每个主步骤在关键节点完成时 **新发一条** `<!-- gcw-progress -->` 评论（禁止编辑旧评论）；`refs.progress_comment_url` 指向最新评论。发布使用 `publish_progress_comment.py`；远程校验比对的是最新评论正文与当前 `phase` 的渲染结果。
+**进度评论策略**：从 `gcw-issue-triage` 起，每个主步骤在关键节点完成时 **新发一条** `<!-- gcw-progress -->` 评论（禁止编辑旧评论）；`refs.progress_comment_url` 指向最新评论。发布使用 `publish_progress_comment.py`；事件记录同时保存 `progress_comment_body_hash`，远程校验比对的是最新评论正文与当前 `phase` 的渲染结果及 body hash。
 
 如果 `gcw-spec-check` 发现 Issue 仍不清楚，会回到 `issue-clarifying`；已生成的 spec files 作为草稿保留，澄清后重新执行 `gcw-issue-to-spec` 更新。
 
@@ -43,14 +44,15 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 
 | 顺序 | 步骤 | GitHub Action 文件 | 目标 | 执行方 | Action 角色 | 完成后的状态 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `gcw-issue-intake` | 无 | 接入已经存在的 GitHub/GitLab Issue，记录 Issue URL、编号和初始上下文，并初始化 GCW 状态。 | 人 / agent | 不需要：Issue 接入由人或 agent 发起，不由托管流水线自动接入 | `issue-opened` | Issue 创建属于流程外前置动作，可以由人或 agent 完成 |
-| 2 | `gcw-issue-prepare` | `gcw-issue-prepare.yml` | 分类 Issue、补充讨论并检查信息是否足以进入 spec 编写。 | 人 / agent / Action | 需要：收集上下文、运行 agent 分类和整理澄清问题、记录讨论和状态；不能替代关键业务判断 | `ready-for-planning` 或 `issue-clarifying` | 关键业务答案必须来自人类或可信来源，不能由 Action 猜测 |
-| 3 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | 创建隔离 worktree，将 Issue 生成 spec files，提交并推送，然后在 Issue 评论中链接。 | agent / Action | 建议有：运行 agent 生成 spec，或接收本地 agent 产物并完成推送和 Issue 评论 | `planned` | spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md` |
-| 4 | `gcw-spec-check` | `gcw-spec-check.yml` | 检查 spec files 是否已生成并推送、Issue 评论是否已链接、内容是否足以进入实现。 | agent / Action | 应该有：作为进入实现前的远端 gate | `ready-for-implementation`、`issue-clarifying` 或 `blocked` | 这是实现前的 spec 硬门槛 |
-| 5 | `gcw-implement` | `gcw-implement.yml` | 按计划修改代码、补测试、更新必要文档。 | agent / Action | 可以有：在 runner 内运行 agent，或记录本地 agent 通过 repo / issue / PR 的交接 | `implementing` | 表示实现阶段内的一次推进；实现是否足以进入 review 由 `gcw-implement-check` 判定。PR review 或人审反馈修复也回到这里 |
-| 6 | `gcw-implement-check` | `gcw-implement-check.yml` | 创建 review request 前检查 diff、提交边界、风险、验证结果和 spec files，并追加用于 PR/MR 渲染的 `gcw-implement-check` 事件 payload。 | agent / Action | 应该有：作为创建或更新 review request 前的远端 gate | `ready-for-review` | 把实现自查和 review request 证据收敛成一个主步骤 |
-| 7 | `gcw-pr-publish` | `gcw-pr-publish.yml` | 幂等地创建或更新 review request：PR/MR 不存在则创建并写入完整 summary、Issue link、验证结果和风险说明，已存在则推送更新。 | agent / Action | 建议有：承载 PR/MR 创建或更新、Issue link 和 summary 发布 | `reviewing` | 首次提交与反馈修改都走它 |
-| 8 | `gcw-pr-review` | `gcw-pr-review.yml` | 触发 CI、静态检查、remote artifact verification、可选 AI review，并汇总 PR review 结果。 | Action | 必须有：承载 CI、静态检查、remote artifact verification 和 AI review 汇总 | `reviewing`、`changes-requested` 或 `blocked` | 只覆盖自动 PR review；自动检查通过后仍处于 `reviewing`，继续等待平台人审 |
+| 1 | `gcw-issue-intake` | 无 | 接入已经存在的 GitHub/GitLab Issue，创建/切换 issue 分支，写入 `.gcw/issues/<id>/events/000-gcw-issue-intake.json` 并初始化 GCW 状态。 | 人 / agent | 不需要：Issue 接入由人或 agent 发起，不由托管流水线自动接入 | `issue-opened` | Issue 创建属于流程外前置动作；不创建 spec files，不发进度评论 |
+| 2 | `gcw-issue-triage` | `gcw-issue-triage.yml` | 分类 Issue，并同步 GitHub/GitLab 结构化 triage metadata。 | 人 / agent / Action | 需要：运行 agent 分类、同步标签/字段、校验远端元数据、记录状态 | `issue-triaged` | 只负责分类和标签/字段，不判断需求是否清楚 |
+| 3 | `gcw-issue-clarify` | `gcw-issue-clarify.yml` | 收集讨论并检查信息是否足以进入 spec 编写。 | 人 / agent / Action | 需要：运行 readiness gate、整理澄清问题、记录讨论和状态；不能替代关键业务判断 | `ready-for-planning` 或 `issue-clarifying` | 关键业务答案必须来自人类或可信来源，不能由 Action 猜测 |
+| 4 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | 创建隔离 worktree，将 Issue 生成 spec files，提交并推送，然后在 Issue 评论中链接。 | agent / Action | 建议有：运行 agent 生成 spec，或接收本地 agent 产物并完成推送和 Issue 评论 | `planned` | spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md` |
+| 5 | `gcw-spec-check` | `gcw-spec-check.yml` | 检查 spec files 是否已生成并推送、Issue 评论是否已链接、内容是否足以进入实现。 | agent / Action | 应该有：作为进入实现前的远端 gate | `ready-for-implementation`、`issue-clarifying` 或 `blocked` | 这是实现前的 spec 硬门槛 |
+| 6 | `gcw-implement` | `gcw-implement.yml` | 按计划修改代码、补测试、更新必要文档。 | agent / Action | 可以有：在 runner 内运行 agent，或记录本地 agent 通过 repo / issue / PR 的交接 | `implementing` | 表示实现阶段内的一次推进；实现是否足以进入 review 由 `gcw-implement-check` 判定。PR review 或人审反馈修复也回到这里 |
+| 7 | `gcw-implement-check` | `gcw-implement-check.yml` | 创建 review request 前检查 diff、提交边界、风险、验证结果和 spec files，并追加用于 PR/MR 渲染的 `gcw-implement-check` 事件 payload。 | agent / Action | 应该有：作为创建或更新 review request 前的远端 gate | `ready-for-review` | 把实现自查和 review request 证据收敛成一个主步骤 |
+| 8 | `gcw-pr-publish` | `gcw-pr-publish.yml` | 幂等地创建或更新 review request：PR/MR 不存在则创建并写入完整 summary、Issue link、验证结果和风险说明，已存在则推送更新。 | agent / Action | 建议有：承载 PR/MR 创建或更新、Issue link 和 summary 发布 | `reviewing` | 首次提交与反馈修改都走它 |
+| 9 | `gcw-pr-review` | `gcw-pr-review.yml` | 触发 CI、静态检查、remote artifact verification、可选 AI review，并汇总 PR review 结果。 | Action | 必须有：承载 CI、静态检查、remote artifact verification 和 AI review 汇总 | `reviewing`、`changes-requested` 或 `blocked` | 只覆盖自动 PR review；自动检查通过后仍处于 `reviewing`，继续等待平台人审 |
 
 人类审查和 `review-complete` 状态不作为本流程的步骤拆解项；它们发生在 GitHub 或 GitLab 上，由 reviewer、merge 策略或平台事件产生。
 
@@ -64,8 +66,9 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 
 | 状态 | 含义 | 允许的典型下一步 |
 | --- | --- | --- |
-| `issue-opened` | Issue 已被 GCW 接入，但还没有完成分类和可执行性判断。 | `gcw-issue-prepare` |
-| `issue-clarifying` | Issue 信息不足或边界不清，需要通过评论继续讨论。 | `gcw-issue-prepare` |
+| `issue-opened` | Issue 已被 GCW 接入，但还没有完成分类。 | `gcw-issue-triage` |
+| `issue-triaged` | Issue 已完成分类和远端 metadata 同步，但还没完成可执行性判断。 | `gcw-issue-clarify` |
+| `issue-clarifying` | Issue 信息不足或边界不清，需要通过评论继续讨论。 | `gcw-issue-clarify` |
 | `ready-for-planning` | Issue 已经讨论清楚，可以开始从 Issue 生成 spec files。 | `gcw-issue-to-spec` |
 | `planned` | spec files 已提交并推送，Issue 评论已经链接到远程文件。 | `gcw-spec-check` |
 | `ready-for-implementation` | 实现前检查通过，可以开始开发。 | `gcw-implement` |
@@ -84,7 +87,7 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 
 | 流水线 | 包含主步骤 | 人 | agent | Action | 产出状态 |
 | --- | --- | --- | --- | --- | --- |
-| 接入与准备 | `gcw-issue-intake`、`gcw-issue-prepare` | 创建或确认 Issue，回答关键业务问题 | 接入、分类、起草讨论与检查 | 不执行 `gcw-issue-intake`；准备阶段负责收集上下文、运行 agent 分类和整理澄清问题、记录讨论和状态 | `ready-for-planning` 或 `issue-clarifying` |
+| 接入、分类与澄清 | `gcw-issue-intake`、`gcw-issue-triage`、`gcw-issue-clarify` | 创建或确认 Issue，回答关键业务问题 | 接入、分类、起草讨论与检查 | 不执行 `gcw-issue-intake`；triage 同步 metadata，clarify 运行 readiness gate 并记录讨论和状态 | `ready-for-planning` 或 `issue-clarifying` |
 | 规划 | `gcw-issue-to-spec`、`gcw-spec-check` | spec 信息不足时补充澄清 | 生成 spec files、自检内容 | 运行 agent 生成 spec、推送分支、校验硬门槛 | `ready-for-implementation`、`issue-clarifying` 或 `blocked` |
 | 实现 | `gcw-implement`、`gcw-implement-check`、`gcw-pr-publish` | 必要时介入决策 | 写代码、补测试、自查、发 review request | 可运行 agent 实现或接收本地 agent 交接；必须承担检查 gate，并建议承担 PR/MR 发布 | `reviewing` |
 | 审查 | `gcw-pr-review` | 根据自动检查结果继续平台人审；平台事件可要求修改或结束审查 | 按反馈修复时回到实现流水线 | 跑 CI、静态检查、AI review 并汇总结果 | 自动检查产出 `reviewing`、`changes-requested` 或 `blocked`；平台事件可产出 `review-complete` 或 `changes-requested` |

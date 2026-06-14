@@ -15,11 +15,12 @@ from gcw_workflow_lib import (
     find_latest_event,
     validate_event_log,
 )
+from publish_progress_comment import body_hash
+from render_gcw_hosted_artifacts import render_recorded_progress_comment
 
-VERIFY_REMOTE_TRIAGE = (
-    Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts" / "verify_remote_triage.py"
-)
-_READINESS_LIB_DIR = Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts"
+_SKILLS_DIR = Path(__file__).resolve().parents[2]
+VERIFY_REMOTE_TRIAGE = _SKILLS_DIR / "gcw-issue-triage" / "scripts" / "verify_remote_triage.py"
+_READINESS_LIB_DIR = _SKILLS_DIR / "gcw-issue-clarify" / "scripts"
 
 
 def require_non_empty(data: dict[str, Any], key: str, errors: list[str], prefix: str = "") -> None:
@@ -65,6 +66,24 @@ def _latest_milestone_progress_comment_errors(issue_dir: Path, event_name: str) 
     return errors
 
 
+def _progress_comment_body_hash_errors(issue_dir: Path, event_name: str) -> list[str]:
+    latest = find_latest_event(issue_dir, event_name)
+    if latest is None:
+        return []
+    payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
+    expected_hash = str(payload.get("progress_comment_body_hash", "")).strip()
+    if not expected_hash:
+        return []
+    try:
+        rendered = render_recorded_progress_comment(issue_dir, latest)
+    except (WorkflowError, ValueError) as exc:
+        return [f"could not render {event_name} progress comment body: {exc}"]
+    actual_hash = body_hash(rendered)
+    if actual_hash != expected_hash:
+        return [f"{event_name} progress_comment_body_hash does not match rendered body"]
+    return []
+
+
 def _refs_match_latest_progress_comment(issue_dir: Path, event_name: str) -> list[str]:
     errors: list[str] = []
     projection = assert_projection_current(issue_dir)["projection"]
@@ -103,6 +122,7 @@ def spec_check_errors(issue_dir: Path) -> list[str]:
     if gate.get("ok") is not True:
         errors.append("latest gcw-spec-check gate.ok must be true")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-spec-check"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-spec-check"))
     errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-spec-check"))
     to_spec = find_latest_event(issue_dir, "gcw-issue-to-spec")
     if to_spec:
@@ -126,24 +146,43 @@ def _import_readiness_lib():
         return None
 
 
-def _prepare_gate_consistency_errors(payload: dict[str, Any]) -> list[str]:
-    gate = payload.get("gate")
-    if not isinstance(gate, dict):
-        return []
-
+def _triage_payload_errors(payload: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if payload.get("ready") is not gate.get("ok"):
-        errors.append("gcw-issue-prepare ready does not match gate.ok")
-    if payload.get("ready") is False and not str(payload.get("question", "")).strip():
-        errors.append("gcw-issue-prepare requires question when ready is false")
-
-    readiness_lib = _import_readiness_lib()
-    if readiness_lib is not None:
-        errors.extend(readiness_lib.validate_gate_against_rubric(gate))
+    classification = payload.get("classification")
+    if not isinstance(classification, dict) or not classification:
+        errors.append("gcw-issue-triage classification is required")
+    labels_applied = payload.get("labels_applied")
+    if not isinstance(labels_applied, list) or not labels_applied:
+        errors.append("gcw-issue-triage labels_applied must be a non-empty array")
+    remote_sync = payload.get("remote_sync")
+    if not isinstance(remote_sync, dict) or not remote_sync:
+        errors.append("gcw-issue-triage remote_sync is required")
+    if not str(payload.get("progress_comment_url", "")).strip():
+        errors.append("gcw-issue-triage progress_comment_url is required")
     return errors
 
 
-def _prepare_gate_body_errors(issue_dir: Path, gate: dict[str, Any]) -> list[str]:
+def _clarify_payload_errors(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    gate = payload.get("gate")
+    if not isinstance(gate, dict):
+        errors.append("gcw-issue-clarify gate is required")
+        return errors
+    if "ok" not in gate or not isinstance(gate["ok"], bool):
+        errors.append("gcw-issue-clarify gate.ok must be boolean")
+    ready = payload.get("ready")
+    if not isinstance(ready, bool):
+        errors.append("gcw-issue-clarify ready must be boolean")
+    elif ready is not gate.get("ok"):
+        errors.append("gcw-issue-clarify ready does not match gate.ok")
+    if not str(payload.get("progress_comment_url", "")).strip():
+        errors.append("gcw-issue-clarify progress_comment_url is required")
+    if not ready and not str(payload.get("question", "")).strip():
+        errors.append("gcw-issue-clarify requires question when ready is false")
+    return errors
+
+
+def _readiness_gate_body_errors(issue_dir: Path, gate: dict[str, Any]) -> list[str]:
     intake_path = issue_dir / "events" / "000-gcw-issue-intake.json"
     if not intake_path.is_file():
         return []
@@ -191,35 +230,22 @@ def _prepare_gate_body_errors(issue_dir: Path, gate: dict[str, Any]) -> list[str
     return errors
 
 
-def prepare_check_errors(issue_dir: Path) -> list[str]:
+def triage_check_errors(issue_dir: Path) -> list[str]:
     errors = workflow_errors(issue_dir)
     if errors:
         return errors
     projection = assert_projection_current(issue_dir)["projection"]
-    if projection.get("phase") not in (
-        "ready-for-planning",
-        "planned",
-        "ready-for-implementation",
-        "implementing",
-        "ready-for-review",
-        "reviewing",
-        "changes-requested",
-        "blocked",
-        "review-complete",
-        "issue-clarifying",
-    ):
-        errors.append("prepare-check requires a post-prepare phase")
-    latest = find_latest_event(issue_dir, "gcw-issue-prepare")
+    if projection.get("phase") != "issue-triaged":
+        errors.append("triage-check requires phase issue-triaged")
+    latest = find_latest_event(issue_dir, "gcw-issue-triage")
     if latest is None:
-        errors.append("no gcw-issue-prepare event found")
+        errors.append("no gcw-issue-triage event found")
         return errors
-    payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
-    if payload.get("ready") is True and not payload.get("remote_sync"):
-        errors.append("gcw-issue-prepare remote_sync is required when ready is true")
-    if isinstance(payload.get("gate"), dict):
-        errors.extend(_prepare_gate_consistency_errors(payload))
-        errors.extend(_prepare_gate_body_errors(issue_dir, payload["gate"]))
-    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-prepare"))
+    payload = latest.get("payload", {}) if isinstance(latest.get("payload"), dict) else {}
+    errors.extend(_triage_payload_errors(payload))
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-triage"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-issue-triage"))
+    errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-issue-triage"))
     if VERIFY_REMOTE_TRIAGE.is_file():
         result = subprocess.run(
             [sys.executable, str(VERIFY_REMOTE_TRIAGE), "--issue-dir", str(issue_dir)],
@@ -233,6 +259,26 @@ def prepare_check_errors(issue_dir: Path) -> list[str]:
             except json.JSONDecodeError:
                 output = {"errors": [result.stderr or result.stdout or "verify_remote_triage failed"]}
             errors.extend(output.get("errors", []))
+    return errors
+
+
+def issue_clarify_check_errors(issue_dir: Path) -> list[str]:
+    errors = workflow_errors(issue_dir)
+    if errors:
+        return errors
+    projection = assert_projection_current(issue_dir)["projection"]
+    if projection.get("phase") not in ("ready-for-planning", "issue-clarifying"):
+        errors.append("issue-clarify-check requires phase ready-for-planning or issue-clarifying")
+    latest = find_latest_event(issue_dir, "gcw-issue-clarify")
+    if latest is None:
+        errors.append("no gcw-issue-clarify event found")
+        return errors
+    payload = latest.get("payload", {}) if isinstance(latest.get("payload"), dict) else {}
+    errors.extend(_clarify_payload_errors(payload))
+    if isinstance(payload.get("gate"), dict):
+        errors.extend(_readiness_gate_body_errors(issue_dir, payload["gate"]))
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-clarify"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-issue-clarify"))
     return errors
 
 
@@ -278,6 +324,7 @@ def implement_check_errors(issue_dir: Path) -> list[str]:
         elif not all(k in val for k in ("command", "exit_code", "result")):
             errors.append(f"gate.validation[{i}] missing command, exit_code, or result")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-implement-check"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-implement-check"))
     errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-implement-check"))
     return errors
 
@@ -310,6 +357,7 @@ def pr_publish_errors(issue_dir: Path) -> list[str]:
     if body_hash and not body_hash.startswith("sha256:"):
         errors.append("payload.body_hash must start with sha256:")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-pr-publish"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-pr-publish"))
     errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-pr-publish"))
     return errors
 
@@ -329,6 +377,7 @@ def review_check_errors(issue_dir: Path) -> list[str]:
         if result not in ("passed", "changes-requested", "blocked"):
             errors.append(f"gcw-pr-review result must be passed, changes-requested, or blocked; got {result}")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-pr-review"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-pr-review"))
     return errors
 
 
@@ -348,6 +397,7 @@ def block_check_errors(issue_dir: Path) -> list[str]:
         if not blocker.get("resume_step"):
             errors.append("active_blocker.resume_step is required")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-block"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-block"))
     return errors
 
 
@@ -363,13 +413,15 @@ def clarify_check_errors(issue_dir: Path) -> list[str]:
         if not feedback.get("reason"):
             errors.append("active_feedback.reason (question) is required")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-clarify"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-clarify"))
     return errors
 
 
 def run_check(args: argparse.Namespace) -> dict[str, Any]:
     check_map = {
         "workflow": workflow_errors,
-        "prepare-check": prepare_check_errors,
+        "triage-check": triage_check_errors,
+        "issue-clarify-check": issue_clarify_check_errors,
         "spec-check": spec_check_errors,
         "implement-check": implement_check_errors,
         "pr-publish": pr_publish_errors,
@@ -391,7 +443,7 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate GCW event logs and projections.")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for command in ("workflow", "prepare-check", "spec-check", "implement-check", "pr-publish", "review-check", "block-check", "clarify-check"):
+    for command in ("workflow", "triage-check", "issue-clarify-check", "spec-check", "implement-check", "pr-publish", "review-check", "block-check", "clarify-check"):
         subparser = subparsers.add_parser(command)
         subparser.add_argument("--issue-dir", required=True, type=Path)
         subparser.set_defaults(handler=run_check)

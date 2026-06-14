@@ -84,7 +84,7 @@ class HostedArtifactHardeningTest(unittest.TestCase):
     def test_verify_review_request_reports_malformed_json(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42-verify"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        (issue_dir / "events/005-gcw-implement-check.json").write_text("{not valid json", encoding="utf-8")
+        (issue_dir / "events/006-gcw-implement-check.json").write_text("{not valid json", encoding="utf-8")
         remote_file = Path(self.tmp.name) / "remote-review.md"
         remote_file.write_text("<!-- gcw-review-request:start -->\nGenerated body.\n<!-- gcw-review-request:end -->\n", encoding="utf-8")
 
@@ -100,7 +100,7 @@ class HostedArtifactHardeningTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertTrue(
-            any("005-gcw-implement-check.json is not valid JSON" in error for error in output["errors"])
+            any("006-gcw-implement-check.json is not valid JSON" in error for error in output["errors"])
         )
 
     def test_verify_review_request_finds_generated_section_after_marker_text(self) -> None:

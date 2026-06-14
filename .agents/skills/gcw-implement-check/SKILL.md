@@ -40,6 +40,16 @@ Require:
 5. Publish a new `<!-- gcw-progress -->` comment for `ready-for-review` when the gate passes.
 6. Append a `gcw-implement-check` event with `progress_comment_url`, rebuild `workflow.json`, and reuse GCW validation scripts when available, especially `validate_gcw_evidence.py implement-check`.
 
+Or run the unified step runner:
+
+```bash
+python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-implement-check \
+  --issue-dir .gcw/issues/<issue-id> \
+  --options-file /tmp/implement_check_options.json
+```
+
+`implement_check_options.json` must include `payload_file` pointing at the implement-check event payload JSON.
+
 ## State Transition
 
 - Starts from: `implementing`.

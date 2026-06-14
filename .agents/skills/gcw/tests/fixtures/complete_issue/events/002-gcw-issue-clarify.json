@@ -1,0 +1,52 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-42-002-gcw-issue-clarify",
+  "parent": {
+    "expected_last_seq": 1
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "issue-clarify-readiness/v1"
+    },
+    "progress_comment_body_hash": "sha256:136edb30c506bb55056666a09521312272c0ae37b380f49b94739510d9004257",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
+    "ready": true,
+    "summary": "scope clear"
+  },
+  "refs": {
+    "branch": "feat/example-42",
+    "issue": "42"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 2
+}

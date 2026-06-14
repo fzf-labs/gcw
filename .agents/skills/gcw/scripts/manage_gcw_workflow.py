@@ -58,13 +58,42 @@ def progress_comment_url_from_args(args: argparse.Namespace) -> str:
     return url
 
 
+def attach_progress_comment_body_hash(issue_dir: Path, event_name: str, payload: dict[str, Any]) -> None:
+    if not str(payload.get("progress_comment_url", "")).strip():
+        return
+    if str(payload.get("progress_comment_body_hash", "")).strip():
+        return
+
+    from publish_progress_comment import body_hash, render_milestone_progress_body
+
+    try:
+        body = render_milestone_progress_body(issue_dir, event_name, payload)
+    except (WorkflowError, ValueError) as exc:
+        raise WorkflowError(f"could not render progress comment body for {event_name}: {exc}") from exc
+    payload["progress_comment_body_hash"] = body_hash(body)
+
+
+def default_refs(issue_dir: Path) -> dict[str, Any]:
+    try:
+        projection = current_projection(issue_dir)
+    except WorkflowError:
+        return {}
+    refs: dict[str, Any] = {}
+    if projection.get("issue") is not None:
+        refs["issue"] = projection["issue"]
+    if projection.get("branch"):
+        refs["branch"] = projection["branch"]
+    return refs
+
+
 def append_and_finish(args: argparse.Namespace, event_name: str, payload: dict[str, Any], refs: dict[str, Any] | None = None) -> dict[str, Any]:
+    attach_progress_comment_body_hash(args.issue_dir, event_name, payload)
     event = append_event(
         args.issue_dir,
         {
             "event": event_name,
             "actor": {"kind": getattr(args, "actor_kind", "local"), "id": getattr(args, "actor_id", "cursor-session")},
-            "refs": refs or {},
+            "refs": refs if refs is not None else default_refs(args.issue_dir),
             "payload": payload,
         },
         expected_last_seq=getattr(args, "expected_last_seq", None),
@@ -87,13 +116,32 @@ def init_workflow(args: argparse.Namespace) -> dict[str, Any]:
     return append_and_finish(args, "gcw-issue-intake", payload, {"issue": args.issue, "branch": args.branch})
 
 
-def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
+def record_issue_triage(args: argparse.Namespace) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "classification": {
+            "type": args.classification_type,
+            "area": args.classification_area or None,
+            "priority": args.classification_priority,
+        },
+        "labels_applied": [label.strip() for label in args.labels_applied.split(",") if label.strip()],
+        "progress_comment_url": progress_comment_url_from_args(args),
+    }
+    payload["classification"] = {k: v for k, v in payload["classification"].items() if v is not None}
+    if args.summary:
+        payload["summary"] = args.summary
+    if args.remote_sync_file and args.remote_sync_file.is_file():
+        remote_sync = read_payload(args.remote_sync_file)
+        payload["remote_sync"] = remote_sync.get("remote_sync") if isinstance(remote_sync.get("remote_sync"), dict) else remote_sync
+    return append_and_finish(args, "gcw-issue-triage", payload)
+
+
+def record_issue_clarify(args: argparse.Namespace) -> dict[str, Any]:
     if not args.gate_file or not args.gate_file.is_file():
-        raise WorkflowError("record-issue-prepare requires --gate-file")
+        raise WorkflowError("record-issue-clarify requires --gate-file")
     gate = read_payload(args.gate_file)
     ready = bool(gate.get("ok"))
     if args.ready and not ready:
-        raise WorkflowError("record-issue-prepare --ready conflicts with gate.ok false")
+        raise WorkflowError("record-issue-clarify --ready conflicts with gate.ok false")
 
     payload: dict[str, Any] = {
         "ready": ready,
@@ -104,18 +152,7 @@ def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
         payload["question"] = args.question
     if args.summary:
         payload["summary"] = args.summary
-    if args.classification_type:
-        payload["classification"] = {
-            "type": args.classification_type,
-            "area": args.classification_area or None,
-            "priority": args.classification_priority or None,
-        }
-        payload["classification"] = {k: v for k, v in payload["classification"].items() if v is not None}
-    if args.labels_applied:
-        payload["labels_applied"] = [label.strip() for label in args.labels_applied.split(",") if label.strip()]
-    if args.remote_sync_file and args.remote_sync_file.is_file():
-        payload["remote_sync"] = read_payload(args.remote_sync_file)
-    return append_and_finish(args, "gcw-issue-prepare", payload)
+    return append_and_finish(args, "gcw-issue-clarify", payload)
 
 
 def record_issue_to_spec(args: argparse.Namespace) -> dict[str, Any]:
@@ -283,30 +320,35 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--owner-id", required=True)
     init.set_defaults(handler=init_workflow)
 
-    prepare = subparsers.add_parser("record-issue-prepare")
-    add_common(prepare)
-    prepare.add_argument("--ready", action="store_true", help="Required when gate.ok is true")
-    prepare.add_argument("--progress-comment-url", required=True)
-    prepare.add_argument("--question", default="")
-    prepare.add_argument("--summary", default="")
-    prepare.add_argument("--classification-type", default="")
-    prepare.add_argument("--classification-area", default="")
-    prepare.add_argument("--classification-priority", default="")
-    prepare.add_argument("--classification-repro", default="")
-    prepare.add_argument("--labels-applied", default="")
-    prepare.add_argument(
-        "--gate-file",
-        required=True,
-        type=Path,
-        help="JSON file with prepare readiness gate from evaluate_issue_readiness.py",
-    )
-    prepare.add_argument(
+    triage = subparsers.add_parser("record-issue-triage")
+    add_common(triage)
+    triage.add_argument("--progress-comment-url", required=True)
+    triage.add_argument("--summary", default="")
+    triage.add_argument("--classification-type", required=True)
+    triage.add_argument("--classification-area", default="")
+    triage.add_argument("--classification-priority", required=True)
+    triage.add_argument("--labels-applied", required=True)
+    triage.add_argument(
         "--remote-sync-file",
-        default="",
+        required=True,
         type=Path,
         help="JSON file with remote_sync payload from manage_triage_metadata apply-metadata",
     )
-    prepare.set_defaults(handler=record_issue_prepare)
+    triage.set_defaults(handler=record_issue_triage)
+
+    clarify = subparsers.add_parser("record-issue-clarify")
+    add_common(clarify)
+    clarify.add_argument("--ready", action="store_true", help="Required when gate.ok is true")
+    clarify.add_argument("--progress-comment-url", required=True)
+    clarify.add_argument("--question", default="")
+    clarify.add_argument("--summary", default="")
+    clarify.add_argument(
+        "--gate-file",
+        required=True,
+        type=Path,
+        help="JSON file with clarify readiness gate from evaluate_issue_readiness.py",
+    )
+    clarify.set_defaults(handler=record_issue_clarify)
 
     to_spec = subparsers.add_parser("record-issue-to-spec")
     add_common(to_spec)

@@ -1,0 +1,23 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-implement",
+  "event_id": "gcw-42-005-gcw-implement",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+    "progress_comment_body_hash": "sha256:d4919d51770d140cadf9173cfc18a11e8127a1c7b51460d102807408149ffa4b",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-4",
+    "work_summary": "Implemented the example fixture capability."
+  },
+  "refs": {
+    "branch": "feat/example-42",
+    "issue": "42"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 5
+}

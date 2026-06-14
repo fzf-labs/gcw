@@ -1,0 +1,28 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-13T11:12:08Z",
+  "event": "gcw-spec-check",
+  "event_id": "gcw-42-004-gcw-spec-check",
+  "parent": {
+    "expected_last_seq": 3
+  },
+  "payload": {
+    "gate": {
+      "checks": [],
+      "errors": [],
+      "ok": true
+    },
+    "progress_comment_body_hash": "sha256:2dfe4cdc5783d4609019438f11623abdd14bfa7e7c2e2b49ee90ab2e590f311b",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-3",
+    "result": "passed"
+  },
+  "refs": {
+    "branch": "feat/example-42",
+    "issue": "42"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 4
+}

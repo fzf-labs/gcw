@@ -39,6 +39,16 @@ Require:
 5. Publish a new Issue `<!-- gcw-progress -->` comment for the resulting phase (`reviewing`, `changes-requested`, or `blocked`).
 6. Record `feedback_source: pr-review` when automatic review produces requested changes.
 
+Or record the automatic review outcome via the unified step runner after checks complete:
+
+```bash
+python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-review \
+  --issue-dir .gcw/issues/<issue-id> \
+  --options-file /tmp/pr_review_options.json
+```
+
+`pr_review_options.json` must include `"result": "passed"`, `"changes-requested"`, or `"blocked"`.
+
 ## State Transition
 
 - Starts from: `reviewing`.

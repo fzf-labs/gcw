@@ -11,7 +11,7 @@
   },
   "payload": {
     "branch": "feat/example-42",
-    "issue": 42,
+    "issue": "42",
     "owner": {
       "id": "cursor-session",
       "kind": "local"
@@ -21,7 +21,7 @@
   },
   "refs": {
     "branch": "feat/example-42",
-    "issue": 42
+    "issue": "42"
   },
   "schema": "gcw.event/v1",
   "seq": 0

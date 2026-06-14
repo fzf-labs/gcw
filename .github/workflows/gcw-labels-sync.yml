@@ -25,5 +25,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 .agents/skills/gcw-issue-prepare/scripts/manage_triage_metadata.py sync \
+          python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
             --platform github --repo "${{ github.repository }}"

@@ -23,7 +23,8 @@ GCW 不替代 GitHub / GitLab 上的 Issue 与 PR 机制，而是在其上增加
 ```text
 已有 Issue
   -> gcw-issue-intake
-  -> gcw-issue-prepare
+  -> gcw-issue-triage
+  -> gcw-issue-clarify
   -> gcw-issue-to-spec
   -> gcw-spec-check
   -> gcw-implement
