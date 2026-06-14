@@ -129,7 +129,9 @@
           "additionalProperties": false,
           "properties": {
             "progress_comment_url": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "description": "Latest hosted issue progress comment URL (<!-- gcw-progress -->)."
             },
             "review_request_url": {
               "type": "string"

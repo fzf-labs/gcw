@@ -37,7 +37,8 @@ Require:
 2. Validate that the spec files have been pushed and linked from the Issue.
 3. Use `gh` or `glab` when needed to confirm the Issue has not changed in a way that invalidates the spec.
 4. Run the GCW validation scripts when available, especially `validate_gcw_evidence.py workflow` and `validate_gcw_evidence.py spec-check`.
-5. Append a `gcw-spec-check` event with the gate result, rebuild `workflow.json`, and report the exact missing evidence when the gate cannot pass.
+5. Publish a new `<!-- gcw-progress -->` comment for the resulting phase (`ready-for-implementation`, `issue-clarifying`, or `blocked`).
+6. Append a `gcw-spec-check` event with the gate result, `progress_comment_url`, rebuild `workflow.json`, and report the exact missing evidence when the gate cannot pass.
 
 ## State Transition
 

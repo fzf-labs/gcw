@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcw_test_helpers import planning_shas
+from gcw_test_helpers import planning_shas, progress_comment_url
 
 ROOT = Path(__file__).resolve().parents[4]
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
@@ -82,7 +82,14 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--owner-id",
             "workflow-run-1",
         )
-        self.run_manager("record-issue-prepare", "--issue-dir", str(issue_dir), "--ready")
+        self.run_manager(
+            "record-issue-prepare",
+            "--issue-dir",
+            str(issue_dir),
+            "--ready",
+            "--progress-comment-url",
+            progress_comment_url(0),
+        )
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
         shas = planning_shas(issue_dir)
@@ -123,6 +130,8 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             _FAKE_BODY_HASH,
             "--target",
             "owner/repo#7",
+            "--progress-comment-url",
+            progress_comment_url(5),
         )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
@@ -146,7 +155,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("python3 -m unittest discover -s .agents/skills/gcw/tests", result.stdout)
         self.assertIn("passed", result.stdout)
         self.assertIn("Low risk; fixture only.", result.stdout)
-        self.assertIn("https://github.com/owner/repo/issues/42#issuecomment-1", result.stdout)
+        self.assertIn(progress_comment_url(4), result.stdout)
 
     def test_render_progress_comment_includes_active_feedback_when_present(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
@@ -161,6 +170,8 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             _FAKE_BODY_HASH,
             "--target",
             "owner/repo#7",
+            "--progress-comment-url",
+            progress_comment_url(5),
         )
         self.run_manager(
             "record-pr-review",
@@ -170,6 +181,8 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "changes-requested",
             "--reason",
             "Hosted apply workflow owns the next transition.",
+            "--progress-comment-url",
+            progress_comment_url(6),
         )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))

@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcw_test_helpers import file_sha, planning_shas
+from gcw_test_helpers import file_sha, planning_shas, progress_comment_url
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -85,20 +85,67 @@ class ManageGcwStateTest(unittest.TestCase):
             "cursor-session",
         )
         if state != "issue-opened":
-            self.run_manager("record-issue-prepare", "--issue-dir", str(self.issue_dir), "--ready")
+            self.run_manager(
+                "record-issue-prepare",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--ready",
+                "--progress-comment-url",
+                progress_comment_url(0),
+            )
         if state == "implementing":
             self.write_planning_files()
             self.record_issue_to_spec()
-            self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
-            self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Started work.")
+            self.run_manager(
+                "record-spec-check",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--result",
+                "passed",
+                "--progress-comment-url",
+                progress_comment_url(2),
+            )
+            self.run_manager(
+                "record-implement",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--work-summary",
+                "Started work.",
+                "--progress-comment-url",
+                progress_comment_url(3),
+            )
         elif state == "reviewing":
             self.write_planning_files()
             self.record_issue_to_spec()
-            self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
-            self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Implemented.")
+            self.run_manager(
+                "record-spec-check",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--result",
+                "passed",
+                "--progress-comment-url",
+                progress_comment_url(2),
+            )
+            self.run_manager(
+                "record-implement",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--work-summary",
+                "Implemented.",
+                "--progress-comment-url",
+                progress_comment_url(3),
+            )
             payload = self.issue_dir / "implement-check-payload.json"
             payload.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
-            self.run_manager("record-implement-check", "--issue-dir", str(self.issue_dir), "--payload-file", str(payload))
+            self.run_manager(
+                "record-implement-check",
+                "--issue-dir",
+                str(self.issue_dir),
+                "--payload-file",
+                str(payload),
+                "--progress-comment-url",
+                progress_comment_url(4),
+            )
             self.run_manager(
                 "record-pr-publish",
                 "--issue-dir",
@@ -109,6 +156,8 @@ class ManageGcwStateTest(unittest.TestCase):
                 _FAKE_BODY_HASH,
                 "--target",
                 "owner/repo#7",
+                "--progress-comment-url",
+                progress_comment_url(5),
             )
         self.assertTrue(result["ok"])
 
@@ -134,14 +183,45 @@ class ManageGcwStateTest(unittest.TestCase):
 
     def test_main_path_reaches_reviewing(self) -> None:
         self.init()
-        self.run_manager("record-issue-prepare", "--issue-dir", str(self.issue_dir), "--ready")
+        self.run_manager(
+            "record-issue-prepare",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--ready",
+            "--progress-comment-url",
+            progress_comment_url(0),
+        )
         self.write_planning_files()
         self.record_issue_to_spec()
-        self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
-        self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Implemented.")
+        self.run_manager(
+            "record-spec-check",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--result",
+            "passed",
+            "--progress-comment-url",
+            progress_comment_url(2),
+        )
+        self.run_manager(
+            "record-implement",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--work-summary",
+            "Implemented.",
+            "--progress-comment-url",
+            progress_comment_url(3),
+        )
         payload = self.issue_dir / "implement-check-payload.json"
         payload.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
-        self.run_manager("record-implement-check", "--issue-dir", str(self.issue_dir), "--payload-file", str(payload))
+        self.run_manager(
+            "record-implement-check",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--payload-file",
+            str(payload),
+            "--progress-comment-url",
+            progress_comment_url(4),
+        )
         self.run_manager(
             "record-pr-publish",
             "--issue-dir",
@@ -152,6 +232,8 @@ class ManageGcwStateTest(unittest.TestCase):
             _FAKE_BODY_HASH,
             "--target",
             "owner/repo#7",
+            "--progress-comment-url",
+            progress_comment_url(5),
         )
 
         projection = self.workflow()["projection"]
@@ -170,6 +252,8 @@ class ManageGcwStateTest(unittest.TestCase):
             "changes-requested",
             "--feedback-source",
             "human-review",
+            "--progress-comment-url",
+            progress_comment_url(6),
         )
         projection = self.workflow()["projection"]
         self.assertEqual(projection["phase"], "changes-requested")
@@ -184,6 +268,8 @@ class ManageGcwStateTest(unittest.TestCase):
             str(self.issue_dir),
             "--reason",
             "dependency unavailable",
+            "--progress-comment-url",
+            progress_comment_url(7),
         )
         projection = self.workflow()["projection"]
         self.assertEqual(projection["phase"], "blocked")

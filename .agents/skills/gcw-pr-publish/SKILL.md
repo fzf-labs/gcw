@@ -33,10 +33,11 @@ Require:
 ## Procedure
 
 1. Confirm `validate_gcw_evidence.py implement-check` passes.
-2. Use `gh` or `glab` to create or update the GitHub PR or GitLab MR.
-3. Preserve user-authored PR/MR content when updating an existing review request.
-4. Append a `gcw-pr-publish` event with the review request URL, rendered body hash, and applied platform effect.
-5. Report the review request URL and next step.
+2. Create or update the GitHub PR or GitLab MR with `gh` or `glab`.
+3. Publish a new Issue `<!-- gcw-progress -->` comment for `reviewing`.
+4. Preserve user-authored PR/MR content when updating an existing review request.
+5. Append a `gcw-pr-publish` event with the review request URL, progress comment URL, rendered body hash, and applied platform effect.
+6. Report the review request URL and next step.
 
 ## State Transition
 

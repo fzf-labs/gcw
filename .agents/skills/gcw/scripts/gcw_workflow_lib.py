@@ -200,6 +200,41 @@ def _validate_prepare_payload(payload: dict[str, Any], platform: str) -> list[st
     return errors
 
 
+def progress_comment_required(event_name: str, payload: dict[str, Any], phase_before: str) -> bool:
+    if event_name in {
+        "gcw-issue-prepare",
+        "gcw-issue-to-spec",
+        "gcw-spec-check",
+        "gcw-pr-publish",
+        "gcw-pr-review",
+        "gcw-block",
+        "gcw-clarify",
+        "review-complete",
+    }:
+        return True
+    if event_name == "gcw-implement":
+        return phase_before in ("ready-for-implementation", "changes-requested")
+    if event_name == "gcw-implement-check":
+        gate = payload.get("gate") if isinstance(payload.get("gate"), dict) else {}
+        return gate.get("ok") is True
+    return False
+
+
+def apply_progress_comment_url(
+    refs: dict[str, Any],
+    event_name: str,
+    payload: dict[str, Any],
+    phase_before: str,
+) -> list[str]:
+    errors: list[str] = []
+    url = str(payload.get("progress_comment_url", "")).strip()
+    if progress_comment_required(event_name, payload, phase_before) and not url:
+        errors.append(f"{event_name} requires progress_comment_url")
+    if url:
+        refs["progress_comment_url"] = url
+    return errors
+
+
 def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path | None = None) -> list[str]:
     errors: list[str] = []
     if event_name == "gcw-issue-intake":
@@ -218,6 +253,8 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             errors.append("gcw-issue-prepare payload.ready must be boolean")
         if payload.get("ready") is False and not str(payload.get("question", "")).strip():
             errors.append("gcw-issue-prepare requires question when ready is false")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-issue-prepare requires progress_comment_url")
         if issue_dir is not None:
             errors.extend(_validate_prepare_payload(payload, _intake_platform(issue_dir)))
     elif event_name == "gcw-issue-to-spec":
@@ -228,6 +265,8 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             errors.append("gcw-issue-to-spec payload.spec_refs must be an object")
         elif not all(k in spec_refs for k in ("task_plan_sha", "findings_sha", "progress_sha")):
             errors.append("gcw-issue-to-spec payload.spec_refs missing required sha fields")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-issue-to-spec requires progress_comment_url")
     elif event_name == "gcw-spec-check":
         gate = payload.get("gate")
         if not isinstance(gate, dict):
@@ -236,6 +275,8 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             errors.append("gcw-spec-check payload.gate missing ok")
         elif not isinstance(gate["ok"], bool):
             errors.append("gcw-spec-check payload.gate.ok must be boolean")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-spec-check requires progress_comment_url")
     elif event_name == "gcw-implement":
         if not str(payload.get("work_summary", "")).strip():
             errors.append("gcw-implement payload.work_summary is required and non-empty")
@@ -251,6 +292,10 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             for key in ("title", "summary", "issue_link"):
                 if not str(review_request.get(key, "")).strip():
                     errors.append(f"gcw-implement-check payload.review_request.{key} is required")
+        gate = payload.get("gate")
+        if isinstance(gate, dict) and gate.get("ok") is True:
+            if not str(payload.get("progress_comment_url", "")).strip():
+                errors.append("gcw-implement-check requires progress_comment_url when gate.ok is true")
     elif event_name == "gcw-pr-publish":
         if not str(payload.get("review_request_url", "")).strip():
             errors.append("gcw-pr-publish payload.review_request_url is required")
@@ -259,10 +304,14 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             errors.append("gcw-pr-publish payload.effects must be a non-empty array")
         elif not any(isinstance(e, dict) and e.get("status") == "applied" for e in effects):
             errors.append("gcw-pr-publish requires an applied effect")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-pr-publish requires progress_comment_url")
     elif event_name == "gcw-pr-review":
         result = payload.get("result")
         if result not in ("passed", "changes-requested", "blocked"):
             errors.append("gcw-pr-review payload.result must be passed, changes-requested, or blocked")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-pr-review requires progress_comment_url")
     elif event_name == "gcw-block":
         for key in ("reason", "resume_phase", "resume_step"):
             if not str(payload.get(key, "")).strip():
@@ -270,6 +319,8 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
         resume_phase = payload.get("resume_phase", "")
         if resume_phase and resume_phase not in STATES:
             errors.append(f"gcw-block payload.resume_phase '{resume_phase}' is not a valid state")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-block requires progress_comment_url")
     elif event_name == "gcw-clarify":
         for key in ("question", "source_phase"):
             if not str(payload.get(key, "")).strip():
@@ -277,10 +328,14 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
         source_phase = payload.get("source_phase", "")
         if source_phase and source_phase not in STATES:
             errors.append(f"gcw-clarify payload.source_phase '{source_phase}' is not a valid state")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("gcw-clarify requires progress_comment_url")
     elif event_name == "review-complete":
         result = payload.get("result")
         if result not in ("merged", "closed", "accepted", "rejected"):
             errors.append("review-complete payload.result must be merged, closed, accepted, or rejected")
+        if not str(payload.get("progress_comment_url", "")).strip():
+            errors.append("review-complete requires progress_comment_url")
     return errors
 
 
@@ -453,6 +508,7 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
         event_name = str(event.get("event", ""))
         event_payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
         last_completed_step = event_name
+        phase_before = phase
 
         if event_name == "gcw-issue-prepare":
             _require_phase(phase, {"issue-opened", "issue-clarifying"}, event_name)
@@ -466,7 +522,6 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
             _require_phase(phase, {"ready-for-planning"}, event_name)
             if event_payload.get("planning_commit_pushed") is not True:
                 raise WorkflowError("gcw-issue-to-spec requires planning_commit_pushed true")
-            refs["progress_comment_url"] = event_payload.get("progress_comment_url", "")
             phase = "planned"
         elif event_name == "gcw-spec-check":
             _require_phase(phase, {"planned"}, event_name)
@@ -546,6 +601,10 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
             phase = "review-complete"
         else:
             raise WorkflowError(f"unknown event {event_name}")
+
+        url_errors = apply_progress_comment_url(refs, event_name, event_payload, phase_before)
+        if url_errors:
+            raise WorkflowError(f"seq {event.get('seq', '?')}: {'; '.join(url_errors)}")
 
     projection: dict[str, Any] = {
         "issue": payload["issue"],

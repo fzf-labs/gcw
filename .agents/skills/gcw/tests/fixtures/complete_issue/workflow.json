@@ -1,7 +1,7 @@
 {
   "generated_from": {
-    "events_hash": "sha256:04ff8389a57e1c3ba9e0202ffb355f9d475b94669e156830762aceae26bd1651",
-    "generated_at": "2026-06-14T02:56:19Z",
+    "events_hash": "sha256:a15503669e6cd74777b21fc479d25c5e2fac34619991c0cb44fa9661316d4d8a",
+    "generated_at": "2026-06-14T04:11:50Z",
     "last_seq": 5
   },
   "projection": {
@@ -18,7 +18,7 @@
     "phase": "ready-for-review",
     "platform": "github",
     "refs": {
-      "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1"
+      "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-4"
     },
     "repository": "owner/repo"
   },

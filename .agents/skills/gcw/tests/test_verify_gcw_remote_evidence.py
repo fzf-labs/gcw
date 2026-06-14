@@ -128,6 +128,8 @@ class VerifyGcwRemoteEvidenceTest(unittest.TestCase):
                 "sha256:" + "b" * 64,
                 "--target",
                 "owner/repo#7",
+                "--progress-comment-url",
+                "https://github.com/owner/repo/issues/42#issuecomment-5",
             ],
             check=True,
             text=True,

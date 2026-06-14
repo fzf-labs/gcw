@@ -2,6 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://fzf-labs.local/gcw/event.schema.json",
   "title": "GCW Event",
+  "$defs": {
+    "progress_comment_url": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "seq", "event", "event_id", "at", "actor", "parent", "refs", "payload"],
@@ -151,10 +157,13 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["ready"],
+          "required": ["ready", "progress_comment_url"],
           "properties": {
             "ready": {
               "type": "boolean"
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
             },
             "question": {
               "type": "string",
@@ -234,7 +243,7 @@
               "type": "boolean"
             },
             "progress_comment_url": {
-              "type": "string"
+              "$ref": "#/$defs/progress_comment_url"
             },
             "spec_refs": {
               "type": "object",
@@ -266,11 +275,14 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["gate"],
+          "required": ["gate", "progress_comment_url"],
           "properties": {
             "result": {
               "type": "string",
               "enum": ["passed", "clarifying", "blocked"]
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
             },
             "gate": {
               "type": "object",
@@ -337,6 +349,9 @@
             },
             "feedback_ref": {
               "type": "string"
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
             }
           }
         }
@@ -474,6 +489,9 @@
               "additionalProperties": {
                 "type": "string"
               }
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
             }
           }
         }
@@ -486,8 +504,11 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["review_request_url", "rendered_from_event_id", "body_hash", "effects"],
+          "required": ["review_request_url", "rendered_from_event_id", "body_hash", "effects", "progress_comment_url"],
           "properties": {
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
+            },
             "review_request_url": {
               "type": "string",
               "minLength": 1
@@ -545,11 +566,14 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["result"],
+          "required": ["result", "progress_comment_url"],
           "properties": {
             "result": {
               "type": "string",
               "enum": ["passed", "changes-requested", "blocked"]
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
             },
             "feedback_source": {
               "type": "string",
@@ -572,8 +596,11 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["reason", "resume_phase", "resume_step"],
+          "required": ["reason", "resume_phase", "resume_step", "progress_comment_url"],
           "properties": {
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
+            },
             "reason": {
               "type": "string",
               "minLength": 1
@@ -615,8 +642,11 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["question", "source_phase"],
+          "required": ["question", "source_phase", "progress_comment_url"],
           "properties": {
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
+            },
             "question": {
               "type": "string",
               "minLength": 1
@@ -646,11 +676,14 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["result"],
+          "required": ["result", "progress_comment_url"],
           "properties": {
             "result": {
               "type": "string",
               "enum": ["merged", "closed", "accepted", "rejected"]
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
             }
           }
         }

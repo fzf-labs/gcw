@@ -20,7 +20,8 @@
       "errors": [],
       "ok": true
     },
-    "result": "passed"
+    "result": "passed",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-2"
   },
   "refs": {
     "branch": "feat/example-42",

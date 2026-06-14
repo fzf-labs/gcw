@@ -36,7 +36,8 @@ Require:
 2. Run remote artifact verification when applicable.
 3. For AI review, inspect the PR/MR diff and relevant nearby code. Prioritize correctness bugs, security risks, behavioral regressions, missing tests, and documentation mismatches.
 4. Summarize automatic review outcome and evidence.
-5. Record `feedback_source: pr-review` when automatic review produces requested changes.
+5. Publish a new Issue `<!-- gcw-progress -->` comment for the resulting phase (`reviewing`, `changes-requested`, or `blocked`).
+6. Record `feedback_source: pr-review` when automatic review produces requested changes.
 
 ## State Transition
 

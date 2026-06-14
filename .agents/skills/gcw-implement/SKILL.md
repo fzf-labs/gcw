@@ -38,7 +38,8 @@ Require:
 3. Reuse `tdd` for behavior changes.
 4. Make focused code, test, and necessary documentation changes.
 5. Update progress/spec files when discoveries or risks change.
-6. Commit focused implementation changes and push the issue branch when the change is ready to publish. Do not force push unless the user explicitly approves.
+6. When entering `implementing` from `ready-for-implementation` or `changes-requested`, publish a new `<!-- gcw-progress -->` comment before recording the event.
+7. Commit focused implementation changes and push the issue branch when the change is ready to publish. Do not force push unless the user explicitly approves.
 
 ## State Transition
 

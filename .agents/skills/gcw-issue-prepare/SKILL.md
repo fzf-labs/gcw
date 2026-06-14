@@ -93,13 +93,20 @@ python .agents/skills/gcw-issue-prepare/scripts/verify_remote_triage.py \
   --issue-dir .gcw/issues/42
 ```
 
-6. If unclear, comment with questions and stay at `issue-clarifying` with `needs-info` in workflow labels.
-7. If clear, record the event with `remote_sync` from the `apply-metadata` output:
+6. Publish a **new** `<!-- gcw-progress -->` comment (never edit an existing one). Clarification questions use the structured `## Clarification` section:
+
+```bash
+python .agents/skills/gcw/scripts/publish_progress_comment.py --issue-dir .gcw/issues/42
+```
+
+7. If unclear, stay at `issue-clarifying` with `needs-info` in workflow labels.
+8. If clear, record the event with `remote_sync` and the new comment URL:
 
 ```bash
 python .agents/skills/gcw/scripts/manage_gcw_workflow.py record-issue-prepare \
   --issue-dir .gcw/issues/42 \
   --ready \
+  --progress-comment-url https://github.com/owner/repo/issues/42#issuecomment-1 \
   --summary "scope clear" \
   --classification-type enhancement \
   --classification-area area:workflow \
@@ -113,6 +120,7 @@ python .agents/skills/gcw/scripts/manage_gcw_workflow.py record-issue-prepare \
 ```json
 {
   "ready": true,
+  "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
   "summary": "P0 enhancement: add hard validation",
   "classification": {
     "type": "enhancement",

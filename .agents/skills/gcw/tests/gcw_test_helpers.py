@@ -14,3 +14,10 @@ def planning_shas(issue_dir: Path) -> dict[str, str]:
         "findings_sha": file_sha(issue_dir / "findings.md"),
         "progress_sha": file_sha(issue_dir / "progress.md"),
     }
+
+
+PROGRESS_COMMENT_BASE = "https://github.com/owner/repo/issues/42#issuecomment"
+
+
+def progress_comment_url(seq: int) -> str:
+    return f"{PROGRESS_COMMENT_BASE}-{seq}"

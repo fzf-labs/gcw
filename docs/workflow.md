@@ -33,6 +33,8 @@ GCW 由人、agent、Action 三方协作推进：
 
 spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到远程分支，然后通过 Issue 评论链接到这些文件。当前 spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md`。
 
+**进度评论策略**：从 `gcw-issue-prepare` 起，每个主步骤在关键节点完成时 **新发一条** `<!-- gcw-progress -->` 评论（禁止编辑旧评论）；`refs.progress_comment_url` 指向最新评论。发布使用 `publish_progress_comment.py`；远程校验比对的是最新评论正文与当前 `phase` 的渲染结果。
+
 如果 `gcw-spec-check` 发现 Issue 仍不清楚，会回到 `issue-clarifying`；已生成的 spec files 作为草稿保留，澄清后重新执行 `gcw-issue-to-spec` 更新。
 
 ## 步骤拆解

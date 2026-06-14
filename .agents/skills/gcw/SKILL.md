@@ -122,6 +122,7 @@ Any pipeline that hits a hard gate or needs human judgment must stop, hand contr
 6. Preserve `feedback_source` when moving from `changes-requested` back into implementation.
 7. Preserve `resume_state` / `resume_step` when a step enters `blocked`.
 8. Stop and report clearly when the workflow enters `issue-clarifying`, `blocked`, or `review-complete`.
+9. At each milestone step completion (from `gcw-issue-prepare` onward), publish a **new** Issue `<!-- gcw-progress -->` comment via `publish_progress_comment.py`; never edit an existing progress comment. Record `progress_comment_url` on the completing event; `workflow.json` `refs.progress_comment_url` always points to the latest comment.
 
 ## Reporting
 

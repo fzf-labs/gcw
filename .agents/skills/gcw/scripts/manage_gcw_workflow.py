@@ -51,6 +51,13 @@ def finish(issue_dir: Path, event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def progress_comment_url_from_args(args: argparse.Namespace) -> str:
+    url = str(getattr(args, "progress_comment_url", "") or "").strip()
+    if not url:
+        raise WorkflowError("progress_comment_url is required")
+    return url
+
+
 def append_and_finish(args: argparse.Namespace, event_name: str, payload: dict[str, Any], refs: dict[str, Any] | None = None) -> dict[str, Any]:
     event = append_event(
         args.issue_dir,
@@ -81,7 +88,10 @@ def init_workflow(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
-    payload: dict[str, Any] = {"ready": args.ready}
+    payload: dict[str, Any] = {
+        "ready": args.ready,
+        "progress_comment_url": progress_comment_url_from_args(args),
+    }
     if args.question:
         payload["question"] = args.question
     if args.summary:
@@ -120,6 +130,7 @@ def record_spec_check(args: argparse.Namespace) -> dict[str, Any]:
     ok = args.result == "passed"
     payload: dict[str, Any] = {
         "result": args.result,
+        "progress_comment_url": progress_comment_url_from_args(args),
         "gate": {
             "ok": ok,
             "checks": [],
@@ -134,7 +145,16 @@ def record_spec_check(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def record_implement(args: argparse.Namespace) -> dict[str, Any]:
+    projection = current_projection(args.issue_dir)
+    phase = str(projection.get("phase", ""))
     payload: dict[str, Any] = {"work_summary": args.work_summary}
+    url = str(getattr(args, "progress_comment_url", "") or "").strip()
+    if phase in ("ready-for-implementation", "changes-requested"):
+        if not url:
+            raise WorkflowError("progress_comment_url is required when entering implementing")
+        payload["progress_comment_url"] = url
+    elif url:
+        payload["progress_comment_url"] = url
     if args.feedback_source:
         payload["feedback_source"] = args.feedback_source
     if args.feedback_ref:
@@ -144,6 +164,9 @@ def record_implement(args: argparse.Namespace) -> dict[str, Any]:
 
 def record_implement_check(args: argparse.Namespace) -> dict[str, Any]:
     payload = read_payload(args.payload_file)
+    gate = payload.get("gate") if isinstance(payload.get("gate"), dict) else {}
+    if gate.get("ok") is True:
+        payload["progress_comment_url"] = progress_comment_url_from_args(args)
     return append_and_finish(args, "gcw-implement-check", payload)
 
 
@@ -160,6 +183,7 @@ def record_pr_publish(args: argparse.Namespace) -> dict[str, Any]:
         "review_request_url": args.review_request_url,
         "rendered_from_event_id": rendered_from_event_id,
         "body_hash": args.body_hash,
+        "progress_comment_url": progress_comment_url_from_args(args),
         "effects": [
             {
                 "kind": args.effect_kind,
@@ -175,7 +199,10 @@ def record_pr_publish(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def record_pr_review(args: argparse.Namespace) -> dict[str, Any]:
-    payload: dict[str, Any] = {"result": args.result}
+    payload: dict[str, Any] = {
+        "result": args.result,
+        "progress_comment_url": progress_comment_url_from_args(args),
+    }
     if args.feedback_source:
         payload["feedback_source"] = args.feedback_source
     if args.reason:
@@ -192,6 +219,7 @@ def record_block(args: argparse.Namespace) -> dict[str, Any]:
         "reason": args.reason,
         "resume_phase": resume_phase,
         "resume_step": resume_step,
+        "progress_comment_url": progress_comment_url_from_args(args),
     }
     return append_and_finish(args, "gcw-block", payload)
 
@@ -201,12 +229,20 @@ def record_clarify(args: argparse.Namespace) -> dict[str, Any]:
     payload = {
         "question": args.question,
         "source_phase": args.source_phase or projection["phase"],
+        "progress_comment_url": progress_comment_url_from_args(args),
     }
     return append_and_finish(args, "gcw-clarify", payload)
 
 
 def record_review_complete(args: argparse.Namespace) -> dict[str, Any]:
-    return append_and_finish(args, "review-complete", {"result": args.result})
+    return append_and_finish(
+        args,
+        "review-complete",
+        {
+            "result": args.result,
+            "progress_comment_url": progress_comment_url_from_args(args),
+        },
+    )
 
 
 def rebuild_projection(args: argparse.Namespace) -> dict[str, Any]:
@@ -242,6 +278,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare = subparsers.add_parser("record-issue-prepare")
     add_common(prepare)
     prepare.add_argument("--ready", action="store_true")
+    prepare.add_argument("--progress-comment-url", required=True)
     prepare.add_argument("--question", default="")
     prepare.add_argument("--summary", default="")
     prepare.add_argument("--classification-type", default="")
@@ -269,6 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
     spec_check = subparsers.add_parser("record-spec-check")
     add_common(spec_check)
     spec_check.add_argument("--result", required=True, choices=("passed", "clarifying", "blocked"))
+    spec_check.add_argument("--progress-comment-url", required=True)
     spec_check.add_argument("--question", default="")
     spec_check.add_argument("--reason", default="")
     spec_check.set_defaults(handler=record_spec_check)
@@ -276,6 +314,7 @@ def build_parser() -> argparse.ArgumentParser:
     implement = subparsers.add_parser("record-implement")
     add_common(implement)
     implement.add_argument("--work-summary", required=True)
+    implement.add_argument("--progress-comment-url", default="")
     implement.add_argument("--feedback-source", choices=("pr-review", "human-review"), default="")
     implement.add_argument("--feedback-ref", default="")
     implement.set_defaults(handler=record_implement)
@@ -283,11 +322,13 @@ def build_parser() -> argparse.ArgumentParser:
     implement_check = subparsers.add_parser("record-implement-check")
     add_common(implement_check)
     implement_check.add_argument("--payload-file", required=True, type=Path)
+    implement_check.add_argument("--progress-comment-url", required=True)
     implement_check.set_defaults(handler=record_implement_check)
 
     pr_publish = subparsers.add_parser("record-pr-publish")
     add_common(pr_publish)
     pr_publish.add_argument("--review-request-url", required=True)
+    pr_publish.add_argument("--progress-comment-url", required=True)
     pr_publish.add_argument("--rendered-from-event-id", default="")
     pr_publish.add_argument("--body-hash", required=True)
     pr_publish.add_argument("--target", required=True)
@@ -299,6 +340,7 @@ def build_parser() -> argparse.ArgumentParser:
     pr_review = subparsers.add_parser("record-pr-review")
     add_common(pr_review)
     pr_review.add_argument("--result", required=True, choices=("passed", "changes-requested", "blocked"))
+    pr_review.add_argument("--progress-comment-url", required=True)
     pr_review.add_argument("--feedback-source", choices=("pr-review", "human-review"), default="pr-review")
     pr_review.add_argument("--reason", default="")
     pr_review.set_defaults(handler=record_pr_review)
@@ -306,6 +348,7 @@ def build_parser() -> argparse.ArgumentParser:
     block = subparsers.add_parser("record-block")
     add_common(block)
     block.add_argument("--reason", required=True)
+    block.add_argument("--progress-comment-url", required=True)
     block.add_argument("--resume-phase", default="")
     block.add_argument("--resume-step", default="")
     block.set_defaults(handler=record_block)
@@ -313,12 +356,14 @@ def build_parser() -> argparse.ArgumentParser:
     clarify = subparsers.add_parser("record-clarify")
     add_common(clarify)
     clarify.add_argument("--question", required=True)
+    clarify.add_argument("--progress-comment-url", required=True)
     clarify.add_argument("--source-phase", default="")
     clarify.set_defaults(handler=record_clarify)
 
     complete = subparsers.add_parser("record-review-complete")
     add_common(complete)
     complete.add_argument("--result", required=True, choices=("merged", "closed", "accepted", "rejected"))
+    complete.add_argument("--progress-comment-url", required=True)
     complete.set_defaults(handler=record_review_complete)
 
     rebuild = subparsers.add_parser("rebuild-projection")

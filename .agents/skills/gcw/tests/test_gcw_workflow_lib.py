@@ -23,6 +23,9 @@ from gcw_workflow_lib import (  # noqa: E402
 )
 
 
+from gcw_test_helpers import progress_comment_url  # noqa: E402
+
+
 _FAKE_SHA = "sha256:" + "a" * 64
 
 
@@ -60,17 +63,26 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "owner": {"kind": "local", "id": "cursor-session"},
             },
         )
-        self.append("gcw-issue-prepare", {"ready": True})
+        self.append("gcw-issue-prepare", {"ready": True, "progress_comment_url": progress_comment_url(0)})
         self.append(
             "gcw-issue-to-spec",
             {
                 "planning_commit_pushed": True,
-                "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
+                "progress_comment_url": progress_comment_url(1),
                 "spec_refs": {"task_plan_sha": _FAKE_SHA, "findings_sha": _FAKE_SHA, "progress_sha": _FAKE_SHA},
             },
         )
-        self.append("gcw-spec-check", {"gate": {"ok": True, "checks": [], "errors": []}})
-        self.append("gcw-implement", {"work_summary": "Implemented example."})
+        self.append(
+            "gcw-spec-check",
+            {
+                "gate": {"ok": True, "checks": [], "errors": []},
+                "progress_comment_url": progress_comment_url(2),
+            },
+        )
+        self.append(
+            "gcw-implement",
+            {"work_summary": "Implemented example.", "progress_comment_url": progress_comment_url(3)},
+        )
         self.append(
             "gcw-implement-check",
             {
@@ -85,6 +97,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "reviewer_notes": "Review state transitions.",
                 "self_review": {"recorded": True, "progress_section": "## Local Self-Review"},
                 "spec_refs": {"task_plan_sha": _FAKE_SHA, "findings_sha": _FAKE_SHA, "progress_sha": _FAKE_SHA},
+                "progress_comment_url": progress_comment_url(4),
             },
             code_head_sha="code-1",
         )
@@ -94,6 +107,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "review_request_url": "https://github.com/owner/repo/pull/7",
                 "rendered_from_event_id": "gcw-42-005-gcw-implement-check",
                 "body_hash": _FAKE_SHA,
+                "progress_comment_url": progress_comment_url(5),
                 "effects": [
                     {
                         "kind": "github_pr_upsert",
@@ -113,6 +127,39 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertEqual(projection["last_completed_step"], "gcw-pr-publish")
         self.assertEqual(projection["next_allowed_steps"], ["gcw-pr-review"])
         self.assertEqual(projection["refs"]["review_request_url"], "https://github.com/owner/repo/pull/7")
+        self.assertEqual(projection["refs"]["progress_comment_url"], progress_comment_url(5))
+
+    def test_reducer_tracks_latest_progress_comment_url(self) -> None:
+        self.append(
+            "gcw-issue-intake",
+            {
+                "issue": 42,
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "gcw/issue-42",
+                "owner": {"kind": "local", "id": "cursor-session"},
+            },
+        )
+        self.append("gcw-issue-prepare", {"ready": True, "progress_comment_url": progress_comment_url(0)})
+        self.append(
+            "gcw-issue-to-spec",
+            {
+                "planning_commit_pushed": True,
+                "progress_comment_url": progress_comment_url(1),
+                "spec_refs": {"task_plan_sha": _FAKE_SHA, "findings_sha": _FAKE_SHA, "progress_sha": _FAKE_SHA},
+            },
+        )
+        projection = reduce_workflow(load_events(self.issue_dir))
+        self.assertEqual(projection["refs"]["progress_comment_url"], progress_comment_url(1))
+        self.append(
+            "gcw-spec-check",
+            {
+                "gate": {"ok": True, "checks": [], "errors": []},
+                "progress_comment_url": progress_comment_url(2),
+            },
+        )
+        projection = reduce_workflow(load_events(self.issue_dir))
+        self.assertEqual(projection["refs"]["progress_comment_url"], progress_comment_url(2))
 
     def test_projection_is_rebuildable_cache(self) -> None:
         self.append(

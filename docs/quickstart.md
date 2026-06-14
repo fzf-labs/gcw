@@ -34,7 +34,9 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 - **观察**：平台上应出现的产物
 - **状态**：`workflow.json` 投影中的 `phase`（或由 Issue 评论中的 `<!-- gcw-progress -->` 块反映）
 
-进度评论以 HTML 注释 `<!-- gcw-progress -->` 开头，便于人与 agent 在 Issue 时间线中定位 GCW 状态。每种 `GCW Status` 只展示该阶段相关的段落，而不是把所有字段塞进同一条评论：
+进度评论以 HTML 注释 `<!-- gcw-progress -->` 开头，便于人与 agent 在 Issue 时间线中定位 GCW 状态。**每个主步骤完成时新发一条评论，禁止编辑旧评论**；`workflow.json` 的 `refs.progress_comment_url` 始终指向最新一条。首条结构化进度评论在 `gcw-issue-prepare` 完成时发出；`gcw-issue-intake` 仍只读不写。
+
+每种 `GCW Status` 只展示该阶段相关的段落，而不是把所有字段塞进同一条评论：
 
 | `GCW Status` | 评论段落 |
 | --- | --- |
@@ -71,10 +73,10 @@ Intake 只读 Issue，不创建分支、不写 spec。事件持久化在创建 i
 | | |
 | --- | --- |
 | **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-prepare` |
-| **观察** | Issue 上出现 triage 标签（如 `documentation`、`triaged`、`ready-to-spec`）；`events/001-gcw-issue-prepare.json` |
+| **观察** | Issue 上出现 triage 标签（如 `documentation`、`triaged`、`ready-to-spec`）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-prepare.json` |
 | **状态** | `ready-for-planning` 或 `issue-clarifying` |
 
-Prepare 负责分类与打标签，不创建 spec files。信息不足时停在 `issue-clarifying` 并打 `needs-info`。
+Prepare 负责分类与打标签，并发布首条结构化进度评论。信息不足时停在 `issue-clarifying` 并打 `needs-info`；澄清问题也写入 `gcw-progress` 格式，不再单独发非结构化评论。
 
 ## 步骤 3：`gcw-issue-to-spec`
 
@@ -89,7 +91,7 @@ Prepare 负责分类与打标签，不创建 spec files。信息不足时停在 
 | | |
 | --- | --- |
 | **执行** | `gcw-spec-check`：校验 spec 已推送、评论已链接、内容可实施 |
-| **观察** | `events/003-gcw-spec-check.json`；[进度评论更新](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697978196) 为 `ready-for-implementation` |
+| **观察** | `events/003-gcw-spec-check.json`；[新发进度评论](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697978196) 为 `ready-for-implementation` |
 | **状态** | `ready-for-implementation` |
 
 未通过则回到 `issue-clarifying`，spec 草稿保留。

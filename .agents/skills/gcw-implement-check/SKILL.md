@@ -37,7 +37,8 @@ Require:
 2. Confirm tests, linters, or validation commands have been run, or record why they were skipped.
 3. Confirm planning files are current.
 4. Write or validate the implement-check payload for summary, issue link, validation, risks, scope, reviewer notes, self-review, and spec refs.
-5. Append a `gcw-implement-check` event, rebuild `workflow.json`, and reuse GCW validation scripts when available, especially `validate_gcw_evidence.py implement-check`.
+5. Publish a new `<!-- gcw-progress -->` comment for `ready-for-review` when the gate passes.
+6. Append a `gcw-implement-check` event with `progress_comment_url`, rebuild `workflow.json`, and reuse GCW validation scripts when available, especially `validate_gcw_evidence.py implement-check`.
 
 ## State Transition
 

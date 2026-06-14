@@ -46,6 +46,37 @@ def _verify_spec_refs_hashes(issue_dir: Path, spec_refs: dict[str, Any], errors:
                 errors.append(f"{sha_key} does not match actual {filename} content")
 
 
+def _progress_comment_url_from_event(event: dict[str, Any] | None) -> str:
+    if not event:
+        return ""
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    return str(payload.get("progress_comment_url", "")).strip()
+
+
+def _latest_milestone_progress_comment_errors(issue_dir: Path, event_name: str) -> list[str]:
+    errors: list[str] = []
+    latest = find_latest_event(issue_dir, event_name)
+    if latest is None:
+        errors.append(f"no {event_name} event found")
+        return errors
+    if not _progress_comment_url_from_event(latest):
+        errors.append(f"latest {event_name} missing progress_comment_url")
+    return errors
+
+
+def _refs_match_latest_progress_comment(issue_dir: Path, event_name: str) -> list[str]:
+    errors: list[str] = []
+    projection = assert_projection_current(issue_dir)["projection"]
+    refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
+    latest_url = _progress_comment_url_from_event(find_latest_event(issue_dir, event_name))
+    ref_url = str(refs.get("progress_comment_url", "")).strip()
+    if latest_url and ref_url and latest_url != ref_url:
+        errors.append("refs.progress_comment_url does not match latest milestone progress comment")
+    elif ref_url and not latest_url:
+        errors.append("refs.progress_comment_url is set but latest milestone event has no progress_comment_url")
+    return errors
+
+
 def workflow_errors(issue_dir: Path) -> list[str]:
     errors = validate_event_log(issue_dir)
     current = assert_projection_current(issue_dir)
@@ -70,6 +101,8 @@ def spec_check_errors(issue_dir: Path) -> list[str]:
     gate = payload.get("gate") if isinstance(payload.get("gate"), dict) else {}
     if gate.get("ok") is not True:
         errors.append("latest gcw-spec-check gate.ok must be true")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-spec-check"))
+    errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-spec-check"))
     to_spec = find_latest_event(issue_dir, "gcw-issue-to-spec")
     if to_spec:
         spec_refs = to_spec.get("payload", {}).get("spec_refs")
@@ -103,6 +136,7 @@ def prepare_check_errors(issue_dir: Path) -> list[str]:
     payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
     if payload.get("ready") is True and not payload.get("remote_sync"):
         errors.append("gcw-issue-prepare remote_sync is required when ready is true")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-prepare"))
     if VERIFY_REMOTE_TRIAGE.is_file():
         result = subprocess.run(
             [sys.executable, str(VERIFY_REMOTE_TRIAGE), "--issue-dir", str(issue_dir)],
@@ -160,6 +194,8 @@ def implement_check_errors(issue_dir: Path) -> list[str]:
             errors.append(f"gate.validation[{i}] must be an object")
         elif not all(k in val for k in ("command", "exit_code", "result")):
             errors.append(f"gate.validation[{i}] missing command, exit_code, or result")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-implement-check"))
+    errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-implement-check"))
     return errors
 
 
@@ -190,6 +226,8 @@ def pr_publish_errors(issue_dir: Path) -> list[str]:
     body_hash = str(payload.get("body_hash", ""))
     if body_hash and not body_hash.startswith("sha256:"):
         errors.append("payload.body_hash must start with sha256:")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-pr-publish"))
+    errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-pr-publish"))
     return errors
 
 
@@ -207,6 +245,7 @@ def review_check_errors(issue_dir: Path) -> list[str]:
         result = latest.get("payload", {}).get("result")
         if result not in ("passed", "changes-requested", "blocked"):
             errors.append(f"gcw-pr-review result must be passed, changes-requested, or blocked; got {result}")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-pr-review"))
     return errors
 
 
@@ -225,6 +264,7 @@ def block_check_errors(issue_dir: Path) -> list[str]:
             errors.append("active_blocker.resume_phase is required")
         if not blocker.get("resume_step"):
             errors.append("active_blocker.resume_step is required")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-block"))
     return errors
 
 
@@ -239,6 +279,7 @@ def clarify_check_errors(issue_dir: Path) -> list[str]:
         feedback = projection.get("active_feedback") if isinstance(projection.get("active_feedback"), dict) else {}
         if not feedback.get("reason"):
             errors.append("active_feedback.reason (question) is required")
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-clarify"))
     return errors
 
 

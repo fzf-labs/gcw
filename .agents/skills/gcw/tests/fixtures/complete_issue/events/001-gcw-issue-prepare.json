@@ -11,6 +11,7 @@
   },
   "payload": {
     "ready": true,
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
     "classification": {
       "type": "enhancement",
       "area": "area:tests",

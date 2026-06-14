@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from gcw_workflow_lib import find_latest_event
+from gcw_workflow_lib import assert_projection_current, find_latest_event
 
 from render_gcw_hosted_artifacts import (
     REVIEW_REQUEST_END,
@@ -70,6 +70,13 @@ def _verify_body_hash(remote_text: str, issue_dir: Path, errors: list[str]) -> N
 
 def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
+    expected_url = str(getattr(args, "progress_comment_url", "") or "").strip()
+    if not expected_url:
+        projection = assert_projection_current(args.issue_dir)["projection"]
+        refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
+        expected_url = str(refs.get("progress_comment_url", "")).strip()
+    if not expected_url:
+        errors.append("progress_comment_url is missing from projection refs")
     remote_text = read_remote_text(args.remote_file, errors, "progress comment")
     can_compare = not errors
     expected_text = ""
@@ -86,6 +93,7 @@ def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
         "step": "remote-progress-comment",
         "ok": not errors,
         "errors": errors,
+        "progress_comment_url": expected_url,
     }
 
 
@@ -131,6 +139,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     progress_parser.add_argument("--issue-dir", required=True, type=Path)
     progress_parser.add_argument("--remote-file", required=True, type=Path)
+    progress_parser.add_argument(
+        "--progress-comment-url",
+        default="",
+        help="Latest hosted progress comment URL; defaults to projection refs.progress_comment_url.",
+    )
     progress_parser.set_defaults(handler=verify_progress_comment)
 
     review_parser = subparsers.add_parser(

@@ -10,7 +10,8 @@
     "expected_last_seq": 3
   },
   "payload": {
-    "work_summary": "Implemented the example fixture capability."
+    "work_summary": "Implemented the example fixture capability.",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-3"
   },
   "refs": {
     "branch": "feat/example-42",
