@@ -30,9 +30,10 @@
 
 ### Phase 5–6: Delivery
 
-- **Status:** in progress
+- **Status:** complete
 - Actions taken:
-  - （待 implement-check / PR publish）
+  - `gcw-implement-check` → `gcw-pr-publish` → `gcw-pr-review`（automatic checks passed）
+  - PR: https://github.com/fzf-labs/gcw/pull/10
 
 ## Test Results
 

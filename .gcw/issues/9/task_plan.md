@@ -54,8 +54,8 @@ Phase 5
 
 ### Phase 6: Delivery
 
-- [ ] `gcw-implement-check` → `gcw-pr-publish` → `gcw-pr-review`
-- **Status:** in progress
+- [x] `gcw-implement-check` → `gcw-pr-publish` → `gcw-pr-review`
+- **Status:** complete
 
 ## Key Questions
 
