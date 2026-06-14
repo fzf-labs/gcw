@@ -245,16 +245,6 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertEqual(projection["next_allowed_steps"], ["gcw-pr-review"])
         self.assertEqual(self.events()[-1]["payload"]["effects"][0]["status"], "applied")
 
-    def test_prepare_command_is_not_available(self) -> None:
-        self.init()
-        result = self.run_manager_raw(
-            "record-issue-prepare",
-            "--issue-dir",
-            str(self.issue_dir),
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("invalid choice", result.stderr)
-
     def test_clarify_not_ready_records_issue_clarifying(self) -> None:
         self.init()
         self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))

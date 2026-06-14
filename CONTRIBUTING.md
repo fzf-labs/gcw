@@ -15,7 +15,7 @@ GCW skills 随仓库提供，无需单独发布包。在 Cursor / 支持 Agent S
 常用入口：
 
 - 编排：`/gcw <issue-number>`
-- 单步：各 `gcw-issue-intake`、`gcw-issue-prepare` 等 skill
+- 单步：各 `gcw-issue-intake`、`gcw-issue-triage`、`gcw-issue-clarify` 等 skill
 
 Skill 与脚本以仓库内文件为准；修改 skill 后请运行下方测试命令。
 
@@ -32,7 +32,7 @@ python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
   --issue-dir .gcw/issues/<issue-id>
 
 # Issue 结构 readiness（GitHub Issue 或本地正文）
-python3 .agents/skills/gcw-issue-prepare/scripts/evaluate_issue_readiness.py \
+python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
   --profile enhancement --platform github --repo OWNER/REPO --issue <n>
 ```
 
@@ -54,7 +54,7 @@ python3 .agents/skills/gcw-issue-prepare/scripts/evaluate_issue_readiness.py \
 - `## Notes`（可选）
 - `## Blocked by`（无阻塞时写 `None - can start immediately`）
 
-结构完整的 Issue 更容易在 `gcw-issue-prepare` 通过 readiness gate，避免长时间停在 `needs-info`。
+结构完整的 Issue 更容易在 `gcw-issue-clarify` 通过 readiness gate，避免长时间停在 `issue-clarifying`。
 
 ## 提 Pull Request
 
@@ -65,10 +65,10 @@ python3 .agents/skills/gcw-issue-prepare/scripts/evaluate_issue_readiness.py \
 
 ## 维护 GitHub Labels（维护者）
 
-GCW triage 标签定义在 `.agents/skills/gcw-issue-prepare/labels.json`。同步到 GitHub：
+GCW triage 标签定义在 `.agents/skills/gcw-issue-triage/labels.json`。同步到 GitHub：
 
 ```bash
-python3 .agents/skills/gcw-issue-prepare/scripts/manage_triage_metadata.py sync \
+python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
   --platform github --repo fzf-labs/gcw
 ```
 

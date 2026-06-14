@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        请填写下列各节，结构需与 [issue-template.md](https://github.com/fzf-labs/gcw/blob/master/.agents/skills/issue-create/issue-template.md) 一致，以便 `gcw-issue-prepare` 通过 structural readiness gate。
+        请填写下列各节，结构需与 [issue-template.md](https://github.com/fzf-labs/gcw/blob/master/.agents/skills/issue-create/issue-template.md) 一致，以便 `gcw-issue-clarify` 通过 structural readiness gate。
   - type: markdown
     attributes:
       value: |
