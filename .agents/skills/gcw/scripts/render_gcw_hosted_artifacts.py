@@ -356,6 +356,9 @@ def render_review_request(args: argparse.Namespace) -> str:
     review_request = readiness.get("review_request") if isinstance(readiness.get("review_request"), dict) else {}
     gate = readiness.get("gate") if isinstance(readiness.get("gate"), dict) else {}
     validations = readiness.get("validation") if isinstance(readiness.get("validation"), list) else gate.get("validation", [])
+    projection = current["projection"]
+    issue_id = projection.get("issue")
+    issue_link = str(review_request.get("issue_link", "")).strip()
     lines = [
         REVIEW_REQUEST_START,
         str(review_request.get("title", "")).strip(),
@@ -366,11 +369,24 @@ def render_review_request(args: argparse.Namespace) -> str:
         "",
         "## Issue",
         "",
-        str(review_request.get("issue_link", "")).strip(),
-        "",
-        "## Validation",
-        "",
     ]
+    if issue_link:
+        lines.append(issue_link)
+    if issue_id is not None:
+        closes = f"Closes #{issue_id}"
+        if closes.casefold() not in issue_link.casefold():
+            if issue_link:
+                lines.append("")
+            lines.append(closes)
+    if not issue_link and issue_id is None:
+        lines.append("- Not recorded.")
+    lines.extend(
+        [
+            "",
+            "## Validation",
+            "",
+        ]
+    )
     if validations:
         for validation in validations:
             if isinstance(validation, dict):
@@ -380,14 +396,14 @@ def render_review_request(args: argparse.Namespace) -> str:
     if readiness.get("scope"):
         lines.extend(["", "## Scope", "", str(readiness["scope"]).strip()])
     lines.extend(["", "## Planning", ""])
-    links = planning_links_markdown(readiness, current["projection"])
+    links = planning_links_markdown(readiness, projection)
     lines.extend(links if links else ["- Not recorded."])
     lines.extend(
         [
             "",
             "## Progress Comment",
             "",
-            str(current["projection"].get("refs", {}).get("progress_comment_url", "")).strip(),
+            str(projection.get("refs", {}).get("progress_comment_url", "")).strip(),
             "",
             "## Risks",
             "",

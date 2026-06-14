@@ -216,6 +216,21 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("## Review", result.stdout)
 
 
+    def test_render_review_request_adds_closes_from_projection_when_issue_link_is_url(self) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        event_path = issue_dir / "events/005-gcw-implement-check.json"
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+        event["payload"]["review_request"]["issue_link"] = "https://github.com/owner/repo/issues/42"
+        event_path.write_text(json.dumps(event, indent=2), encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(issue_dir))
+
+        result = self.run_render("review-request", "--issue-dir", str(issue_dir))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("https://github.com/owner/repo/issues/42", result.stdout)
+        self.assertIn("Closes #42", result.stdout)
+
     def test_render_review_request_includes_optional_scope_and_reviewer_notes(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)

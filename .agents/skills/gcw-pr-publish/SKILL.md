@@ -33,7 +33,7 @@ Require:
 ## Procedure
 
 1. Confirm `validate_gcw_evidence.py implement-check` passes.
-2. Create or update the GitHub PR or GitLab MR with `gh` or `glab`.
+2. Create or update the GitHub PR or GitLab MR with `gh` or `glab`. The rendered body includes `Closes #<issue-id>` (from workflow projection) so GitHub auto-closes the linked issue on merge.
 3. Publish a new Issue `<!-- gcw-progress -->` comment for `reviewing`.
 4. Preserve user-authored PR/MR content when updating an existing review request.
 5. Append a `gcw-pr-publish` event with the review request URL, progress comment URL, rendered body hash, and applied platform effect.
