@@ -39,6 +39,15 @@ Require:
 4. Commit only the initial spec/event/projection files as a focused planning commit, then push the issue branch without force pushing.
 5. Publish a new `<!-- gcw-progress -->` comment with `publish_progress_comment.py`, then record the event with the returned URL. Do not edit previous progress comments.
 
+Or run the unified step runner:
+
+```bash
+python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-to-spec \
+  --issue-dir .gcw/issues/<issue-id>
+```
+
+Use `--dry-run` to render artifacts and validation without pushing events.
+
 ## State Transition
 
 - Starts from: `ready-for-planning`.

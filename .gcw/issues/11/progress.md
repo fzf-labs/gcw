@@ -18,6 +18,7 @@
 
 - **2026-06-14**: 启动 GCW issue #11；完成 intake 与 prepare；远端 triage 已同步（Feature / Urgent / triaged, area:workflow, ready-to-spec）
 - **2026-06-14**: 生成规划文件：统一 step runner 设计、六步注册表、adapter 分层、测试与文档计划
+- **2026-06-14**: 实现 `run_gcw_step.py`、`gcw_step_runner.py`、`gcw_step_adapters.py`；7 个单元测试覆盖成功/dry-run/发布失败/校验失败/非法路由
 
 ## Blockers
 
@@ -29,3 +30,13 @@ None.
 - 首批六步不含 `gcw-implement`（实现由 agent 完成）
 - dry-run 在 adapter 层统一短路远端副作用
 - 事件仅在 publication 成功后追加
+
+## Implementation Status
+
+| Component | Status |
+| --- | --- |
+| `gcw_step_runner.py` | done |
+| `gcw_step_adapters.py` | done |
+| `run_gcw_step.py` CLI | done |
+| `test_gcw_step_runner.py` | done (7 tests) |
+| Step skill doc updates | in progress |

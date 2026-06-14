@@ -39,6 +39,16 @@ Require:
 5. Append a `gcw-pr-publish` event with the review request URL, progress comment URL, rendered body hash, and applied platform effect.
 6. Report the review request URL and next step.
 
+Or run the unified step runner:
+
+```bash
+python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-publish \
+  --issue-dir .gcw/issues/<issue-id> \
+  --options-file /tmp/pr_publish_options.json
+```
+
+`pr_publish_options.json` must include `review_request_url` and `target` after the PR/MR upsert succeeds.
+
 ## State Transition
 
 - Starts from: `ready-for-review`.

@@ -40,6 +40,16 @@ Require:
 5. Publish a new `<!-- gcw-progress -->` comment for the resulting phase (`ready-for-implementation`, `issue-clarifying`, or `blocked`).
 6. Append a `gcw-spec-check` event with the gate result, `progress_comment_url`, rebuild `workflow.json`, and report the exact missing evidence when the gate cannot pass.
 
+Or run the unified step runner:
+
+```bash
+python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-spec-check \
+  --issue-dir .gcw/issues/<issue-id> \
+  --options-file /tmp/spec_check_options.json
+```
+
+`spec_check_options.json` may set `"result": "passed"` (default), `"clarifying"`, or `"blocked"`.
+
 ## State Transition
 
 - Starts from: `planned`.

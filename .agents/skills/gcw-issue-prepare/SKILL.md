@@ -142,6 +142,16 @@ python .agents/skills/gcw/scripts/manage_gcw_workflow.py record-issue-prepare \
   --remote-sync-file /tmp/remote_sync.json
 ```
 
+Or run the unified step runner (same ordering; publication before event record):
+
+```bash
+python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-prepare \
+  --issue-dir .gcw/issues/42 \
+  --options-file /tmp/prepare_options.json
+```
+
+`prepare_options.json` must include `gate_file`, `remote_sync_file`, `ready`, `labels_applied`, and classification fields.
+
 ## Event payload
 
 ```json
