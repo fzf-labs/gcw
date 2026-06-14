@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcw_test_helpers import planning_shas, prepare_record_cli_args, progress_comment_url
+from gcw_test_helpers import clarify_record_cli_args, planning_shas, progress_comment_url, triage_record_cli_args
 
 ROOT = Path(__file__).resolve().parents[4]
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
@@ -62,7 +62,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertNotIn("## Planning files", result.stdout)
         self.assertNotIn("Review request:", result.stdout)
 
-    def test_render_progress_comment_includes_prepare_readiness(self) -> None:
+    def test_render_progress_comment_includes_clarify_readiness(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
         issue_dir.mkdir(parents=True)
         self.run_manager(
@@ -82,7 +82,8 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--owner-id",
             "cursor-session",
         )
-        self.run_manager(*prepare_record_cli_args(issue_dir, seq=0, ready=True))
+        self.run_manager(*triage_record_cli_args(issue_dir, seq=0))
+        self.run_manager(*clarify_record_cli_args(issue_dir, seq=1, ready=True))
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
 
@@ -111,7 +112,8 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--owner-id",
             "workflow-run-1",
         )
-        self.run_manager(*prepare_record_cli_args(issue_dir, seq=0, ready=True, labels=["triaged", "ready-to-spec"]))
+        self.run_manager(*triage_record_cli_args(issue_dir, seq=0))
+        self.run_manager(*clarify_record_cli_args(issue_dir, seq=1, ready=True))
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
         shas = planning_shas(issue_dir)

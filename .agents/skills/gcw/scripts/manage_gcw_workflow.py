@@ -116,37 +116,6 @@ def init_workflow(args: argparse.Namespace) -> dict[str, Any]:
     return append_and_finish(args, "gcw-issue-intake", payload, {"issue": args.issue, "branch": args.branch})
 
 
-def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
-    if not args.gate_file or not args.gate_file.is_file():
-        raise WorkflowError("record-issue-prepare requires --gate-file")
-    gate = read_payload(args.gate_file)
-    ready = bool(gate.get("ok"))
-    if args.ready and not ready:
-        raise WorkflowError("record-issue-prepare --ready conflicts with gate.ok false")
-
-    payload: dict[str, Any] = {
-        "ready": ready,
-        "gate": gate,
-        "progress_comment_url": progress_comment_url_from_args(args),
-    }
-    if args.question:
-        payload["question"] = args.question
-    if args.summary:
-        payload["summary"] = args.summary
-    if args.classification_type:
-        payload["classification"] = {
-            "type": args.classification_type,
-            "area": args.classification_area or None,
-            "priority": args.classification_priority or None,
-        }
-        payload["classification"] = {k: v for k, v in payload["classification"].items() if v is not None}
-    if args.labels_applied:
-        payload["labels_applied"] = [label.strip() for label in args.labels_applied.split(",") if label.strip()]
-    if args.remote_sync_file and args.remote_sync_file.is_file():
-        payload["remote_sync"] = read_payload(args.remote_sync_file)
-    return append_and_finish(args, "gcw-issue-prepare", payload)
-
-
 def record_issue_triage(args: argparse.Namespace) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "classification": {
@@ -350,31 +319,6 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--owner-kind", required=True, choices=("local", "github-actions", "gitlab-ci", "manual"))
     init.add_argument("--owner-id", required=True)
     init.set_defaults(handler=init_workflow)
-
-    prepare = subparsers.add_parser("record-issue-prepare")
-    add_common(prepare)
-    prepare.add_argument("--ready", action="store_true", help="Required when gate.ok is true")
-    prepare.add_argument("--progress-comment-url", required=True)
-    prepare.add_argument("--question", default="")
-    prepare.add_argument("--summary", default="")
-    prepare.add_argument("--classification-type", default="")
-    prepare.add_argument("--classification-area", default="")
-    prepare.add_argument("--classification-priority", default="")
-    prepare.add_argument("--classification-repro", default="")
-    prepare.add_argument("--labels-applied", default="")
-    prepare.add_argument(
-        "--gate-file",
-        required=True,
-        type=Path,
-        help="JSON file with prepare readiness gate from evaluate_issue_readiness.py",
-    )
-    prepare.add_argument(
-        "--remote-sync-file",
-        default="",
-        type=Path,
-        help="JSON file with remote_sync payload from manage_triage_metadata apply-metadata",
-    )
-    prepare.set_defaults(handler=record_issue_prepare)
 
     triage = subparsers.add_parser("record-issue-triage")
     add_common(triage)

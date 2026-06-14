@@ -54,7 +54,7 @@ class ReadinessLibTest(unittest.TestCase):
     def test_validate_gate_against_rubric_rejects_mismatch(self) -> None:
         gate = {
             "ok": True,
-            "rubric_version": "prepare-readiness/v1",
+            "rubric_version": "issue-clarify-readiness/v1",
             "profile": "enhancement",
             "checks": [{"id": "has_what_to_build", "ok": True, "source": "structural"}],
             "errors": [],

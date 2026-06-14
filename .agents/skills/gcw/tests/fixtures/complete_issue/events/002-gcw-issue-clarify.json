@@ -36,7 +36,7 @@
       "errors": [],
       "ok": true,
       "profile": "enhancement",
-      "rubric_version": "prepare-readiness/v1"
+      "rubric_version": "issue-clarify-readiness/v1"
     },
     "progress_comment_body_hash": "sha256:136edb30c506bb55056666a09521312272c0ae37b380f49b94739510d9004257",
     "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",

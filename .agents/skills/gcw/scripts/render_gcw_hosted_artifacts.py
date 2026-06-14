@@ -110,19 +110,7 @@ def _classification_from_triage(issue_dir: Path) -> dict[str, Any]:
         payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
         classification = payload.get("classification")
         return classification if isinstance(classification, dict) else {}
-
-    prepare = _event_lookup(
-        issue_dir,
-        "gcw-issue-prepare",
-        lambda event: event.get("payload", {}).get("ready") is True,
-    )
-    if prepare is None:
-        prepare = _event_lookup(issue_dir, "gcw-issue-prepare")
-    if prepare is None:
-        return {}
-    payload = prepare.get("payload") if isinstance(prepare.get("payload"), dict) else {}
-    classification = payload.get("classification")
-    return classification if isinstance(classification, dict) else {}
+    return {}
 
 
 def _triage_lines(issue_dir: Path, phase: str) -> list[str]:
@@ -175,8 +163,6 @@ def _append_section(lines: list[str], title: str, body_lines: list[str]) -> None
 
 def _clarify_readiness_lines(issue_dir: Path) -> list[str]:
     clarify = _event_lookup(issue_dir, "gcw-issue-clarify")
-    if clarify is None:
-        clarify = _event_lookup(issue_dir, "gcw-issue-prepare")
     if clarify is None:
         return []
     payload = clarify.get("payload") if isinstance(clarify.get("payload"), dict) else {}
@@ -235,14 +221,6 @@ def _render_issue_clarifying(
         )
         if clarify:
             question = str(clarify.get("payload", {}).get("question", "")).strip()
-    if not question:
-        prepare = _event_lookup(
-            issue_dir,
-            "gcw-issue-prepare",
-            lambda event: event.get("payload", {}).get("ready") is not True,
-        )
-        if prepare:
-            question = str(prepare.get("payload", {}).get("question", "")).strip()
     feedback = projection.get("active_feedback") if isinstance(projection.get("active_feedback"), dict) else {}
     if not question:
         question = str(feedback.get("reason", "")).strip()

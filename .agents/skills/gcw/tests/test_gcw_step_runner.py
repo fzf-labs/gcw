@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from gcw_step_adapters import RecordingAdapter
 from gcw_step_runner import GcwStepRunner, SUPPORTED_STEPS
-from gcw_test_helpers import write_prepare_gate_file, write_remote_sync_file
+from gcw_test_helpers import write_readiness_gate_file, write_remote_sync_file
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -244,7 +244,7 @@ class GcwStepRunnerTest(unittest.TestCase):
         from gcw_workflow_lib import write_projection
 
         write_projection(self.issue_dir)
-        gate_file = write_prepare_gate_file(self.issue_dir / "clarify-gate.json", ready=True)
+        gate_file = write_readiness_gate_file(self.issue_dir / "clarify-gate.json", ready=True)
         runner = GcwStepRunner(adapter=RecordingAdapter())
         result = runner.run(
             "gcw-issue-clarify",

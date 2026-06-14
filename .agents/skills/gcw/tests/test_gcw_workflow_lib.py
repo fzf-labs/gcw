@@ -23,7 +23,7 @@ from gcw_workflow_lib import (  # noqa: E402
 )
 
 
-from gcw_test_helpers import clarify_event_payload, prepare_event_payload, progress_comment_url, triage_event_payload  # noqa: E402
+from gcw_test_helpers import clarify_event_payload, progress_comment_url, triage_event_payload  # noqa: E402
 
 
 _FAKE_SHA = "sha256:" + "a" * 64
@@ -182,7 +182,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertEqual(projection["phase"], "ready-for-planning")
         self.assertEqual(projection["next_allowed_steps"], ["gcw-issue-to-spec"])
 
-    def test_legacy_prepare_event_remains_rebuildable(self) -> None:
+    def test_unknown_issue_event_is_rejected(self) -> None:
         self.append(
             "gcw-issue-intake",
             {
@@ -193,16 +193,8 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "owner": {"kind": "local", "id": "cursor-session"},
             },
         )
-        self.append(
-            "gcw-issue-prepare",
-            prepare_event_payload(ready=True, progress_comment_url=progress_comment_url(0)),
-        )
-
-        projection = reduce_workflow(load_events(self.issue_dir))
-
-        self.assertEqual(projection["phase"], "ready-for-planning")
-        self.assertEqual(projection["last_completed_step"], "gcw-issue-prepare")
-        self.assertEqual(projection["next_allowed_steps"], ["gcw-issue-to-spec"])
+        with self.assertRaises(WorkflowError):
+            self.append("gcw-unknown-event", {"ready": True})
 
     def test_reducer_tracks_latest_progress_comment_url(self) -> None:
         self.append(
@@ -300,7 +292,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         events = [
             {
                 "seq": 0,
-                "event": "gcw-issue-prepare",
+                "event": "gcw-unknown-event",
                 "payload": {"ready": True},
                 "refs": {},
                 "actor": {"kind": "local", "id": "cursor-session"},
@@ -326,7 +318,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
             },
             {
                 "seq": 3,
-                "event": "gcw-issue-prepare",
+                "event": "gcw-unknown-event",
                 "payload": {"ready": True},
                 "refs": {},
                 "actor": {"kind": "local", "id": "cursor-session"},
@@ -387,24 +379,6 @@ class GcwWorkflowLibTest(unittest.TestCase):
         )
         self.assertTrue(any("platform" in e for e in errors))
 
-    def test_validate_payload_rejects_prepare_ready_gate_mismatch(self) -> None:
-        errors = validate_payload(
-            "gcw-issue-prepare",
-            {
-                "ready": True,
-                "gate": {"ok": False, "rubric_version": "prepare-readiness/v1", "profile": "enhancement", "checks": [], "errors": ["x"]},
-                "progress_comment_url": progress_comment_url(0),
-            },
-        )
-        self.assertTrue(any("must match gate.ok" in error for error in errors))
-
-    def test_validate_payload_requires_prepare_gate(self) -> None:
-        errors = validate_payload(
-            "gcw-issue-prepare",
-            {"ready": True, "progress_comment_url": progress_comment_url(0)},
-        )
-        self.assertTrue(any("gate is required" in error for error in errors))
-
     def test_validate_payload_requires_triage_type_and_priority(self) -> None:
         errors = validate_payload(
             "gcw-issue-triage",
@@ -440,7 +414,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
             },
             {
                 "seq": 1,
-                "event": "gcw-issue-prepare",
+                "event": "gcw-unknown-event",
                 "parent": {"expected_last_seq": -1},
                 "payload": {"ready": True},
             },
@@ -471,7 +445,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
     def test_validate_events_integrity_detects_filename_mismatch(self) -> None:
         events_dir = self.issue_dir / "events"
         events_dir.mkdir(parents=True, exist_ok=True)
-        mismatch_file = events_dir / "005-gcw-issue-prepare.json"
+        mismatch_file = events_dir / "005-gcw-unknown-event.json"
         mismatch_file.write_text(
             '{"seq": 3, "event": "gcw-issue-intake", "payload": {}, "refs": {}, "actor": {"kind": "local", "id": "test"}}',
             encoding="utf-8",

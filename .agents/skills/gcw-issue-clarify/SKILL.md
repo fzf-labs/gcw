@@ -70,7 +70,7 @@ python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-clarify \
   "ready": false,
   "gate": {
     "ok": false,
-    "rubric_version": "prepare-readiness/v1",
+    "rubric_version": "issue-clarify-readiness/v1",
     "profile": "enhancement",
     "checks": [],
     "errors": ["has_acceptance_criteria: no acceptance list items found"]

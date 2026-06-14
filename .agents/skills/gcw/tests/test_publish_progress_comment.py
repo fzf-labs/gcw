@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/tests"))
 
 from publish_progress_comment import publish_progress_comment  # noqa: E402
-from gcw_test_helpers import PREPARE_GATE_OK, prepare_event_payload  # noqa: E402
+from gcw_test_helpers import READINESS_GATE_OK, clarify_event_payload, triage_event_payload  # noqa: E402
 
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
 
@@ -54,7 +54,7 @@ class PublishProgressCommentTest(unittest.TestCase):
         self.assertIn("<!-- gcw-progress -->", output["body"])
         self.assertEqual(output["progress_comment_url"], "")
 
-    def test_milestone_prepare_preview_uses_post_record_phase(self) -> None:
+    def test_milestone_clarify_preview_uses_post_record_phase(self) -> None:
         intake_only = Path(self.tmp.name) / ".gcw/issues/44"
         intake_only.mkdir(parents=True)
         intake = {
@@ -77,24 +77,36 @@ class PublishProgressCommentTest(unittest.TestCase):
         events_dir = intake_only / "events"
         events_dir.mkdir(parents=True)
         (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
+        triage = {
+            "actor": {"id": "cursor-session", "kind": "local"},
+            "at": "2026-06-14T00:00:01Z",
+            "event": "gcw-issue-triage",
+            "event_id": "gcw-44-001-gcw-issue-triage",
+            "parent": {"expected_last_seq": 0},
+            "payload": triage_event_payload(progress_comment_url="https://github.com/owner/repo/issues/44#issuecomment-1"),
+            "refs": {"branch": "feat/example-44", "issue": "44"},
+            "schema": "gcw.event/v1",
+            "seq": 1,
+        }
+        (events_dir / "001-gcw-issue-triage.json").write_text(json.dumps(triage) + "\n", encoding="utf-8")
         from gcw_workflow_lib import write_projection
 
         write_projection(intake_only)
 
-        payload = prepare_event_payload(ready=True, progress_comment_url="")
-        payload["gate"] = PREPARE_GATE_OK
+        payload = clarify_event_payload(ready=True, progress_comment_url="")
+        payload["gate"] = READINESS_GATE_OK
         output = publish_progress_comment(
             argparse.Namespace(
                 issue_dir=intake_only,
                 dry_run=True,
-                milestone_event="gcw-issue-prepare",
+                milestone_event="gcw-issue-clarify",
                 milestone_payload=payload,
             )
         )
         self.assertTrue(output["ok"])
         self.assertIn("GCW Status: ready-for-planning", output["body"])
-        self.assertIn("Last completed step: gcw-issue-prepare", output["body"])
-        self.assertNotIn("GCW Status: issue-opened", output["body"])
+        self.assertIn("Last completed step: gcw-issue-clarify", output["body"])
+        self.assertNotIn("GCW Status: issue-triaged", output["body"])
 
 
 if __name__ == "__main__":

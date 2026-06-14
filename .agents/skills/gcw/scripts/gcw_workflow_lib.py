@@ -21,7 +21,6 @@ _SKILLS_DIR = Path(__file__).resolve().parents[2]
 _LABELS_PATH = _SKILLS_DIR / "gcw-issue-triage" / "labels.json"
 _READINESS_LIB_DIR = _SKILLS_DIR / "gcw-issue-clarify" / "scripts"
 _GITHUB_LEGACY_LABEL_GROUPS = frozenset({"type", "priority"})
-_READINESS_LABELS = frozenset({"ready-to-spec", "needs-info"})
 
 
 STATES = (
@@ -43,7 +42,6 @@ VALID_EVENT_NAMES = frozenset({
     "gcw-issue-intake",
     "gcw-issue-triage",
     "gcw-issue-clarify",
-    "gcw-issue-prepare",
     "gcw-issue-to-spec",
     "gcw-spec-check",
     "gcw-implement",
@@ -256,47 +254,10 @@ def _validate_clarify_payload(payload: dict[str, Any], event_name: str = "gcw-is
     return errors
 
 
-def _validate_prepare_payload(payload: dict[str, Any], platform: str) -> list[str]:
-    errors = _validate_clarify_payload(payload, "gcw-issue-prepare")
-    labels_applied = payload.get("labels_applied")
-    gate = payload.get("gate")
-    gate_ok = isinstance(gate, dict) and gate.get("ok") is True
-    remote_sync = payload.get("remote_sync")
-
-    if isinstance(labels_applied, list) and platform == "github":
-        grouped = _load_label_groups()
-        for label in labels_applied:
-            name = str(label)
-            for group in _GITHUB_LEGACY_LABEL_GROUPS:
-                if name in grouped.get(group, []):
-                    errors.append(
-                        f"gcw-issue-prepare labels_applied must not include {name} on github"
-                    )
-    if isinstance(remote_sync, dict):
-        sync_platform = str(remote_sync.get("platform", ""))
-        if sync_platform and sync_platform != platform:
-            errors.append("gcw-issue-prepare remote_sync.platform does not match intake platform")
-        labels = remote_sync.get("labels")
-        if isinstance(labels_applied, list) and isinstance(labels, list):
-            if sorted(str(x) for x in labels_applied) != sorted(str(x) for x in labels):
-                errors.append("gcw-issue-prepare remote_sync.labels does not match labels_applied")
-    if gate_ok and (not isinstance(remote_sync, dict) or not remote_sync):
-        errors.append("gcw-issue-prepare remote_sync is required when ready is true")
-    if isinstance(labels_applied, list):
-        readiness_labels = [str(label) for label in labels_applied if str(label) in _READINESS_LABELS]
-        expected = "ready-to-spec" if gate_ok else "needs-info"
-        if readiness_labels and expected not in readiness_labels:
-            errors.append(
-                f"gcw-issue-prepare labels_applied must include {expected} for gate.ok={gate_ok}"
-            )
-    return errors
-
-
 def progress_comment_required(event_name: str, payload: dict[str, Any], phase_before: str) -> bool:
     if event_name in {
         "gcw-issue-triage",
         "gcw-issue-clarify",
-        "gcw-issue-prepare",
         "gcw-issue-to-spec",
         "gcw-spec-check",
         "gcw-pr-publish",
@@ -340,23 +301,6 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             errors.append("gcw-issue-intake payload.owner must have kind and id")
         if "platform" in payload and payload["platform"] not in ("github", "gitlab"):
             errors.append("gcw-issue-intake payload.platform must be github or gitlab")
-    elif event_name == "gcw-issue-prepare":
-        if "ready" not in payload:
-            errors.append("gcw-issue-prepare missing payload.ready")
-        elif not isinstance(payload["ready"], bool):
-            errors.append("gcw-issue-prepare payload.ready must be boolean")
-        if not isinstance(payload.get("gate"), dict):
-            errors.append("gcw-issue-prepare payload.gate is required")
-        if not str(payload.get("progress_comment_url", "")).strip():
-            errors.append("gcw-issue-prepare requires progress_comment_url")
-        if issue_dir is not None:
-            errors.extend(_validate_prepare_payload(payload, _intake_platform(issue_dir)))
-        elif isinstance(payload.get("gate"), dict):
-            gate = payload["gate"]
-            if payload.get("ready") is not gate.get("ok"):
-                errors.append("gcw-issue-prepare payload.ready must match gate.ok")
-            if payload.get("ready") is False and not str(payload.get("question", "")).strip():
-                errors.append("gcw-issue-prepare requires question when ready is false")
     elif event_name == "gcw-issue-triage":
         if not str(payload.get("progress_comment_url", "")).strip():
             errors.append("gcw-issue-triage requires progress_comment_url")
@@ -659,14 +603,6 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
                     "reason": event_payload.get("question", ""),
                     "from_event_id": event.get("event_id", ""),
                 }
-        elif event_name == "gcw-issue-prepare":
-            _require_phase(phase, {"issue-opened", "issue-clarifying"}, event_name)
-            if event_payload.get("ready") is True:
-                phase = "ready-for-planning"
-            else:
-                if not str(event_payload.get("question", "")).strip():
-                    raise WorkflowError("gcw-issue-prepare requires question when ready is false")
-                phase = "issue-clarifying"
         elif event_name == "gcw-issue-to-spec":
             _require_phase(phase, {"ready-for-planning"}, event_name)
             if event_payload.get("planning_commit_pushed") is not True:

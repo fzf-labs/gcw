@@ -1,5 +1,5 @@
 {
-  "rubric_version": "prepare-readiness/v1",
+  "rubric_version": "issue-clarify-readiness/v1",
   "profile": "enhancement",
   "checks": [
     {

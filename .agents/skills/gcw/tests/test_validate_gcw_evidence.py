@@ -13,7 +13,6 @@ from gcw_test_helpers import (
     clarify_record_cli_args,
     file_sha,
     planning_shas,
-    prepare_record_cli_args,
     progress_comment_url,
     triage_record_cli_args,
 )
@@ -80,7 +79,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             "cursor-session",
         )
 
-    def prepare_to_spec_check(self) -> None:
+    def planned_issue(self) -> None:
         self.init()
         self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=True))
@@ -117,8 +116,8 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             "spec_refs": shas,
         }
 
-    def prepare_to_implement_check(self) -> None:
-        self.prepare_to_spec_check()
+    def implemented_issue(self) -> None:
+        self.planned_issue()
         self.run_manager(
             "record-spec-check",
             "--issue-dir",
@@ -196,7 +195,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(output["ok"], output)
 
     def test_spec_check_requires_planning_files_and_links(self) -> None:
-        self.prepare_to_spec_check()
+        self.planned_issue()
         self.run_manager(
             "record-spec-check",
             "--issue-dir",
@@ -210,12 +209,12 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(output["ok"], output)
 
     def test_implement_check_requires_event_payload(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         output = self.run_validate("implement-check")
         self.assertTrue(output["ok"], output)
 
     def test_implement_check_rejects_stale_progress_comment_body_hash(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
         data["payload"]["progress_comment_body_hash"] = "sha256:" + "0" * 64
@@ -226,7 +225,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(any("progress_comment_body_hash" in e for e in output["errors"]))
 
     def test_pr_publish_requires_review_request_url(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         self._record_pr_publish()
         output = self.run_validate("pr-publish")
         self.assertTrue(output["ok"], output)
@@ -254,7 +253,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(any("expected_last_seq" in e for e in output["errors"]))
 
     def test_spec_check_rejects_stale_spec_refs_hashes(self) -> None:
-        self.prepare_to_spec_check()
+        self.planned_issue()
         self.run_manager(
             "record-spec-check",
             "--issue-dir",
@@ -270,7 +269,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(any("task_plan_sha" in e for e in output["errors"]))
 
     def test_implement_check_rejects_stale_spec_refs_hashes(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         (self.issue_dir / "findings.md").write_text("# changed findings\n", encoding="utf-8")
         output = self.run_validate("implement-check")
         self.assertFalse(output["ok"], output)
@@ -295,7 +294,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(any("platform" in e for e in output["errors"]))
 
     def test_implement_check_validates_self_review(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
         data["payload"]["self_review"]["recorded"] = False
@@ -305,7 +304,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertFalse(output["ok"], output)
 
     def test_implement_check_validates_spec_refs(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
         data["payload"]["spec_refs"]["task_plan_sha"] = "sha256:" + "c" * 64
@@ -315,7 +314,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertFalse(output["ok"], output)
 
     def test_pr_publish_validates_effects_structure(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         self._record_pr_publish()
         latest_file = list((self.issue_dir / "events").glob("*gcw-pr-publish*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
@@ -326,7 +325,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(any("applied effect" in e for e in output["errors"]))
 
     def test_review_check_command(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         self._record_pr_publish()
         self.run_manager(
             "record-pr-review",
@@ -341,7 +340,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertTrue(output["ok"], output)
 
     def test_block_check_command(self) -> None:
-        self.prepare_to_implement_check()
+        self.implemented_issue()
         self.run_manager(
             "record-block",
             "--issue-dir",

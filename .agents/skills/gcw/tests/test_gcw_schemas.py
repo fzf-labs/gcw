@@ -128,7 +128,6 @@ class GcwSchemaTest(unittest.TestCase):
             "gcw-issue-intake",
             "gcw-issue-triage",
             "gcw-issue-clarify",
-            "gcw-issue-prepare",
             "gcw-issue-to-spec",
             "gcw-spec-check",
             "gcw-implement",

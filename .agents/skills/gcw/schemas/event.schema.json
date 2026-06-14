@@ -48,7 +48,7 @@
         }
       }
     },
-    "prepare_gate_check": {
+    "readiness_gate_check": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "ok", "source"],
@@ -70,7 +70,7 @@
         }
       }
     },
-    "prepare_gate": {
+    "readiness_gate": {
       "type": "object",
       "additionalProperties": false,
       "required": ["ok", "rubric_version", "profile"],
@@ -89,7 +89,7 @@
         "checks": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/prepare_gate_check"
+            "$ref": "#/$defs/readiness_gate_check"
           }
         },
         "errors": {
@@ -222,7 +222,6 @@
         "gcw-issue-intake",
         "gcw-issue-triage",
         "gcw-issue-clarify",
-        "gcw-issue-prepare",
         "gcw-issue-to-spec",
         "gcw-spec-check",
         "gcw-implement",
@@ -351,51 +350,6 @@
     {
       "required": ["event", "payload"],
       "properties": {
-        "event": { "const": "gcw-issue-prepare" },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["ready", "progress_comment_url", "gate"],
-          "properties": {
-            "ready": {
-              "type": "boolean"
-            },
-            "gate": {
-              "$ref": "#/$defs/prepare_gate"
-            },
-            "progress_comment_url": {
-              "$ref": "#/$defs/progress_comment_url"
-            },
-            "progress_comment_body_hash": {
-              "$ref": "#/$defs/sha256_hash"
-            },
-            "question": {
-              "type": "string",
-              "minLength": 1
-            },
-            "summary": {
-              "type": "string"
-            },
-            "classification": {
-              "$ref": "#/$defs/issue_classification"
-            },
-            "labels_applied": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "minLength": 1
-              }
-            },
-            "remote_sync": {
-              "$ref": "#/$defs/remote_sync"
-            }
-          }
-        }
-      }
-    },
-    {
-      "required": ["event", "payload"],
-      "properties": {
         "event": { "const": "gcw-issue-triage" },
         "payload": {
           "type": "object",
@@ -442,7 +396,7 @@
               "type": "boolean"
             },
             "gate": {
-              "$ref": "#/$defs/prepare_gate"
+              "$ref": "#/$defs/readiness_gate"
             },
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
@@ -778,6 +732,7 @@
               "type": "string",
               "enum": [
                 "issue-opened",
+                "issue-triaged",
                 "issue-clarifying",
                 "ready-for-planning",
                 "planned",
@@ -791,7 +746,8 @@
             "resume_step": {
               "type": "string",
               "enum": [
-                "gcw-issue-prepare",
+                "gcw-issue-triage",
+                "gcw-issue-clarify",
                 "gcw-issue-to-spec",
                 "gcw-spec-check",
                 "gcw-implement",

@@ -32,9 +32,6 @@ def latest_triage_event(issue_dir: Path) -> dict[str, Any] | None:
     for event in reversed(events):
         if event.get("event") == "gcw-issue-triage":
             return event
-    for event in reversed(events):
-        if event.get("event") == "gcw-issue-prepare":
-            return event
     return None
 
 

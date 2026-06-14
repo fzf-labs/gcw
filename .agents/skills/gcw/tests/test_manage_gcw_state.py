@@ -13,7 +13,6 @@ from gcw_test_helpers import (
     clarify_record_cli_args,
     file_sha,
     planning_shas,
-    prepare_record_cli_args,
     progress_comment_url,
     triage_record_cli_args,
 )
@@ -46,6 +45,15 @@ class ManageGcwStateTest(unittest.TestCase):
         if not data["ok"]:
             self.fail(f"command failed: {data}")
         return data
+
+    def run_manager_raw(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(MANAGER), *args],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     def workflow(self) -> dict:
         return json.loads((self.issue_dir / "workflow.json").read_text(encoding="utf-8"))
@@ -237,13 +245,15 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertEqual(projection["next_allowed_steps"], ["gcw-pr-review"])
         self.assertEqual(self.events()[-1]["payload"]["effects"][0]["status"], "applied")
 
-    def test_legacy_prepare_command_remains_supported(self) -> None:
+    def test_prepare_command_is_not_available(self) -> None:
         self.init()
-        self.run_manager(*prepare_record_cli_args(self.issue_dir, seq=0, ready=True))
-        projection = self.workflow()["projection"]
-        self.assertEqual(projection["phase"], "ready-for-planning")
-        self.assertEqual(projection["last_completed_step"], "gcw-issue-prepare")
-        self.assertEqual(projection["next_allowed_steps"], ["gcw-issue-to-spec"])
+        result = self.run_manager_raw(
+            "record-issue-prepare",
+            "--issue-dir",
+            str(self.issue_dir),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid choice", result.stderr)
 
     def test_clarify_not_ready_records_issue_clarifying(self) -> None:
         self.init()

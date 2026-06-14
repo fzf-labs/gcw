@@ -9,7 +9,7 @@ from typing import Any
 SKILL_DIR = Path(__file__).resolve().parents[1]
 READINESS_DIR = SKILL_DIR / "readiness"
 KNOWN_PROFILES = frozenset({"enhancement"})
-KNOWN_RUBRIC_VERSIONS = frozenset({"prepare-readiness/v1"})
+KNOWN_RUBRIC_VERSIONS = frozenset({"issue-clarify-readiness/v1"})
 
 BLOCKER_CLEAR_PATTERNS = (
     re.compile(r"^\s*none\b", re.IGNORECASE),
