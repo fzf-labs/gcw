@@ -1,0 +1,68 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T09:24:42Z",
+  "event": "gcw-issue-prepare",
+  "event_id": "gcw-unknown-001-gcw-issue-prepare",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "classification": {
+      "area": "area:workflow",
+      "priority": "priority:p0",
+      "type": "enhancement"
+    },
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "prepare-readiness/v1"
+    },
+    "labels_applied": [
+      "triaged",
+      "area:workflow",
+      "ready-to-spec"
+    ],
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701323058",
+    "ready": true,
+    "remote_sync": {
+      "platform": "github",
+      "issue_type": "Feature",
+      "priority": "Urgent",
+      "labels": [
+        "triaged",
+        "area:workflow",
+        "ready-to-spec"
+      ]
+    },
+    "summary": "P0 enhancement: unified GCW step runner with dry-run and structured output"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 1
+}
