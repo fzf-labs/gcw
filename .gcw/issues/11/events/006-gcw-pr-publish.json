@@ -21,7 +21,8 @@
         "target": "fzf-labs/gcw#14"
       }
     ],
-    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701345686",
+    "progress_comment_body_hash": "sha256:37bb87af59a5d0a8e8c07e05ed67545e63eec6d2f616e27f5513769706ba5ae6",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701347399",
     "rendered_from_event_id": "gcw-unknown-005-gcw-implement-check",
     "review_request_url": "https://github.com/fzf-labs/gcw/pull/14"
   },

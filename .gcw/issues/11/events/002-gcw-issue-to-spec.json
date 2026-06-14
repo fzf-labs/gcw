@@ -11,7 +11,8 @@
   },
   "payload": {
     "planning_commit_pushed": true,
-    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701326662",
+    "progress_comment_body_hash": "sha256:eca042915983e643de10e57bdff8bd3e65aceb8f0296e3648e60a2f99f8113e1",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701327515",
     "spec_refs": {
       "findings_sha": "sha256:ae53ed7b9f094790b3d3f0006fb7b1055c498f7ae3a6318c00d9cd10cf588444",
       "progress_sha": "sha256:4c4bed785fa4b20db3347f51858368d6f68e868cabbbc232e304b1a4b037602c",

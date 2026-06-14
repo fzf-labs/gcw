@@ -143,7 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--milestone-payload-file",
-        default="",
+        default=None,
         type=Path,
         help="JSON object with the milestone event payload used for preview rendering.",
     )

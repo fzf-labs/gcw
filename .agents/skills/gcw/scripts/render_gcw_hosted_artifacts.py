@@ -347,22 +347,11 @@ def _render_review_complete(issue_dir: Path, projection: dict[str, Any], owner: 
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_progress_comment(args: argparse.Namespace) -> str:
-    issue_dir = args.issue_dir
-    milestone_event = getattr(args, "milestone_event", None)
-    milestone_payload = getattr(args, "milestone_payload", None)
-    overlay: dict[str, Any] | None = None
-
-    if milestone_event and isinstance(milestone_payload, dict):
-        events = load_events(issue_dir)
-        overlay = build_preview_event(events, str(milestone_event), milestone_payload)
-        projection = reduce_workflow(events + [overlay])
-    else:
-        current = assert_projection_current(issue_dir)
-        if not current["ok"]:
-            raise ValueError("; ".join(current["errors"]))
-        projection = current["projection"]
-
+def _render_progress_for_projection(
+    issue_dir: Path,
+    projection: dict[str, Any],
+    overlay: dict[str, Any] | None = None,
+) -> str:
     owner = projection.get("owner") if isinstance(projection.get("owner"), dict) else {}
     refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
     phase = str(projection.get("phase", "unknown"))
@@ -387,6 +376,39 @@ def render_progress_comment(args: argparse.Namespace) -> str:
         if phase == "review-complete":
             return _render_review_complete(issue_dir, projection, owner)
         return _render_early_progress(issue_dir, phase, projection, owner)
+
+
+def render_progress_comment(args: argparse.Namespace) -> str:
+    issue_dir = args.issue_dir
+    milestone_event = getattr(args, "milestone_event", None)
+    milestone_payload = getattr(args, "milestone_payload", None)
+    overlay: dict[str, Any] | None = None
+
+    if milestone_event and isinstance(milestone_payload, dict):
+        events = load_events(issue_dir)
+        overlay = build_preview_event(events, str(milestone_event), milestone_payload)
+        projection = reduce_workflow(events + [overlay])
+    else:
+        current = assert_projection_current(issue_dir)
+        if not current["ok"]:
+            raise ValueError("; ".join(current["errors"]))
+        projection = current["projection"]
+
+    return _render_progress_for_projection(issue_dir, projection, overlay)
+
+
+def render_recorded_progress_comment(issue_dir: Path, event: dict[str, Any]) -> str:
+    seq = event.get("seq")
+    if not isinstance(seq, int):
+        raise ValueError("recorded event is missing integer seq")
+    events = load_events(issue_dir)
+    prior_events = [
+        candidate
+        for candidate in events
+        if isinstance(candidate.get("seq"), int) and candidate["seq"] < seq
+    ]
+    projection = reduce_workflow(prior_events + [event])
+    return _render_progress_for_projection(issue_dir, projection, event)
 
 
 def render_review_request(args: argparse.Namespace) -> str:

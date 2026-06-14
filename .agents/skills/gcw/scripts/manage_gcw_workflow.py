@@ -58,7 +58,23 @@ def progress_comment_url_from_args(args: argparse.Namespace) -> str:
     return url
 
 
+def attach_progress_comment_body_hash(issue_dir: Path, event_name: str, payload: dict[str, Any]) -> None:
+    if not str(payload.get("progress_comment_url", "")).strip():
+        return
+    if str(payload.get("progress_comment_body_hash", "")).strip():
+        return
+
+    from publish_progress_comment import body_hash, render_milestone_progress_body
+
+    try:
+        body = render_milestone_progress_body(issue_dir, event_name, payload)
+    except (WorkflowError, ValueError) as exc:
+        raise WorkflowError(f"could not render progress comment body for {event_name}: {exc}") from exc
+    payload["progress_comment_body_hash"] = body_hash(body)
+
+
 def append_and_finish(args: argparse.Namespace, event_name: str, payload: dict[str, Any], refs: dict[str, Any] | None = None) -> dict[str, Any]:
+    attach_progress_comment_body_hash(args.issue_dir, event_name, payload)
     event = append_event(
         args.issue_dir,
         {

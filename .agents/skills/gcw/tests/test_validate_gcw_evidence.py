@@ -193,6 +193,17 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         output = self.run_validate("implement-check")
         self.assertTrue(output["ok"], output)
 
+    def test_implement_check_rejects_stale_progress_comment_body_hash(self) -> None:
+        self.prepare_to_implement_check()
+        latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
+        data = json.loads(latest_file.read_text(encoding="utf-8"))
+        data["payload"]["progress_comment_body_hash"] = "sha256:" + "0" * 64
+        latest_file.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
+        output = self.run_validate("implement-check")
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("progress_comment_body_hash" in e for e in output["errors"]))
+
     def test_pr_publish_requires_review_request_url(self) -> None:
         self.prepare_to_implement_check()
         self._record_pr_publish()

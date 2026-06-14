@@ -14,7 +14,7 @@ Do:
 - Create or select the issue branch/worktree.
 - Append GCW workflow events under `.gcw/issues/<issue-id>/events/` and rebuild `workflow.json`.
 - Create `task_plan.md`, `findings.md`, and `progress.md`.
-- Push the issue branch and link the spec files from the Issue.
+- Push the issue branch and link the spec files from the standard `<!-- gcw-progress -->` Issue comment.
 - Move the workflow to `planned`.
 
 Do not:
@@ -37,7 +37,7 @@ Require:
 2. Reuse `planning-with-files` to create planning content under `.gcw/issues/<issue-id>/`.
 3. Append the `gcw-issue-intake` event if needed, then append `gcw-issue-to-spec` with planning links and spec refs.
 4. Commit only the initial spec/event/projection files as a focused planning commit, then push the issue branch without force pushing.
-5. Publish a new `<!-- gcw-progress -->` comment with `publish_progress_comment.py` using `--milestone-event gcw-issue-to-spec` and a payload file containing `spec_refs` (and `planning_commit_pushed` when applicable), then record the event with the returned URL. Do not edit previous progress comments.
+5. Publish a new `<!-- gcw-progress -->` comment with `publish_progress_comment.py` using `--milestone-event gcw-issue-to-spec` and a payload file containing `spec_refs` (and `planning_commit_pushed` when applicable), then record the event with the returned URL. Do not edit previous progress comments, and do not publish a separate non-`gcw-progress` "GCW Planning Spec" comment.
 
 Or run the unified step runner:
 

@@ -48,17 +48,18 @@
       "area:workflow",
       "ready-to-spec"
     ],
-    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701323058",
+    "progress_comment_body_hash": "sha256:847dfa31bcd87bd8470b6bc36da98da450652bdb1640daf07e8729d71b490835",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701326662",
     "ready": true,
     "remote_sync": {
-      "platform": "github",
       "issue_type": "Feature",
-      "priority": "Urgent",
       "labels": [
         "triaged",
         "area:workflow",
         "ready-to-spec"
-      ]
+      ],
+      "platform": "github",
+      "priority": "Urgent"
     },
     "summary": "P0 enhancement: unified GCW step runner with dry-run and structured output"
   },

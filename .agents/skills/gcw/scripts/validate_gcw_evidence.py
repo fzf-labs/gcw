@@ -15,6 +15,8 @@ from gcw_workflow_lib import (
     find_latest_event,
     validate_event_log,
 )
+from publish_progress_comment import body_hash
+from render_gcw_hosted_artifacts import render_recorded_progress_comment
 
 VERIFY_REMOTE_TRIAGE = (
     Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts" / "verify_remote_triage.py"
@@ -65,6 +67,24 @@ def _latest_milestone_progress_comment_errors(issue_dir: Path, event_name: str) 
     return errors
 
 
+def _progress_comment_body_hash_errors(issue_dir: Path, event_name: str) -> list[str]:
+    latest = find_latest_event(issue_dir, event_name)
+    if latest is None:
+        return []
+    payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
+    expected_hash = str(payload.get("progress_comment_body_hash", "")).strip()
+    if not expected_hash:
+        return []
+    try:
+        rendered = render_recorded_progress_comment(issue_dir, latest)
+    except (WorkflowError, ValueError) as exc:
+        return [f"could not render {event_name} progress comment body: {exc}"]
+    actual_hash = body_hash(rendered)
+    if actual_hash != expected_hash:
+        return [f"{event_name} progress_comment_body_hash does not match rendered body"]
+    return []
+
+
 def _refs_match_latest_progress_comment(issue_dir: Path, event_name: str) -> list[str]:
     errors: list[str] = []
     projection = assert_projection_current(issue_dir)["projection"]
@@ -103,6 +123,7 @@ def spec_check_errors(issue_dir: Path) -> list[str]:
     if gate.get("ok") is not True:
         errors.append("latest gcw-spec-check gate.ok must be true")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-spec-check"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-spec-check"))
     errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-spec-check"))
     to_spec = find_latest_event(issue_dir, "gcw-issue-to-spec")
     if to_spec:
@@ -220,6 +241,7 @@ def prepare_check_errors(issue_dir: Path) -> list[str]:
         errors.extend(_prepare_gate_consistency_errors(payload))
         errors.extend(_prepare_gate_body_errors(issue_dir, payload["gate"]))
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-prepare"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-issue-prepare"))
     if VERIFY_REMOTE_TRIAGE.is_file():
         result = subprocess.run(
             [sys.executable, str(VERIFY_REMOTE_TRIAGE), "--issue-dir", str(issue_dir)],
@@ -278,6 +300,7 @@ def implement_check_errors(issue_dir: Path) -> list[str]:
         elif not all(k in val for k in ("command", "exit_code", "result")):
             errors.append(f"gate.validation[{i}] missing command, exit_code, or result")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-implement-check"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-implement-check"))
     errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-implement-check"))
     return errors
 
@@ -310,6 +333,7 @@ def pr_publish_errors(issue_dir: Path) -> list[str]:
     if body_hash and not body_hash.startswith("sha256:"):
         errors.append("payload.body_hash must start with sha256:")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-pr-publish"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-pr-publish"))
     errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-pr-publish"))
     return errors
 
@@ -329,6 +353,7 @@ def review_check_errors(issue_dir: Path) -> list[str]:
         if result not in ("passed", "changes-requested", "blocked"):
             errors.append(f"gcw-pr-review result must be passed, changes-requested, or blocked; got {result}")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-pr-review"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-pr-review"))
     return errors
 
 
@@ -348,6 +373,7 @@ def block_check_errors(issue_dir: Path) -> list[str]:
         if not blocker.get("resume_step"):
             errors.append("active_blocker.resume_step is required")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-block"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-block"))
     return errors
 
 
@@ -363,6 +389,7 @@ def clarify_check_errors(issue_dir: Path) -> list[str]:
         if not feedback.get("reason"):
             errors.append("active_feedback.reason (question) is required")
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-clarify"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-clarify"))
     return errors
 
 

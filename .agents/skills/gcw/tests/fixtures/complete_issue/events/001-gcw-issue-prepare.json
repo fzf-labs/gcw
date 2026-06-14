@@ -10,35 +10,56 @@
     "expected_last_seq": 0
   },
   "payload": {
-    "ready": true,
-    "gate": {
-      "ok": true,
-      "rubric_version": "prepare-readiness/v1",
-      "profile": "enhancement",
-      "checks": [
-        {"id": "has_what_to_build", "ok": true, "source": "structural"},
-        {"id": "has_acceptance_criteria", "ok": true, "source": "structural"},
-        {"id": "blocker_resolved", "ok": true, "source": "structural"},
-        {"id": "body_not_placeholder", "ok": true, "source": "structural"}
-      ],
-      "errors": []
-    },
-    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
     "classification": {
-      "type": "enhancement",
       "area": "area:tests",
-      "priority": "priority:p2"
+      "priority": "priority:p2",
+      "type": "enhancement"
+    },
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "prepare-readiness/v1"
     },
     "labels_applied": [
       "triaged",
       "area:tests",
       "ready-to-spec"
     ],
+    "progress_comment_body_hash": "sha256:6be85f31dc819521d6d36e304c5195de397ce57ea4b26bc96eafabdc8feb5a27",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
+    "ready": true,
     "remote_sync": {
-      "platform": "github",
       "issue_type": "Feature",
-      "priority": "Medium",
-      "labels": ["triaged", "area:tests", "ready-to-spec"]
+      "labels": [
+        "triaged",
+        "area:tests",
+        "ready-to-spec"
+      ],
+      "platform": "github",
+      "priority": "Medium"
     }
   },
   "refs": {

@@ -7,6 +7,10 @@
       "type": "string",
       "minLength": 1
     },
+    "sha256_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
     "gate_check": {
       "type": "object",
       "additionalProperties": false,
@@ -302,6 +306,9 @@
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
             },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
             "question": {
               "type": "string",
               "minLength": 1
@@ -382,6 +389,9 @@
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
             },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
             "spec_refs": {
               "type": "object",
               "additionalProperties": false,
@@ -421,6 +431,9 @@
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
             },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
             "gate": {
               "$ref": "#/$defs/gate"
             },
@@ -458,6 +471,9 @@
             },
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
             }
           }
         }
@@ -546,6 +562,9 @@
             },
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
             }
           }
         }
@@ -562,6 +581,9 @@
           "properties": {
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
             },
             "review_request_url": {
               "type": "string",
@@ -629,6 +651,9 @@
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
             },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
             "feedback_source": {
               "type": "string",
               "enum": ["pr-review", "human-review"]
@@ -654,6 +679,9 @@
           "properties": {
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
             },
             "reason": {
               "type": "string",
@@ -701,6 +729,9 @@
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
             },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
             "question": {
               "type": "string",
               "minLength": 1
@@ -738,6 +769,9 @@
             },
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
             }
           }
         }

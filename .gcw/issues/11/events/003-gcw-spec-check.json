@@ -15,7 +15,8 @@
       "errors": [],
       "ok": true
     },
-    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701327515",
+    "progress_comment_body_hash": "sha256:b12c027c41f97ed871a630dc38b5c08076699fa29564db84bea7e6a90bcce570",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701336799",
     "result": "passed"
   },
   "refs": {},

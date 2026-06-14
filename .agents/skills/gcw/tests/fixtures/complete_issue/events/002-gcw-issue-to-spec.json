@@ -11,6 +11,7 @@
   },
   "payload": {
     "planning_commit_pushed": true,
+    "progress_comment_body_hash": "sha256:b9a0d3b608d27e76bf19cf827015c5b3fd82e61616e23d11e6e3d01394e099e9",
     "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
     "spec_refs": {
       "findings_sha": "sha256:bd871bb61a66e46b4737e2cbb97dc50f9c180a1367d945c0e527685875b434a0",

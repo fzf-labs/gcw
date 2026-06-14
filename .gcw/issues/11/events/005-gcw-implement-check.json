@@ -35,7 +35,8 @@
       "progress": "https://github.com/fzf-labs/gcw/blob/gcw/issue-11/.gcw/issues/11/progress.md",
       "task_plan": "https://github.com/fzf-labs/gcw/blob/gcw/issue-11/.gcw/issues/11/task_plan.md"
     },
-    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701344548",
+    "progress_comment_body_hash": "sha256:e8573c107b73135d6e151da50e6c5dc8b40336c98af87ac2d54c138dcdfcc7d2",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701345686",
     "review_request": {
       "issue_link": "Closes #11",
       "summary": "Adds run_gcw_step.py with adapters, dry-run, structured JSON output, and tests for six GCW milestone steps.",

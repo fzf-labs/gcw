@@ -122,7 +122,7 @@ Any pipeline that hits a hard gate or needs human judgment must stop, hand contr
 6. Preserve `feedback_source` when moving from `changes-requested` back into implementation.
 7. Preserve `resume_state` / `resume_step` when a step enters `blocked`.
 8. Stop and report clearly when the workflow enters `issue-clarifying`, `blocked`, or `review-complete`.
-9. At each milestone step completion (from `gcw-issue-prepare` onward), publish a **new** Issue `<!-- gcw-progress -->` comment via `publish_progress_comment.py` with `--milestone-event` and `--milestone-payload-file` so the body matches the completing step **before** `record-*` appends the event; never edit an existing progress comment. Prefer `run_gcw_step.py` when available — it enforces publish-then-record ordering. Record `progress_comment_url` on the completing event; `workflow.json` `refs.progress_comment_url` always points to the latest comment.
+9. At each milestone step completion (from `gcw-issue-prepare` onward), publish a **new** Issue `<!-- gcw-progress -->` comment via `publish_progress_comment.py` with `--milestone-event` and `--milestone-payload-file` so the body matches the completing step **before** `record-*` appends the event; never edit an existing progress comment and never add a separate planning-links comment. Prefer `run_gcw_step.py` when available — it enforces publish-then-record ordering. Record `progress_comment_url` and the rendered `progress_comment_body_hash` on the completing event; `workflow.json` `refs.progress_comment_url` always points to the latest comment.
 
 ## Reporting
 

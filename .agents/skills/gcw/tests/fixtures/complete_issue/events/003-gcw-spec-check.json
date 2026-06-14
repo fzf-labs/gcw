@@ -12,16 +12,29 @@
   "payload": {
     "gate": {
       "checks": [
-        {"id": "issue_actionable", "ok": true},
-        {"id": "planning_commit_pushed", "ok": true},
-        {"id": "planning_files_exist", "ok": true},
-        {"id": "progress_comment_linked", "ok": true}
+        {
+          "id": "issue_actionable",
+          "ok": true
+        },
+        {
+          "id": "planning_commit_pushed",
+          "ok": true
+        },
+        {
+          "id": "planning_files_exist",
+          "ok": true
+        },
+        {
+          "id": "progress_comment_linked",
+          "ok": true
+        }
       ],
       "errors": [],
       "ok": true
     },
-    "result": "passed",
-    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-2"
+    "progress_comment_body_hash": "sha256:2dfe4cdc5783d4609019438f11623abdd14bfa7e7c2e2b49ee90ab2e590f311b",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-2",
+    "result": "passed"
   },
   "refs": {
     "branch": "feat/example-42",

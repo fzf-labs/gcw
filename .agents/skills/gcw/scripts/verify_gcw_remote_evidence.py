@@ -10,9 +10,11 @@ from typing import Any
 from gcw_workflow_lib import assert_projection_current, find_latest_event
 
 from render_gcw_hosted_artifacts import (
+    PROGRESS_MARKER,
     REVIEW_REQUEST_END,
     REVIEW_REQUEST_START,
     render_progress_comment,
+    render_recorded_progress_comment,
     render_review_request,
 )
 
@@ -68,6 +70,34 @@ def _verify_body_hash(remote_text: str, issue_dir: Path, errors: list[str]) -> N
         errors.append(f"remote body hash {actual_hash} does not match event body_hash {expected_hash}")
 
 
+def _latest_progress_event(issue_dir: Path) -> dict[str, Any] | None:
+    current = assert_projection_current(issue_dir)
+    if not current["ok"]:
+        return None
+    projection = current["projection"]
+    last_completed = str(projection.get("last_completed_step", "")).strip()
+    if not last_completed:
+        return None
+    latest = find_latest_event(issue_dir, last_completed)
+    payload = latest.get("payload") if isinstance(latest, dict) and isinstance(latest.get("payload"), dict) else {}
+    if str(payload.get("progress_comment_url", "")).strip():
+        return latest
+    return None
+
+
+def _verify_progress_body_hash(remote_text: str, issue_dir: Path, errors: list[str]) -> None:
+    latest = _latest_progress_event(issue_dir)
+    if latest is None:
+        return
+    payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
+    expected_hash = str(payload.get("progress_comment_body_hash", "")).strip()
+    if not expected_hash:
+        return
+    actual_hash = f"sha256:{hashlib.sha256(normalize_body(remote_text).encode('utf-8')).hexdigest()}"
+    if actual_hash != expected_hash:
+        errors.append(f"remote progress comment body hash {actual_hash} does not match event progress_comment_body_hash {expected_hash}")
+
+
 def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
     expected_url = str(getattr(args, "progress_comment_url", "") or "").strip()
@@ -78,16 +108,24 @@ def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     if not expected_url:
         errors.append("progress_comment_url is missing from projection refs")
     remote_text = read_remote_text(args.remote_file, errors, "progress comment")
+    if remote_text and PROGRESS_MARKER not in remote_text:
+        errors.append("remote progress comment is missing gcw progress marker")
     can_compare = not errors
     expected_text = ""
     if can_compare:
         try:
-            expected_text = render_progress_comment(argparse.Namespace(issue_dir=args.issue_dir))
+            latest_progress_event = _latest_progress_event(args.issue_dir)
+            if latest_progress_event is None:
+                expected_text = render_progress_comment(argparse.Namespace(issue_dir=args.issue_dir))
+            else:
+                expected_text = render_recorded_progress_comment(args.issue_dir, latest_progress_event)
         except ValueError as exc:
             errors.append(str(exc))
             can_compare = False
     if can_compare and normalize_body(remote_text) != normalize_body(expected_text):
         errors.append("remote progress comment does not match rendered body")
+    if remote_text:
+        _verify_progress_body_hash(remote_text, args.issue_dir, errors)
 
     return {
         "step": "remote-progress-comment",
