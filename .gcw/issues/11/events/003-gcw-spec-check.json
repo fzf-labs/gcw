@@ -1,0 +1,24 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T09:26:42Z",
+  "event": "gcw-spec-check",
+  "event_id": "gcw-unknown-003-gcw-spec-check",
+  "parent": {
+    "expected_last_seq": 2
+  },
+  "payload": {
+    "gate": {
+      "checks": [],
+      "errors": [],
+      "ok": true
+    },
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701327515",
+    "result": "passed"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 3
+}
