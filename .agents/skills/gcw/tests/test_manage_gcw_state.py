@@ -7,9 +7,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from gcw_test_helpers import file_sha, planning_shas
+
 
 ROOT = Path(__file__).resolve().parents[4]
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
+
+
+_FAKE_BODY_HASH = "sha256:" + "a" * 64
 
 
 class ManageGcwStateTest(unittest.TestCase):
@@ -42,6 +49,23 @@ class ManageGcwStateTest(unittest.TestCase):
             for path in sorted((self.issue_dir / "events").glob("*.json"))
         ]
 
+    def record_issue_to_spec(self) -> None:
+        shas = planning_shas(self.issue_dir)
+        self.run_manager(
+            "record-issue-to-spec",
+            "--issue-dir",
+            str(self.issue_dir),
+            "--planning-commit-pushed",
+            "--progress-comment-url",
+            "https://github.com/owner/repo/issues/42#issuecomment-1",
+            "--task-plan-sha",
+            shas["task_plan_sha"],
+            "--findings-sha",
+            shas["findings_sha"],
+            "--progress-sha",
+            shas["progress_sha"],
+        )
+
     def init(self, state: str = "issue-opened") -> None:
         result = self.run_manager(
             "init-workflow",
@@ -64,26 +88,12 @@ class ManageGcwStateTest(unittest.TestCase):
             self.run_manager("record-issue-prepare", "--issue-dir", str(self.issue_dir), "--ready")
         if state == "implementing":
             self.write_planning_files()
-            self.run_manager(
-                "record-issue-to-spec",
-                "--issue-dir",
-                str(self.issue_dir),
-                "--planning-commit-pushed",
-                "--progress-comment-url",
-                "https://github.com/owner/repo/issues/42#issuecomment-1",
-            )
+            self.record_issue_to_spec()
             self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
             self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Started work.")
         elif state == "reviewing":
             self.write_planning_files()
-            self.run_manager(
-                "record-issue-to-spec",
-                "--issue-dir",
-                str(self.issue_dir),
-                "--planning-commit-pushed",
-                "--progress-comment-url",
-                "https://github.com/owner/repo/issues/42#issuecomment-1",
-            )
+            self.record_issue_to_spec()
             self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
             self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Implemented.")
             payload = self.issue_dir / "implement-check-payload.json"
@@ -96,7 +106,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--review-request-url",
                 "https://github.com/owner/repo/pull/7",
                 "--body-hash",
-                "sha256:body",
+                _FAKE_BODY_HASH,
                 "--target",
                 "owner/repo#7",
             )
@@ -107,6 +117,7 @@ class ManageGcwStateTest(unittest.TestCase):
             (self.issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
 
     def implement_check_payload(self) -> dict:
+        shas = planning_shas(self.issue_dir)
         return {
             "gate": {
                 "ok": True,
@@ -118,21 +129,14 @@ class ManageGcwStateTest(unittest.TestCase):
             "scope": "Example only.",
             "reviewer_notes": "Review state transitions.",
             "self_review": {"recorded": True, "progress_section": "## Local Self-Review"},
-            "spec_refs": {"task_plan_sha": "sha256:task", "findings_sha": "sha256:findings", "progress_sha": "sha256:progress"},
+            "spec_refs": shas,
         }
 
     def test_main_path_reaches_reviewing(self) -> None:
         self.init()
         self.run_manager("record-issue-prepare", "--issue-dir", str(self.issue_dir), "--ready")
         self.write_planning_files()
-        self.run_manager(
-            "record-issue-to-spec",
-            "--issue-dir",
-            str(self.issue_dir),
-            "--planning-commit-pushed",
-            "--progress-comment-url",
-            "https://github.com/owner/repo/issues/42#issuecomment-1",
-        )
+        self.record_issue_to_spec()
         self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
         self.run_manager("record-implement", "--issue-dir", str(self.issue_dir), "--work-summary", "Implemented.")
         payload = self.issue_dir / "implement-check-payload.json"
@@ -145,7 +149,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "--review-request-url",
             "https://github.com/owner/repo/pull/7",
             "--body-hash",
-            "sha256:body",
+            _FAKE_BODY_HASH,
             "--target",
             "owner/repo#7",
         )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -109,6 +110,45 @@ class VerifyGcwRemoteEvidenceTest(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertEqual(output["step"], "remote-review-request")
         self.assertTrue(output["ok"])
+
+    def test_review_request_verification_rejects_body_hash_mismatch(self) -> None:
+        issue_dir = self.tmp_path / "issue"
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        body_text = self.render_artifact("review-request", issue_dir)
+        subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"),
+                "record-pr-publish",
+                "--issue-dir",
+                str(issue_dir),
+                "--review-request-url",
+                "https://github.com/owner/repo/pull/7",
+                "--body-hash",
+                "sha256:" + "b" * 64,
+                "--target",
+                "owner/repo#7",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        body_path = self.tmp_path / "review-request.md"
+        body_path.write_text(body_text, encoding="utf-8")
+
+        result = self.run_verify(
+            "review-request",
+            "--issue-dir",
+            str(issue_dir),
+            "--remote-file",
+            str(body_path),
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"])
+        self.assertTrue(any("body hash" in e for e in output["errors"]))
 
     def test_review_request_verification_rejects_body_without_markers(self) -> None:
         body_path = self.tmp_path / "review-request.md"

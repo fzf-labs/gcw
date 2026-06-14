@@ -2,101 +2,121 @@
   "labels": {
     "bug": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "D73A4A",
       "description": "Something is not working as expected"
     },
     "documentation": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "0075CA",
       "description": "Documentation or guidance update"
     },
     "enhancement": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "A2EEEF",
       "description": "New capability or improvement request"
     },
     "question": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "D876E3",
       "description": "The issue is primarily a question or discussion"
     },
     "duplicate": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "CFD3D7",
       "description": "Duplicate of an existing issue"
     },
     "invalid": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "E4E669",
       "description": "Not a valid task or problem"
     },
     "wontfix": {
       "group": "type",
+      "platforms": ["gitlab"],
       "color": "FFFFFF",
       "description": "Will not be worked on"
     },
     "area:workflow": {
       "group": "area",
+      "platforms": ["github", "gitlab"],
       "color": "7057FF",
       "description": "CI workflows and automation scripts"
     },
     "area:skills": {
       "group": "area",
+      "platforms": ["github", "gitlab"],
       "color": "D4C5F9",
       "description": "Agent skills and behavior guidance"
     },
     "area:specs": {
       "group": "area",
+      "platforms": ["github", "gitlab"],
       "color": "5319E7",
       "description": "Specs and planning artifacts"
     },
     "area:tests": {
       "group": "area",
+      "platforms": ["github", "gitlab"],
       "color": "BFDADC",
       "description": "Automated tests and fixtures"
     },
     "priority:p0": {
       "group": "priority",
+      "platforms": ["gitlab"],
       "color": "B60205",
       "description": "Critical priority"
     },
     "priority:p1": {
       "group": "priority",
+      "platforms": ["gitlab"],
       "color": "D93F0B",
       "description": "High priority"
     },
     "priority:p2": {
       "group": "priority",
+      "platforms": ["gitlab"],
       "color": "FBCA04",
       "description": "Normal priority"
     },
     "priority:p3": {
       "group": "priority",
+      "platforms": ["gitlab"],
       "color": "C5DEF5",
       "description": "Low priority"
     },
     "ready-to-spec": {
       "group": "readiness",
+      "platforms": ["github", "gitlab"],
       "color": "1D76DB",
       "description": "Clear enough to write the spec"
     },
     "needs-info": {
       "group": "readiness",
+      "platforms": ["github", "gitlab"],
       "color": "FBCA04",
       "description": "More information needed before planning"
     },
     "triaged": {
       "group": "triage",
+      "platforms": ["github", "gitlab"],
       "color": "C2E0C6",
       "description": "Reviewed and categorized"
     },
     "good first issue": {
       "group": "optional",
+      "platforms": ["github", "gitlab"],
       "color": "7057FF",
       "description": "Suitable for a first contribution"
     },
     "help wanted": {
       "group": "optional",
+      "platforms": ["github", "gitlab"],
       "color": "008672",
       "description": "Extra contributor attention needed"
     }

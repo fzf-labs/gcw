@@ -11,19 +11,18 @@
   },
   "payload": {
     "gate": {
-      "checks": {
-        "issue_actionable": true,
-        "planning_commit_pushed": true,
-        "planning_files_exist": true,
-        "progress_comment_linked": true
-      },
+      "checks": [
+        {"id": "issue_actionable", "ok": true},
+        {"id": "planning_commit_pushed", "ok": true},
+        {"id": "planning_files_exist", "ok": true},
+        {"id": "progress_comment_linked", "ok": true}
+      ],
       "errors": [],
       "ok": true
     },
     "result": "passed"
   },
   "refs": {
-    "base_branch": "",
     "branch": "feat/example-42",
     "issue": 42
   },

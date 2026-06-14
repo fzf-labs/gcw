@@ -12,7 +12,9 @@ from gcw_workflow_lib import (
     WorkflowError,
     append_event,
     assert_projection_current,
+    find_latest_event,
     load_projection,
+    validate_event_log,
     write_projection,
 )
 
@@ -93,6 +95,8 @@ def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
         payload["classification"] = {k: v for k, v in payload["classification"].items() if v is not None}
     if args.labels_applied:
         payload["labels_applied"] = [label.strip() for label in args.labels_applied.split(",") if label.strip()]
+    if args.remote_sync_file and args.remote_sync_file.is_file():
+        payload["remote_sync"] = read_payload(args.remote_sync_file)
     return append_and_finish(args, "gcw-issue-prepare", payload)
 
 
@@ -144,9 +148,17 @@ def record_implement_check(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def record_pr_publish(args: argparse.Namespace) -> dict[str, Any]:
+    rendered_from_event_id = args.rendered_from_event_id
+    if not str(rendered_from_event_id).strip():
+        latest = find_latest_event(args.issue_dir, "gcw-implement-check")
+        if latest is None:
+            raise WorkflowError("gcw-implement-check event is required before gcw-pr-publish")
+        rendered_from_event_id = str(latest.get("event_id", ""))
+    if not str(rendered_from_event_id).strip():
+        raise WorkflowError("rendered_from_event_id is required")
     payload = {
         "review_request_url": args.review_request_url,
-        "rendered_from_event_id": args.rendered_from_event_id,
+        "rendered_from_event_id": rendered_from_event_id,
         "body_hash": args.body_hash,
         "effects": [
             {
@@ -198,6 +210,9 @@ def record_review_complete(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def rebuild_projection(args: argparse.Namespace) -> dict[str, Any]:
+    errors = validate_event_log(args.issue_dir)
+    if errors:
+        raise WorkflowError("; ".join(errors))
     workflow = write_projection(args.issue_dir)
     return {"ok": True, "workflow": workflow, "projection": workflow["projection"]}
 
@@ -234,6 +249,12 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--classification-priority", default="")
     prepare.add_argument("--classification-repro", default="")
     prepare.add_argument("--labels-applied", default="")
+    prepare.add_argument(
+        "--remote-sync-file",
+        default="",
+        type=Path,
+        help="JSON file with remote_sync payload from manage_triage_metadata apply-metadata",
+    )
     prepare.set_defaults(handler=record_issue_prepare)
 
     to_spec = subparsers.add_parser("record-issue-to-spec")

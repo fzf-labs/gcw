@@ -1,0 +1,20 @@
+{
+  "github": {
+    "priority_field_name": "Priority",
+    "type_to_issue_type": {
+      "bug": "Bug",
+      "enhancement": "Feature",
+      "documentation": "Task",
+      "question": "Task",
+      "duplicate": "Task",
+      "invalid": "Task",
+      "wontfix": "Task"
+    },
+    "priority_to_field_value": {
+      "priority:p0": "Urgent",
+      "priority:p1": "High",
+      "priority:p2": "Medium",
+      "priority:p3": "Low"
+    }
+  }
+}

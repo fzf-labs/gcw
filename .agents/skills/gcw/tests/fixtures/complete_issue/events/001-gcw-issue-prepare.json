@@ -17,15 +17,18 @@
       "priority": "priority:p2"
     },
     "labels_applied": [
-      "enhancement",
       "triaged",
       "area:tests",
-      "priority:p2",
       "ready-to-spec"
-    ]
+    ],
+    "remote_sync": {
+      "platform": "github",
+      "issue_type": "Feature",
+      "priority": "Medium",
+      "labels": ["triaged", "area:tests", "ready-to-spec"]
+    }
   },
   "refs": {
-    "base_branch": "",
     "branch": "feat/example-42",
     "issue": 42
   },

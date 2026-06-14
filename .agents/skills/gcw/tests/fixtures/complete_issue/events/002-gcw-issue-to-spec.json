@@ -19,7 +19,6 @@
     }
   },
   "refs": {
-    "base_branch": "",
     "branch": "feat/example-42",
     "issue": 42
   },

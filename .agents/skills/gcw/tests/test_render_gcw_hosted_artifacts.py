@@ -8,11 +8,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from gcw_test_helpers import planning_shas
 
 ROOT = Path(__file__).resolve().parents[4]
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
+
+_FAKE_BODY_HASH = "sha256:" + "a" * 64
 
 
 class RenderGcwHostedArtifactsTest(unittest.TestCase):
@@ -80,6 +85,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.run_manager("record-issue-prepare", "--issue-dir", str(issue_dir), "--ready")
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
+        shas = planning_shas(issue_dir)
         self.run_manager(
             "record-issue-to-spec",
             "--issue-dir",
@@ -87,6 +93,12 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--planning-commit-pushed",
             "--progress-comment-url",
             "https://github.com/owner/repo/issues/43#issuecomment-1",
+            "--task-plan-sha",
+            shas["task_plan_sha"],
+            "--findings-sha",
+            shas["findings_sha"],
+            "--progress-sha",
+            shas["progress_sha"],
         )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
@@ -108,7 +120,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--review-request-url",
             "https://github.com/owner/repo/pull/7",
             "--body-hash",
-            "sha256:body",
+            _FAKE_BODY_HASH,
             "--target",
             "owner/repo#7",
         )
@@ -146,7 +158,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--review-request-url",
             "https://github.com/owner/repo/pull/7",
             "--body-hash",
-            "sha256:body",
+            _FAKE_BODY_HASH,
             "--target",
             "owner/repo#7",
         )

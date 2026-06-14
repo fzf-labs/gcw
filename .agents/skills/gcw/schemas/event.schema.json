@@ -190,6 +190,32 @@
                 "type": "string",
                 "minLength": 1
               }
+            },
+            "remote_sync": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["platform"],
+              "properties": {
+                "platform": {
+                  "type": "string",
+                  "enum": ["github", "gitlab"]
+                },
+                "issue_type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "priority": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
             }
           }
         }

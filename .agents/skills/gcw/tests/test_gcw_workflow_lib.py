@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import sys
-
-
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
+sys.path.insert(0, str(ROOT / ".agents/skills/gcw/tests"))
 
 from gcw_workflow_lib import (  # noqa: E402
     WorkflowError,
@@ -16,10 +15,15 @@ from gcw_workflow_lib import (  # noqa: E402
     assert_projection_current,
     load_events,
     reduce_workflow,
+    validate_event_log,
     validate_events_integrity,
+    validate_parent_chain,
     validate_payload,
     write_projection,
 )
+
+
+_FAKE_SHA = "sha256:" + "a" * 64
 
 
 class GcwWorkflowLibTest(unittest.TestCase):
@@ -62,7 +66,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
             {
                 "planning_commit_pushed": True,
                 "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
-                "spec_refs": {"task_plan_sha": "sha256:task", "findings_sha": "sha256:findings", "progress_sha": "sha256:progress"},
+                "spec_refs": {"task_plan_sha": _FAKE_SHA, "findings_sha": _FAKE_SHA, "progress_sha": _FAKE_SHA},
             },
         )
         self.append("gcw-spec-check", {"gate": {"ok": True, "checks": [], "errors": []}})
@@ -80,7 +84,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "scope": "Example only.",
                 "reviewer_notes": "Review state transitions.",
                 "self_review": {"recorded": True, "progress_section": "## Local Self-Review"},
-                "spec_refs": {"task_plan_sha": "sha256:task", "findings_sha": "sha256:findings", "progress_sha": "sha256:progress"},
+                "spec_refs": {"task_plan_sha": _FAKE_SHA, "findings_sha": _FAKE_SHA, "progress_sha": _FAKE_SHA},
             },
             code_head_sha="code-1",
         )
@@ -89,13 +93,13 @@ class GcwWorkflowLibTest(unittest.TestCase):
             {
                 "review_request_url": "https://github.com/owner/repo/pull/7",
                 "rendered_from_event_id": "gcw-42-005-gcw-implement-check",
-                "body_hash": "sha256:body",
+                "body_hash": _FAKE_SHA,
                 "effects": [
                     {
                         "kind": "github_pr_upsert",
                         "operation_id": "gcw-42-pr-publish-006",
                         "target": "owner/repo#7",
-                        "body_hash": "sha256:body",
+                        "body_hash": _FAKE_SHA,
                         "remote_updated_at": "2026-06-13T08:05:00Z",
                         "status": "applied",
                     }
@@ -252,6 +256,50 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "owner": {"kind": "local", "id": "cursor-session"},
             },
         )
+        self.assertTrue(any("platform" in e for e in errors))
+
+    def test_validate_parent_chain_detects_mismatch(self) -> None:
+        events = [
+            {
+                "seq": 0,
+                "event": "gcw-issue-intake",
+                "parent": {"expected_last_seq": -1},
+                "payload": {
+                    "issue": 42,
+                    "platform": "github",
+                    "repository": "owner/repo",
+                    "branch": "gcw/issue-42",
+                    "owner": {"kind": "local", "id": "cursor-session"},
+                },
+            },
+            {
+                "seq": 1,
+                "event": "gcw-issue-prepare",
+                "parent": {"expected_last_seq": -1},
+                "payload": {"ready": True},
+            },
+        ]
+        errors = validate_parent_chain(events)
+        self.assertTrue(any("seq 1" in e and "expected_last_seq" in e for e in errors))
+
+    def test_validate_event_log_rejects_invalid_payload(self) -> None:
+        self.append(
+            "gcw-issue-intake",
+            {
+                "issue": 42,
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "gcw/issue-42",
+                "owner": {"kind": "local", "id": "cursor-session"},
+            },
+        )
+        events_dir = self.issue_dir / "events"
+        intake_file = list(events_dir.glob("*.json"))[0]
+        intake_file.write_text(
+            intake_file.read_text(encoding="utf-8").replace('"platform": "github"', '"platform": "svn"'),
+            encoding="utf-8",
+        )
+        errors = validate_event_log(self.issue_dir)
         self.assertTrue(any("platform" in e for e in errors))
 
     def test_validate_events_integrity_detects_filename_mismatch(self) -> None:

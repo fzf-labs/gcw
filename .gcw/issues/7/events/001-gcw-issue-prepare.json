@@ -16,13 +16,17 @@
       "type": "enhancement"
     },
     "labels_applied": [
-      "enhancement",
       "triaged",
       "area:workflow",
-      "priority:p0",
       "ready-to-spec"
     ],
     "ready": true,
+    "remote_sync": {
+      "platform": "github",
+      "issue_type": "Feature",
+      "priority": "Urgent",
+      "labels": ["triaged", "area:workflow", "ready-to-spec"]
+    },
     "summary": "P0 enhancement: add hard validation for GCW events and projections"
   },
   "refs": {},

@@ -13,7 +13,6 @@
     "work_summary": "Implemented the example fixture capability."
   },
   "refs": {
-    "base_branch": "",
     "branch": "feat/example-42",
     "issue": 42
   },

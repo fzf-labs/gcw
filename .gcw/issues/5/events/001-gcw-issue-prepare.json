@@ -18,13 +18,17 @@
       "priority": "priority:p2"
     },
     "labels_applied": [
-      "documentation",
       "triaged",
       "area:specs",
-      "priority:p2",
       "good first issue",
       "ready-to-spec"
-    ]
+    ],
+    "remote_sync": {
+      "platform": "github",
+      "issue_type": "Task",
+      "priority": "Medium",
+      "labels": ["triaged", "area:specs", "good first issue", "ready-to-spec"]
+    }
   },
   "refs": {},
   "schema": "gcw.event/v1",

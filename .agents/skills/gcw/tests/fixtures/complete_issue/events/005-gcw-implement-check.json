@@ -10,7 +10,6 @@
     "expected_last_seq": 4
   },
   "payload": {
-    "base_branch": "main",
     "gate": {
       "checks": [
         {
@@ -37,9 +36,9 @@
       "summary": "Adds the example capability.",
       "title": "feat: add example"
     },
-    "reviewer_notes": "",
+    "reviewer_notes": "Fixture review notes.",
     "risks": "Low risk; fixture only.",
-    "scope": "",
+    "scope": "Fixture scope only.",
     "self_review": {
       "progress_section": "## Local Self-Review",
       "recorded": true

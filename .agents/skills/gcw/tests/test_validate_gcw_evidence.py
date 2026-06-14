@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from gcw_test_helpers import file_sha, planning_shas
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -17,7 +20,7 @@ _FAKE_SHA = "sha256:" + "a" * 64
 
 
 def _file_sha(path: Path) -> str:
-    return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+    return file_sha(path)
 
 
 class ValidateGcwEvidenceTest(unittest.TestCase):
@@ -173,11 +176,55 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.assertFalse(output["ok"], output)
         self.assertTrue(any("platform" in e for e in output["errors"]))
 
+    def test_workflow_rejects_broken_parent_chain(self) -> None:
+        self.init()
+        events_dir = self.issue_dir / "events"
+        intake_file = list(events_dir.glob("*gcw-issue-intake*.json"))[0]
+        data = json.loads(intake_file.read_text(encoding="utf-8"))
+        data["parent"]["expected_last_seq"] = 0
+        intake_file.write_text(json.dumps(data), encoding="utf-8")
+        output = self.run_validate("workflow")
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("expected_last_seq" in e for e in output["errors"]))
+
+    def test_spec_check_rejects_stale_spec_refs_hashes(self) -> None:
+        self.prepare_to_spec_check()
+        self.run_manager("record-spec-check", "--issue-dir", str(self.issue_dir), "--result", "passed")
+        (self.issue_dir / "task_plan.md").write_text("# changed\n", encoding="utf-8")
+        output = self.run_validate("spec-check")
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("task_plan_sha" in e for e in output["errors"]))
+
+    def test_implement_check_rejects_stale_spec_refs_hashes(self) -> None:
+        self.prepare_to_implement_check()
+        (self.issue_dir / "findings.md").write_text("# changed findings\n", encoding="utf-8")
+        output = self.run_validate("implement-check")
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("findings_sha" in e for e in output["errors"]))
+
+    def test_rebuild_projection_rejects_invalid_event_log(self) -> None:
+        self.init()
+        events_dir = self.issue_dir / "events"
+        intake_file = list(events_dir.glob("*gcw-issue-intake*.json"))[0]
+        data = json.loads(intake_file.read_text(encoding="utf-8"))
+        del data["payload"]["platform"]
+        intake_file.write_text(json.dumps(data), encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(MANAGER), "rebuild-projection", "--issue-dir", str(self.issue_dir)],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        output = json.loads(result.stdout)
+        self.assertFalse(output["ok"], output)
+        self.assertTrue(any("platform" in e for e in output["errors"]))
+
     def test_implement_check_validates_self_review(self) -> None:
         self.prepare_to_implement_check()
         latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
-        del data["payload"]["self_review"]["recorded"]
+        data["payload"]["self_review"]["recorded"] = False
         latest_file.write_text(json.dumps(data), encoding="utf-8")
         self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
         output = self.run_validate("implement-check")
@@ -187,7 +234,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self.prepare_to_implement_check()
         latest_file = list((self.issue_dir / "events").glob("*gcw-implement-check*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
-        del data["payload"]["spec_refs"]["task_plan_sha"]
+        data["payload"]["spec_refs"]["task_plan_sha"] = "sha256:" + "c" * 64
         latest_file.write_text(json.dumps(data), encoding="utf-8")
         self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
         output = self.run_validate("implement-check")
@@ -198,12 +245,11 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         self._record_pr_publish()
         latest_file = list((self.issue_dir / "events").glob("*gcw-pr-publish*.json"))[0]
         data = json.loads(latest_file.read_text(encoding="utf-8"))
-        del data["payload"]["effects"][0]["kind"]
+        data["payload"]["effects"][0]["status"] = "pending"
         latest_file.write_text(json.dumps(data), encoding="utf-8")
-        self.run_manager("rebuild-projection", "--issue-dir", str(self.issue_dir))
         output = self.run_validate("pr-publish")
         self.assertFalse(output["ok"], output)
-        self.assertTrue(any("kind" in e for e in output["errors"]))
+        self.assertTrue(any("applied effect" in e for e in output["errors"]))
 
     def test_review_check_command(self) -> None:
         self.prepare_to_implement_check()

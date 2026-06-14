@@ -17,6 +17,8 @@ except ImportError:
 
 _SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
 _EVENT_SCHEMA_PATH = _SCHEMA_DIR / "event.schema.json"
+_LABELS_PATH = Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "labels.json"
+_GITHUB_LEGACY_LABEL_GROUPS = frozenset({"type", "priority"})
 
 
 STATES = (
@@ -147,7 +149,58 @@ def _validate_event_integrity(event: dict[str, Any], path: Path | None = None) -
     return errors
 
 
-def validate_payload(event_name: str, payload: dict[str, Any]) -> list[str]:
+def _load_label_groups() -> dict[str, list[str]]:
+    if not _LABELS_PATH.is_file():
+        return {}
+    data = json.loads(_LABELS_PATH.read_text(encoding="utf-8"))
+    labels = data.get("labels", {})
+    grouped: dict[str, list[str]] = {}
+    if not isinstance(labels, dict):
+        return grouped
+    for name, meta in labels.items():
+        if isinstance(meta, dict):
+            grouped.setdefault(str(meta.get("group", "")), []).append(str(name))
+    return grouped
+
+
+def _intake_platform(issue_dir: Path) -> str:
+    intake_path = events_dir(issue_dir) / "000-gcw-issue-intake.json"
+    if not intake_path.is_file():
+        return "github"
+    try:
+        intake = read_json(intake_path)
+    except WorkflowError:
+        return "github"
+    payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
+    platform = str(payload.get("platform", "")).strip()
+    return platform or "github"
+
+
+def _validate_prepare_payload(payload: dict[str, Any], platform: str) -> list[str]:
+    errors: list[str] = []
+    labels_applied = payload.get("labels_applied")
+    if isinstance(labels_applied, list) and platform == "github":
+        grouped = _load_label_groups()
+        for label in labels_applied:
+            name = str(label)
+            for group in _GITHUB_LEGACY_LABEL_GROUPS:
+                if name in grouped.get(group, []):
+                    errors.append(
+                        f"gcw-issue-prepare labels_applied must not include {name} on github"
+                    )
+    remote_sync = payload.get("remote_sync")
+    if isinstance(remote_sync, dict):
+        sync_platform = str(remote_sync.get("platform", ""))
+        if sync_platform and sync_platform != platform:
+            errors.append("gcw-issue-prepare remote_sync.platform does not match intake platform")
+        labels = remote_sync.get("labels")
+        if isinstance(labels_applied, list) and isinstance(labels, list):
+            if sorted(str(x) for x in labels_applied) != sorted(str(x) for x in labels):
+                errors.append("gcw-issue-prepare remote_sync.labels does not match labels_applied")
+    return errors
+
+
+def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path | None = None) -> list[str]:
     errors: list[str] = []
     if event_name == "gcw-issue-intake":
         for key in ("issue", "platform", "repository", "branch"):
@@ -165,6 +218,8 @@ def validate_payload(event_name: str, payload: dict[str, Any]) -> list[str]:
             errors.append("gcw-issue-prepare payload.ready must be boolean")
         if payload.get("ready") is False and not str(payload.get("question", "")).strip():
             errors.append("gcw-issue-prepare requires question when ready is false")
+        if issue_dir is not None:
+            errors.extend(_validate_prepare_payload(payload, _intake_platform(issue_dir)))
     elif event_name == "gcw-issue-to-spec":
         if payload.get("planning_commit_pushed") is not True:
             errors.append("gcw-issue-to-spec requires planning_commit_pushed true")
@@ -229,13 +284,55 @@ def validate_payload(event_name: str, payload: dict[str, Any]) -> list[str]:
     return errors
 
 
+def validate_parent_chain(events: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    for event in events:
+        seq = event.get("seq")
+        parent = event.get("parent") if isinstance(event.get("parent"), dict) else {}
+        expected = parent.get("expected_last_seq")
+        if expected is None:
+            errors.append(f"seq {seq}: parent.expected_last_seq is required")
+            continue
+        required_last = int(seq) - 1 if seq is not None else None
+        if required_last is not None and int(expected) != required_last:
+            errors.append(
+                f"seq {seq}: parent.expected_last_seq {expected} does not match prior seq {required_last}"
+            )
+    return errors
+
+
+def validate_event_log(issue_dir: Path) -> list[str]:
+    errors: list[str] = []
+    errors.extend(validate_events_integrity(issue_dir))
+    try:
+        events = load_events(issue_dir)
+    except WorkflowError as exc:
+        errors.append(str(exc))
+        return errors
+    try:
+        validate_event_sequence(events)
+    except WorkflowError as exc:
+        errors.append(str(exc))
+    errors.extend(validate_parent_chain(events))
+    for event in events:
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        event_name = str(event.get("event", ""))
+        for err in validate_payload(event_name, payload, issue_dir):
+            errors.append(f"seq {event.get('seq', '?')} {event_name}: {err}")
+        for err in validate_event_schema(event):
+            errors.append(f"seq {event.get('seq', '?')} {event_name}: {err}")
+    return errors
+
+
 def append_event(
     issue_dir: Path,
     event: dict[str, Any],
     expected_last_seq: int | None = None,
     parent_projection_hash: str | None = None,
-    validate_schema: bool = False,
+    validate_schema: bool | None = None,
 ) -> dict[str, Any]:
+    if validate_schema is None:
+        validate_schema = _HAS_JSONSCHEMA
     existing = load_events(issue_dir)
     current_last_seq = existing[-1]["seq"] if existing else -1
     parent = event.setdefault("parent", {})
@@ -333,6 +430,12 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
     if not events:
         raise WorkflowError("events are missing")
     validate_event_sequence(events)
+    for event in events:
+        event_name = str(event.get("event", ""))
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        payload_errors = validate_payload(event_name, payload)
+        if payload_errors:
+            raise WorkflowError(f"seq {event.get('seq', '?')}: {'; '.join(payload_errors)}")
 
     intake = events[0]
     payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}

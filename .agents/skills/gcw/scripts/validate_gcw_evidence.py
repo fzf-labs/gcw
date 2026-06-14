@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -12,10 +13,11 @@ from gcw_workflow_lib import (
     WorkflowError,
     assert_projection_current,
     find_latest_event,
-    load_events,
-    validate_event_schema,
-    validate_events_integrity,
-    validate_payload,
+    validate_event_log,
+)
+
+VERIFY_REMOTE_TRIAGE = (
+    Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts" / "verify_remote_triage.py"
 )
 
 
@@ -45,27 +47,10 @@ def _verify_spec_refs_hashes(issue_dir: Path, spec_refs: dict[str, Any], errors:
 
 
 def workflow_errors(issue_dir: Path) -> list[str]:
-    errors: list[str] = []
-    integrity_errors = validate_events_integrity(issue_dir)
-    if integrity_errors:
-        errors.extend(integrity_errors)
+    errors = validate_event_log(issue_dir)
     current = assert_projection_current(issue_dir)
     if not current["ok"]:
         errors.extend(current["errors"])
-    try:
-        events = load_events(issue_dir)
-    except WorkflowError as exc:
-        errors.append(str(exc))
-        return errors
-    for event in events:
-        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
-        event_name = str(event.get("event", ""))
-        payload_errors = validate_payload(event_name, payload)
-        for err in payload_errors:
-            errors.append(f"seq {event.get('seq', '?')} {event_name}: {err}")
-        schema_errors = validate_event_schema(event)
-        for err in schema_errors:
-            errors.append(f"seq {event.get('seq', '?')} {event_name}: {err}")
     return errors
 
 
@@ -85,6 +70,52 @@ def spec_check_errors(issue_dir: Path) -> list[str]:
     gate = payload.get("gate") if isinstance(payload.get("gate"), dict) else {}
     if gate.get("ok") is not True:
         errors.append("latest gcw-spec-check gate.ok must be true")
+    to_spec = find_latest_event(issue_dir, "gcw-issue-to-spec")
+    if to_spec:
+        spec_refs = to_spec.get("payload", {}).get("spec_refs")
+        if isinstance(spec_refs, dict):
+            _verify_spec_refs_hashes(issue_dir, spec_refs, errors)
+    return errors
+
+
+def prepare_check_errors(issue_dir: Path) -> list[str]:
+    errors = workflow_errors(issue_dir)
+    if errors:
+        return errors
+    projection = assert_projection_current(issue_dir)["projection"]
+    if projection.get("phase") not in (
+        "ready-for-planning",
+        "planned",
+        "ready-for-implementation",
+        "implementing",
+        "ready-for-review",
+        "reviewing",
+        "changes-requested",
+        "blocked",
+        "review-complete",
+        "issue-clarifying",
+    ):
+        errors.append("prepare-check requires a post-prepare phase")
+    latest = find_latest_event(issue_dir, "gcw-issue-prepare")
+    if latest is None:
+        errors.append("no gcw-issue-prepare event found")
+        return errors
+    payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
+    if payload.get("ready") is True and not payload.get("remote_sync"):
+        errors.append("gcw-issue-prepare remote_sync is required when ready is true")
+    if VERIFY_REMOTE_TRIAGE.is_file():
+        result = subprocess.run(
+            [sys.executable, str(VERIFY_REMOTE_TRIAGE), "--issue-dir", str(issue_dir)],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            try:
+                output = json.loads(result.stdout or "{}")
+            except json.JSONDecodeError:
+                output = {"errors": [result.stderr or result.stdout or "verify_remote_triage failed"]}
+            errors.extend(output.get("errors", []))
     return errors
 
 
@@ -109,12 +140,14 @@ def implement_check_errors(issue_dir: Path) -> list[str]:
     for key in ("title", "summary", "issue_link"):
         require_non_empty(review_request, key, errors, "review_request.")
     self_review = payload.get("self_review") if isinstance(payload.get("self_review"), dict) else {}
-    if "recorded" not in self_review:
-        errors.append("gcw-implement-check payload.self_review.recorded is required")
+    if self_review.get("recorded") is not True:
+        errors.append("gcw-implement-check payload.self_review.recorded must be true")
     spec_refs = payload.get("spec_refs") if isinstance(payload.get("spec_refs"), dict) else {}
     for sha_key in ("task_plan_sha", "findings_sha", "progress_sha"):
         if sha_key not in spec_refs:
             errors.append(f"gcw-implement-check payload.spec_refs.{sha_key} is required")
+    if spec_refs:
+        _verify_spec_refs_hashes(issue_dir, spec_refs, errors)
     gate_checks = gate.get("checks") if isinstance(gate.get("checks"), list) else []
     for i, check in enumerate(gate_checks):
         if not isinstance(check, dict):
@@ -212,6 +245,7 @@ def clarify_check_errors(issue_dir: Path) -> list[str]:
 def run_check(args: argparse.Namespace) -> dict[str, Any]:
     check_map = {
         "workflow": workflow_errors,
+        "prepare-check": prepare_check_errors,
         "spec-check": spec_check_errors,
         "implement-check": implement_check_errors,
         "pr-publish": pr_publish_errors,
@@ -233,7 +267,7 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate GCW event logs and projections.")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for command in ("workflow", "spec-check", "implement-check", "pr-publish", "review-check", "block-check", "clarify-check"):
+    for command in ("workflow", "prepare-check", "spec-check", "implement-check", "pr-publish", "review-check", "block-check", "clarify-check"):
         subparser = subparsers.add_parser(command)
         subparser.add_argument("--issue-dir", required=True, type=Path)
         subparser.set_defaults(handler=run_check)
