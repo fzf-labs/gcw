@@ -1,0 +1,28 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T06:26:47Z",
+  "event": "gcw-issue-intake",
+  "event_id": "gcw-9-000-gcw-issue-intake",
+  "parent": {
+    "expected_last_seq": -1
+  },
+  "payload": {
+    "branch": "gcw/issue-9",
+    "issue": "9",
+    "owner": {
+      "id": "cursor-session",
+      "kind": "local"
+    },
+    "platform": "github",
+    "repository": "fzf-labs/gcw"
+  },
+  "refs": {
+    "branch": "gcw/issue-9",
+    "issue": "9"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 0
+}

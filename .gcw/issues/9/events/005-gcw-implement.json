@@ -1,0 +1,19 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T06:57:44Z",
+  "event": "gcw-implement",
+  "event_id": "gcw-unknown-005-gcw-implement",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+      "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/9#issuecomment-4700981693",
+    "work_summary": "Add CONTRIBUTING.md, GitHub Issue Form, labels sync workflow, and readiness fixture test"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 5
+}

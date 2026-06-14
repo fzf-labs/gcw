@@ -1,0 +1,29 @@
+name: GCW Labels Sync
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GitHub CLI
+        run: |
+          type gh >/dev/null 2>&1 || (
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+            sudo apt-get update
+            sudo apt-get install -y gh
+          )
+
+      - name: Sync GCW triage labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .agents/skills/gcw-issue-prepare/scripts/manage_triage_metadata.py sync \
+            --platform github --repo "${{ github.repository }}"

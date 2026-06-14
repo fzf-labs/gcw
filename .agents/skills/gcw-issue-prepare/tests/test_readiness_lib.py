@@ -34,7 +34,11 @@ class ReadinessLibTest(unittest.TestCase):
         self.assertEqual(len(gate["checks"]), 4)
         self.assertEqual(gate["errors"], [])
 
-    def test_evaluate_needs_info_issue(self) -> None:
+    def test_evaluate_github_issue_form_fixture(self) -> None:
+        body = (FIXTURES / "github_issue_form_body.md").read_text(encoding="utf-8")
+        gate = evaluate_readiness(body, profile="enhancement")
+        self.assertTrue(gate["ok"], gate.get("errors"))
+
         body = (FIXTURES / "issue_needs_info.md").read_text(encoding="utf-8")
         gate = evaluate_readiness(body, profile="enhancement")
         self.assertFalse(gate["ok"])
