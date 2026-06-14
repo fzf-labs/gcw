@@ -6,12 +6,19 @@ from typing import Any, Protocol
 
 from gcw_workflow_lib import WorkflowError
 
-from publish_progress_comment import body_hash, publish_progress_comment
+from publish_progress_comment import body_hash, publish_milestone_progress_comment, publish_progress_comment
 from render_gcw_hosted_artifacts import render_progress_comment, render_review_request
 
 
 class PlatformAdapter(Protocol):
-    def publish_progress_comment(self, issue_dir: Any, *, dry_run: bool = False) -> dict[str, Any]: ...
+    def publish_milestone_progress(
+        self,
+        issue_dir: Any,
+        milestone_event: str,
+        milestone_payload: dict[str, Any],
+        *,
+        dry_run: bool = False,
+    ) -> dict[str, Any]: ...
 
     def upsert_review_request(
         self,
@@ -23,18 +30,36 @@ class PlatformAdapter(Protocol):
     ) -> dict[str, Any]: ...
 
 
+def render_milestone_progress_artifacts(
+    issue_dir: Any,
+    milestone_event: str,
+    milestone_payload: dict[str, Any],
+) -> dict[str, Any]:
+    from publish_progress_comment import render_milestone_progress_body
+
+    body = render_milestone_progress_body(issue_dir, milestone_event, milestone_payload)
+    return {
+        "progress_comment_body": body,
+        "progress_comment_body_hash": body_hash(body),
+    }
+
+
 @dataclass
 class DryRunAdapter:
-    def publish_progress_comment(self, issue_dir: Any, *, dry_run: bool = False) -> dict[str, Any]:
-        body = render_progress_comment(argparse.Namespace(issue_dir=issue_dir))
-        digest = body_hash(body)
-        return {
-            "ok": True,
-            "dry_run": True,
-            "body": body,
-            "body_hash": digest,
-            "progress_comment_url": "",
-        }
+    def publish_milestone_progress(
+        self,
+        issue_dir: Any,
+        milestone_event: str,
+        milestone_payload: dict[str, Any],
+        *,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        return publish_milestone_progress_comment(
+            issue_dir,
+            milestone_event,
+            milestone_payload,
+            dry_run=True,
+        )
 
     def upsert_review_request(
         self,
@@ -56,9 +81,19 @@ class DryRunAdapter:
 
 @dataclass
 class GitHubAdapter:
-    def publish_progress_comment(self, issue_dir: Any, *, dry_run: bool = False) -> dict[str, Any]:
-        return publish_progress_comment(
-            argparse.Namespace(issue_dir=issue_dir, dry_run=dry_run),
+    def publish_milestone_progress(
+        self,
+        issue_dir: Any,
+        milestone_event: str,
+        milestone_payload: dict[str, Any],
+        *,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        return publish_milestone_progress_comment(
+            issue_dir,
+            milestone_event,
+            milestone_payload,
+            dry_run=dry_run,
         )
 
     def upsert_review_request(
@@ -70,12 +105,7 @@ class GitHubAdapter:
         dry_run: bool = False,
     ) -> dict[str, Any]:
         if dry_run:
-            return DryRunAdapter().upsert_review_request(
-                issue_dir,
-                body=body,
-                title=title,
-                dry_run=True,
-            )
+            return DryRunAdapter().upsert_review_request(issue_dir, body=body, title=title, dry_run=True)
         raise WorkflowError("GitHubAdapter.upsert_review_request requires gh integration; pass review_request_url via step options")
 
 
@@ -86,10 +116,22 @@ class RecordingAdapter:
     fail_on: str = ""
     published_urls: list[str] = field(default_factory=list)
 
-    def publish_progress_comment(self, issue_dir: Any, *, dry_run: bool = False) -> dict[str, Any]:
+    def publish_milestone_progress(
+        self,
+        issue_dir: Any,
+        milestone_event: str,
+        milestone_payload: dict[str, Any],
+        *,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
         if self.fail_on == "progress_comment":
             raise WorkflowError("simulated progress comment publication failure")
-        result = DryRunAdapter().publish_progress_comment(issue_dir, dry_run=True)
+        result = publish_milestone_progress_comment(
+            issue_dir,
+            milestone_event,
+            milestone_payload,
+            dry_run=True,
+        )
         url = f"https://github.com/test/repo/issues/1#issuecomment-{len(self.published_urls) + 1}"
         self.published_urls.append(url)
         result["progress_comment_url"] = url

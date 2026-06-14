@@ -119,11 +119,16 @@ python .agents/skills/gcw-issue-prepare/scripts/verify_remote_triage.py \
   --issue-dir .gcw/issues/42
 ```
 
-7. Publish a **new** `<!-- gcw-progress -->` comment (never edit an existing one). Clarification questions use the structured `## Clarification` section:
+7. Publish a **new** `<!-- gcw-progress -->` comment (never edit an existing one). Render with the **pending** `gcw-issue-prepare` payload so the comment reflects `ready-for-planning` (or `issue-clarifying`) before the event is recorded. Clarification questions use the structured `## Clarification` section:
 
 ```bash
-python .agents/skills/gcw/scripts/publish_progress_comment.py --issue-dir .gcw/issues/42
+python .agents/skills/gcw/scripts/publish_progress_comment.py \
+  --issue-dir .gcw/issues/42 \
+  --milestone-event gcw-issue-prepare \
+  --milestone-payload-file /tmp/prepare_payload.json
 ```
+
+`prepare_payload.json` must include at least `ready`, `gate`, and any `classification` / `labels_applied` / `remote_sync` fields you will record. Do not call `publish_progress_comment.py` without `--milestone-event` at this step; that renders the pre-record phase (`issue-opened`).
 
 8. If `gate.ok` is false, stay at `issue-clarifying` with `needs-info`, publish the progress comment, and record the event with `question` from the gate output.
 9. If `gate.ok` is true, record the event with `remote_sync`, `gate`, and the new comment URL:

@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/tests"))
 
 from publish_progress_comment import publish_progress_comment  # noqa: E402
+from gcw_test_helpers import PREPARE_GATE_OK, prepare_event_payload  # noqa: E402
 
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
 
@@ -52,6 +53,48 @@ class PublishProgressCommentTest(unittest.TestCase):
         self.assertTrue(output["dry_run"])
         self.assertIn("<!-- gcw-progress -->", output["body"])
         self.assertEqual(output["progress_comment_url"], "")
+
+    def test_milestone_prepare_preview_uses_post_record_phase(self) -> None:
+        intake_only = Path(self.tmp.name) / ".gcw/issues/44"
+        intake_only.mkdir(parents=True)
+        intake = {
+            "actor": {"id": "cursor-session", "kind": "local"},
+            "at": "2026-06-14T00:00:00Z",
+            "event": "gcw-issue-intake",
+            "event_id": "gcw-44-000-gcw-issue-intake",
+            "parent": {"expected_last_seq": -1},
+            "payload": {
+                "branch": "feat/example-44",
+                "issue": "44",
+                "owner": {"id": "cursor-session", "kind": "local"},
+                "platform": "github",
+                "repository": "owner/repo",
+            },
+            "refs": {"branch": "feat/example-44", "issue": "44"},
+            "schema": "gcw.event/v1",
+            "seq": 0,
+        }
+        events_dir = intake_only / "events"
+        events_dir.mkdir(parents=True)
+        (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
+        from gcw_workflow_lib import write_projection
+
+        write_projection(intake_only)
+
+        payload = prepare_event_payload(ready=True, progress_comment_url="")
+        payload["gate"] = PREPARE_GATE_OK
+        output = publish_progress_comment(
+            argparse.Namespace(
+                issue_dir=intake_only,
+                dry_run=True,
+                milestone_event="gcw-issue-prepare",
+                milestone_payload=payload,
+            )
+        )
+        self.assertTrue(output["ok"])
+        self.assertIn("GCW Status: ready-for-planning", output["body"])
+        self.assertIn("Last completed step: gcw-issue-prepare", output["body"])
+        self.assertNotIn("GCW Status: issue-opened", output["body"])
 
 
 if __name__ == "__main__":

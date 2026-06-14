@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from gcw_step_adapters import RecordingAdapter
 from gcw_step_runner import GcwStepRunner, SUPPORTED_STEPS
+from gcw_test_helpers import write_prepare_gate_file
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -139,6 +140,46 @@ class GcwStepRunnerTest(unittest.TestCase):
         result = runner.run("gcw-issue-prepare", self.issue_dir, options={})
         self.assertFalse(result.ok)
         self.assertEqual(result.stop_reason, "blocked")
+
+    def test_prepare_dry_run_renders_post_record_phase(self) -> None:
+        shutil.rmtree(self.issue_dir)
+        self.issue_dir.mkdir(parents=True)
+        intake = {
+            "actor": {"id": "cursor-session", "kind": "local"},
+            "at": "2026-06-14T00:00:00Z",
+            "event": "gcw-issue-intake",
+            "event_id": "gcw-42-000-gcw-issue-intake",
+            "parent": {"expected_last_seq": -1},
+            "payload": {
+                "branch": "feat/example-42",
+                "issue": "42",
+                "owner": {"id": "cursor-session", "kind": "local"},
+                "platform": "github",
+                "repository": "owner/repo",
+            },
+            "refs": {"branch": "feat/example-42", "issue": "42"},
+            "schema": "gcw.event/v1",
+            "seq": 0,
+        }
+        events_dir = self.issue_dir / "events"
+        events_dir.mkdir(parents=True)
+        (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
+        from gcw_workflow_lib import write_projection
+
+        write_projection(self.issue_dir)
+        gate_file = write_prepare_gate_file(self.issue_dir / "prepare-gate.json", ready=True)
+        runner = GcwStepRunner(adapter=RecordingAdapter())
+        result = runner.run(
+            "gcw-issue-prepare",
+            self.issue_dir,
+            dry_run=True,
+            options={"gate_file": str(gate_file), "ready": True},
+        )
+        self.assertTrue(result.ok)
+        body = result.artifacts["progress_comment_body"]
+        self.assertIn("GCW Status: ready-for-planning", body)
+        self.assertIn("Last completed step: gcw-issue-prepare", body)
+        self.assertNotIn("GCW Status: issue-opened", body)
 
 
 if __name__ == "__main__":

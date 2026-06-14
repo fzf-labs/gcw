@@ -66,6 +66,7 @@ NEXT_ALLOWED_STEPS: dict[str, list[str]] = {
 }
 
 PLANNING_FILES = ("task_plan.md", "findings.md", "progress.md")
+PREVIEW_PROGRESS_COMMENT_URL = "https://gcw.preview/progress-comment"
 
 
 class WorkflowError(ValueError):
@@ -725,3 +726,35 @@ def find_latest_event(
         if predicate is None or predicate(event):
             return event
     return None
+
+
+def build_preview_event(
+    events: list[dict[str, Any]],
+    event_name: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    last_seq = events[-1]["seq"] if events else -1
+    preview_payload = dict(payload)
+    if not str(preview_payload.get("progress_comment_url", "")).strip():
+        preview_payload["progress_comment_url"] = PREVIEW_PROGRESS_COMMENT_URL
+    return {
+        "actor": {"kind": "local", "id": "preview"},
+        "at": _now(),
+        "event": event_name,
+        "event_id": f"preview-{last_seq + 1}-{event_name}",
+        "parent": {"expected_last_seq": last_seq},
+        "payload": preview_payload,
+        "refs": {},
+        "schema": "gcw.event/v1",
+        "seq": last_seq + 1,
+    }
+
+
+def preview_projection_for_milestone(
+    issue_dir: Path,
+    event_name: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    events = load_events(issue_dir)
+    overlay = build_preview_event(events, event_name, payload)
+    return reduce_workflow(events + [overlay])
