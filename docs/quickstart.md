@@ -42,7 +42,8 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 | --- | --- |
 | `issue-opened` | `## Context` |
 | `ready-for-planning` 及之后 | `## Context`、`## Triage`（Type / Area / Priority） |
-| `issue-clarifying` | `## Context`、`## Triage`、`## Clarification` |
+| `ready-for-planning` | 另含 `## Readiness`（structural gate 摘要） |
+| `issue-clarifying` | `## Context`、`## Triage`、`## Readiness`、`## Clarification` |
 | `planned` | `## Context`、`## Triage`、`## Planning files` |
 | `ready-for-implementation` | `## Context`、`## Triage`、`## Spec gate` |
 | `implementing` | `## Context`、`## Triage`、`## Implementation` |
@@ -76,7 +77,7 @@ Intake 只读 Issue，不创建分支、不写 spec。事件持久化在创建 i
 | **观察** | Issue 上出现 triage 标签（如 `documentation`、`triaged`、`ready-to-spec`）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-prepare.json` |
 | **状态** | `ready-for-planning` 或 `issue-clarifying` |
 
-Prepare 负责分类与打标签，并发布首条结构化进度评论。信息不足时停在 `issue-clarifying` 并打 `needs-info`；澄清问题也写入 `gcw-progress` 格式，不再单独发非结构化评论。
+Prepare 负责分类与打标签，运行 structural readiness gate，并发布首条结构化进度评论。信息不足时停在 `issue-clarifying` 并打 `needs-info`；澄清问题也写入 `gcw-progress` 格式，不再单独发非结构化评论。
 
 ## 步骤 3：`gcw-issue-to-spec`
 

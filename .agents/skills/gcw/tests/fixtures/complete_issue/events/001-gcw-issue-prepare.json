@@ -11,6 +11,18 @@
   },
   "payload": {
     "ready": true,
+    "gate": {
+      "ok": true,
+      "rubric_version": "prepare-readiness/v1",
+      "profile": "enhancement",
+      "checks": [
+        {"id": "has_what_to_build", "ok": true, "source": "structural"},
+        {"id": "has_acceptance_criteria", "ok": true, "source": "structural"},
+        {"id": "blocker_resolved", "ok": true, "source": "structural"},
+        {"id": "body_not_placeholder", "ok": true, "source": "structural"}
+      ],
+      "errors": []
+    },
     "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
     "classification": {
       "type": "enhancement",

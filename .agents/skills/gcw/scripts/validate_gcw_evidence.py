@@ -19,6 +19,7 @@ from gcw_workflow_lib import (
 VERIFY_REMOTE_TRIAGE = (
     Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts" / "verify_remote_triage.py"
 )
+_READINESS_LIB_DIR = Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts"
 
 
 def require_non_empty(data: dict[str, Any], key: str, errors: list[str], prefix: str = "") -> None:
@@ -111,6 +112,85 @@ def spec_check_errors(issue_dir: Path) -> list[str]:
     return errors
 
 
+def _import_readiness_lib():
+    if not _READINESS_LIB_DIR.is_dir():
+        return None
+    scripts_path = str(_READINESS_LIB_DIR)
+    if scripts_path not in sys.path:
+        sys.path.insert(0, scripts_path)
+    try:
+        import readiness_lib
+
+        return readiness_lib
+    except ImportError:
+        return None
+
+
+def _prepare_gate_consistency_errors(payload: dict[str, Any]) -> list[str]:
+    gate = payload.get("gate")
+    if not isinstance(gate, dict):
+        return []
+
+    errors: list[str] = []
+    if payload.get("ready") is not gate.get("ok"):
+        errors.append("gcw-issue-prepare ready does not match gate.ok")
+    if payload.get("ready") is False and not str(payload.get("question", "")).strip():
+        errors.append("gcw-issue-prepare requires question when ready is false")
+
+    readiness_lib = _import_readiness_lib()
+    if readiness_lib is not None:
+        errors.extend(readiness_lib.validate_gate_against_rubric(gate))
+    return errors
+
+
+def _prepare_gate_body_errors(issue_dir: Path, gate: dict[str, Any]) -> list[str]:
+    intake_path = issue_dir / "events" / "000-gcw-issue-intake.json"
+    if not intake_path.is_file():
+        return []
+
+    readiness_lib = _import_readiness_lib()
+    if readiness_lib is None:
+        return []
+
+    try:
+        intake = json.loads(intake_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+    intake_payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
+    platform = str(intake_payload.get("platform", "github"))
+    repo = str(intake_payload.get("repository", "")).strip()
+    issue = str(intake_payload.get("issue", "")).strip()
+    if not repo or not issue:
+        return []
+
+    try:
+        body = readiness_lib.fetch_issue_body(platform, repo, issue)
+    except (subprocess.CalledProcessError, OSError, json.JSONDecodeError):
+        return []
+
+    profile = str(gate.get("profile", "enhancement"))
+    computed = readiness_lib.evaluate_readiness(body, profile=profile)
+    errors: list[str] = []
+    if computed.get("ok") is not gate.get("ok"):
+        errors.append("recorded gate.ok does not match live issue body evaluation")
+
+    recorded_checks = {
+        str(item.get("id")): item.get("ok")
+        for item in gate.get("checks", [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    computed_checks = {
+        str(item.get("id")): item.get("ok")
+        for item in computed.get("checks", [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    for check_id, recorded_ok in recorded_checks.items():
+        if check_id in computed_checks and recorded_ok is not computed_checks[check_id]:
+            errors.append(f"recorded gate check {check_id} does not match live issue body evaluation")
+    return errors
+
+
 def prepare_check_errors(issue_dir: Path) -> list[str]:
     errors = workflow_errors(issue_dir)
     if errors:
@@ -136,6 +216,9 @@ def prepare_check_errors(issue_dir: Path) -> list[str]:
     payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
     if payload.get("ready") is True and not payload.get("remote_sync"):
         errors.append("gcw-issue-prepare remote_sync is required when ready is true")
+    if isinstance(payload.get("gate"), dict):
+        errors.extend(_prepare_gate_consistency_errors(payload))
+        errors.extend(_prepare_gate_body_errors(issue_dir, payload["gate"]))
     errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-prepare"))
     if VERIFY_REMOTE_TRIAGE.is_file():
         result = subprocess.run(

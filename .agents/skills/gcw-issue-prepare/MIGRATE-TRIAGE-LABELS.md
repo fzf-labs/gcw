@@ -21,9 +21,14 @@ python .agents/skills/gcw-issue-prepare/scripts/manage_triage_metadata.py migrat
 After remote sync succeeds, record the event with `remote_sync` from the `apply-metadata` JSON output:
 
 ```bash
+python .agents/skills/gcw-issue-prepare/scripts/evaluate_issue_readiness.py \
+  --profile enhancement --platform github --repo OWNER/REPO --issue ISSUE_NUMBER \
+  --output /tmp/prepare_gate.json
+
 python .agents/skills/gcw/scripts/manage_gcw_workflow.py record-issue-prepare \
   --issue-dir .gcw/issues/ISSUE_NUMBER \
   --ready \
+  --gate-file /tmp/prepare_gate.json \
   --classification-type enhancement \
   --classification-area area:workflow \
   --classification-priority priority:p0 \

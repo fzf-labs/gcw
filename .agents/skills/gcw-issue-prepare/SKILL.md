@@ -59,18 +59,44 @@ Repository formats:
 
 On GitHub, only `area`, `readiness`, `triage`, and `optional` groups are written as labels. Type and priority use native fields via `apply-metadata`.
 
+## Readiness rules (Phase 1)
+
+Run [evaluate_issue_readiness.py](scripts/evaluate_issue_readiness.py) before applying readiness labels. Phase 1 uses the `enhancement` profile from [readiness/enhancement.json](readiness/enhancement.json), aligned with [issue-create/issue-template.md](../issue-create/issue-template.md).
+
+| Check ID | Rule |
+| --- | --- |
+| `has_what_to_build` | Body includes non-empty `## What to build` |
+| `has_acceptance_criteria` | Body includes `## Acceptance criteria` with at least one list item |
+| `blocker_resolved` | `## Blocked by` is absent or indicates work can start immediately |
+| `body_not_placeholder` | Body does not contain `Not provided` |
+
+- `gate.ok === true` → `ready-to-spec` and `ready-for-planning`
+- `gate.ok === false` → `needs-info` and `issue-clarifying`; use `gate_to_question` output as `question`
+- Do not skip the evaluator or mark `ready-to-spec` when structural checks fail
+
 ## Procedure
 
 1. Read the issue with `gh` or `glab`.
 2. Classify type, area, priority, and whether clarification is needed.
-3. Sync workflow label definitions:
+3. Evaluate structural readiness:
+
+```bash
+python .agents/skills/gcw-issue-prepare/scripts/evaluate_issue_readiness.py \
+  --profile enhancement \
+  --platform github --repo OWNER/REPO --issue 42 \
+  --output /tmp/prepare_gate.json
+```
+
+Or pass `--body-file` when the issue body is already saved locally.
+
+4. Sync workflow label definitions:
 
 ```bash
 python .agents/skills/gcw-issue-prepare/scripts/manage_triage_metadata.py sync \
   --platform github --repo OWNER/REPO
 ```
 
-4. Apply structured metadata:
+5. Apply structured metadata (`ready-to-spec` only when `gate.ok` is true; otherwise use `needs-info`):
 
 ```bash
 # GitHub — Issue Type + Priority field + workflow labels
@@ -86,26 +112,27 @@ python .agents/skills/gcw-issue-prepare/scripts/manage_triage_metadata.py apply-
   --labels triaged,area:workflow,ready-to-spec
 ```
 
-5. Verify remote state:
+6. Verify remote state:
 
 ```bash
 python .agents/skills/gcw-issue-prepare/scripts/verify_remote_triage.py \
   --issue-dir .gcw/issues/42
 ```
 
-6. Publish a **new** `<!-- gcw-progress -->` comment (never edit an existing one). Clarification questions use the structured `## Clarification` section:
+7. Publish a **new** `<!-- gcw-progress -->` comment (never edit an existing one). Clarification questions use the structured `## Clarification` section:
 
 ```bash
 python .agents/skills/gcw/scripts/publish_progress_comment.py --issue-dir .gcw/issues/42
 ```
 
-7. If unclear, stay at `issue-clarifying` with `needs-info` in workflow labels.
-8. If clear, record the event with `remote_sync` and the new comment URL:
+8. If `gate.ok` is false, stay at `issue-clarifying` with `needs-info`, publish the progress comment, and record the event with `question` from the gate output.
+9. If `gate.ok` is true, record the event with `remote_sync`, `gate`, and the new comment URL:
 
 ```bash
 python .agents/skills/gcw/scripts/manage_gcw_workflow.py record-issue-prepare \
   --issue-dir .gcw/issues/42 \
   --ready \
+  --gate-file /tmp/prepare_gate.json \
   --progress-comment-url https://github.com/owner/repo/issues/42#issuecomment-1 \
   --summary "scope clear" \
   --classification-type enhancement \
@@ -120,6 +147,18 @@ python .agents/skills/gcw/scripts/manage_gcw_workflow.py record-issue-prepare \
 ```json
 {
   "ready": true,
+  "gate": {
+    "ok": true,
+    "rubric_version": "prepare-readiness/v1",
+    "profile": "enhancement",
+    "checks": [
+      {"id": "has_what_to_build", "ok": true, "source": "structural"},
+      {"id": "has_acceptance_criteria", "ok": true, "source": "structural"},
+      {"id": "blocker_resolved", "ok": true, "source": "structural"},
+      {"id": "body_not_placeholder", "ok": true, "source": "structural"}
+    ],
+    "errors": []
+  },
   "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
   "summary": "P0 enhancement: add hard validation",
   "classification": {

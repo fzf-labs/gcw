@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcw_test_helpers import file_sha, planning_shas, progress_comment_url
+from gcw_test_helpers import file_sha, planning_shas, prepare_record_cli_args, progress_comment_url
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -85,14 +85,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "cursor-session",
         )
         if state != "issue-opened":
-            self.run_manager(
-                "record-issue-prepare",
-                "--issue-dir",
-                str(self.issue_dir),
-                "--ready",
-                "--progress-comment-url",
-                progress_comment_url(0),
-            )
+            self.run_manager(*prepare_record_cli_args(self.issue_dir, seq=0, ready=True))
         if state == "implementing":
             self.write_planning_files()
             self.record_issue_to_spec()
@@ -183,14 +176,7 @@ class ManageGcwStateTest(unittest.TestCase):
 
     def test_main_path_reaches_reviewing(self) -> None:
         self.init()
-        self.run_manager(
-            "record-issue-prepare",
-            "--issue-dir",
-            str(self.issue_dir),
-            "--ready",
-            "--progress-comment-url",
-            progress_comment_url(0),
-        )
+        self.run_manager(*prepare_record_cli_args(self.issue_dir, seq=0, ready=True))
         self.write_planning_files()
         self.record_issue_to_spec()
         self.run_manager(

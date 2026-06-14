@@ -88,8 +88,16 @@ def init_workflow(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def record_issue_prepare(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.gate_file or not args.gate_file.is_file():
+        raise WorkflowError("record-issue-prepare requires --gate-file")
+    gate = read_payload(args.gate_file)
+    ready = bool(gate.get("ok"))
+    if args.ready and not ready:
+        raise WorkflowError("record-issue-prepare --ready conflicts with gate.ok false")
+
     payload: dict[str, Any] = {
-        "ready": args.ready,
+        "ready": ready,
+        "gate": gate,
         "progress_comment_url": progress_comment_url_from_args(args),
     }
     if args.question:
@@ -277,7 +285,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     prepare = subparsers.add_parser("record-issue-prepare")
     add_common(prepare)
-    prepare.add_argument("--ready", action="store_true")
+    prepare.add_argument("--ready", action="store_true", help="Required when gate.ok is true")
     prepare.add_argument("--progress-comment-url", required=True)
     prepare.add_argument("--question", default="")
     prepare.add_argument("--summary", default="")
@@ -286,6 +294,12 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--classification-priority", default="")
     prepare.add_argument("--classification-repro", default="")
     prepare.add_argument("--labels-applied", default="")
+    prepare.add_argument(
+        "--gate-file",
+        required=True,
+        type=Path,
+        help="JSON file with prepare readiness gate from evaluate_issue_readiness.py",
+    )
     prepare.add_argument(
         "--remote-sync-file",
         default="",

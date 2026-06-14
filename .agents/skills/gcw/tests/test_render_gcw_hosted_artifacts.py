@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcw_test_helpers import planning_shas, progress_comment_url
+from gcw_test_helpers import planning_shas, prepare_record_cli_args, progress_comment_url
 
 ROOT = Path(__file__).resolve().parents[4]
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
@@ -62,6 +62,35 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertNotIn("## Planning files", result.stdout)
         self.assertNotIn("Review request:", result.stdout)
 
+    def test_render_progress_comment_includes_prepare_readiness(self) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
+        issue_dir.mkdir(parents=True)
+        self.run_manager(
+            "init-workflow",
+            "--issue-dir",
+            str(issue_dir),
+            "--issue",
+            "44",
+            "--platform",
+            "github",
+            "--repository",
+            "owner/repo",
+            "--branch",
+            "feat/example-44",
+            "--owner-kind",
+            "local",
+            "--owner-id",
+            "cursor-session",
+        )
+        self.run_manager(*prepare_record_cli_args(issue_dir, seq=0, ready=True))
+
+        result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GCW Status: ready-for-planning", result.stdout)
+        self.assertIn("## Readiness", result.stdout)
+        self.assertIn("- All structural checks passed", result.stdout)
+
     def test_render_progress_comment_includes_planning_links_only_when_planned(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/43"
         issue_dir.mkdir(parents=True)
@@ -82,14 +111,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--owner-id",
             "workflow-run-1",
         )
-        self.run_manager(
-            "record-issue-prepare",
-            "--issue-dir",
-            str(issue_dir),
-            "--ready",
-            "--progress-comment-url",
-            progress_comment_url(0),
-        )
+        self.run_manager(*prepare_record_cli_args(issue_dir, seq=0, ready=True, labels=["triaged", "ready-to-spec"]))
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
         shas = planning_shas(issue_dir)

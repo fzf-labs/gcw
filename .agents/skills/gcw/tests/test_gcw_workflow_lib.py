@@ -23,7 +23,7 @@ from gcw_workflow_lib import (  # noqa: E402
 )
 
 
-from gcw_test_helpers import progress_comment_url  # noqa: E402
+from gcw_test_helpers import prepare_event_payload, progress_comment_url  # noqa: E402
 
 
 _FAKE_SHA = "sha256:" + "a" * 64
@@ -63,7 +63,10 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "owner": {"kind": "local", "id": "cursor-session"},
             },
         )
-        self.append("gcw-issue-prepare", {"ready": True, "progress_comment_url": progress_comment_url(0)})
+        self.append(
+            "gcw-issue-prepare",
+            prepare_event_payload(ready=True, progress_comment_url=progress_comment_url(0)),
+        )
         self.append(
             "gcw-issue-to-spec",
             {
@@ -140,7 +143,10 @@ class GcwWorkflowLibTest(unittest.TestCase):
                 "owner": {"kind": "local", "id": "cursor-session"},
             },
         )
-        self.append("gcw-issue-prepare", {"ready": True, "progress_comment_url": progress_comment_url(0)})
+        self.append(
+            "gcw-issue-prepare",
+            prepare_event_payload(ready=True, progress_comment_url=progress_comment_url(0)),
+        )
         self.append(
             "gcw-issue-to-spec",
             {
@@ -304,6 +310,24 @@ class GcwWorkflowLibTest(unittest.TestCase):
             },
         )
         self.assertTrue(any("platform" in e for e in errors))
+
+    def test_validate_payload_rejects_prepare_ready_gate_mismatch(self) -> None:
+        errors = validate_payload(
+            "gcw-issue-prepare",
+            {
+                "ready": True,
+                "gate": {"ok": False, "rubric_version": "prepare-readiness/v1", "profile": "enhancement", "checks": [], "errors": ["x"]},
+                "progress_comment_url": progress_comment_url(0),
+            },
+        )
+        self.assertTrue(any("must match gate.ok" in error for error in errors))
+
+    def test_validate_payload_requires_prepare_gate(self) -> None:
+        errors = validate_payload(
+            "gcw-issue-prepare",
+            {"ready": True, "progress_comment_url": progress_comment_url(0)},
+        )
+        self.assertTrue(any("gate is required" in error for error in errors))
 
     def test_validate_parent_chain_detects_mismatch(self) -> None:
         events = [

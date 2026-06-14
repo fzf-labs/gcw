@@ -135,6 +135,31 @@ def _append_section(lines: list[str], title: str, body_lines: list[str]) -> None
     lines.extend(["", title, *body_lines])
 
 
+def _prepare_readiness_lines(issue_dir: Path) -> list[str]:
+    prepare = find_latest_event(issue_dir, "gcw-issue-prepare")
+    if prepare is None:
+        return []
+    payload = prepare.get("payload") if isinstance(prepare.get("payload"), dict) else {}
+    gate = payload.get("gate")
+    if not isinstance(gate, dict):
+        return []
+
+    lines = [f"- Profile: {gate.get('profile', 'Not recorded')}"]
+    if gate.get("ok") is True:
+        lines.append("- All structural checks passed")
+        return lines
+
+    for check in gate.get("checks", []):
+        if not isinstance(check, dict) or check.get("ok") is True:
+            continue
+        check_id = str(check.get("id", "unknown"))
+        message = str(check.get("message", "")).strip() or "check failed"
+        lines.append(f"- Failed: {check_id}: {message}")
+    if len(lines) == 1:
+        lines.append("- Readiness gate did not pass")
+    return lines
+
+
 def _render_early_progress(
     issue_dir: Path,
     phase: str,
@@ -143,6 +168,9 @@ def _render_early_progress(
 ) -> str:
     lines = _progress_header(phase)
     _append_context_and_triage(lines, issue_dir, phase, projection, owner)
+    if phase == "ready-for-planning":
+        readiness_lines = _prepare_readiness_lines(issue_dir)
+        _append_section(lines, "## Readiness", readiness_lines or ["- Not recorded."])
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -153,6 +181,8 @@ def _render_issue_clarifying(
 ) -> str:
     lines = _progress_header("issue-clarifying")
     _append_context_and_triage(lines, issue_dir, "issue-clarifying", projection, owner)
+    readiness_lines = _prepare_readiness_lines(issue_dir)
+    _append_section(lines, "## Readiness", readiness_lines or ["- Not recorded."])
     question = ""
     clarify = find_latest_event(issue_dir, "gcw-clarify")
     if clarify:

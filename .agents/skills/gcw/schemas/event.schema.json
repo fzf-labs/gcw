@@ -6,6 +6,140 @@
     "progress_comment_url": {
       "type": "string",
       "minLength": 1
+    },
+    "gate_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ok"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok"],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gate_check"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "prepare_gate_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ok", "source"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["structural", "agent"]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "prepare_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "rubric_version", "profile"],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "rubric_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/prepare_gate_check"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "implement_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok"],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gate_check"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "validation": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command", "exit_code", "result"],
+            "properties": {
+              "command": {
+                "type": "string",
+                "minLength": 1
+              },
+              "exit_code": {
+                "type": "integer"
+              },
+              "result": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
     }
   },
   "type": "object",
@@ -157,10 +291,13 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["ready", "progress_comment_url"],
+          "required": ["ready", "progress_comment_url", "gate"],
           "properties": {
             "ready": {
               "type": "boolean"
+            },
+            "gate": {
+              "$ref": "#/$defs/prepare_gate"
             },
             "progress_comment_url": {
               "$ref": "#/$defs/progress_comment_url"
@@ -285,38 +422,7 @@
               "$ref": "#/$defs/progress_comment_url"
             },
             "gate": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["ok"],
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                },
-                "checks": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["id", "ok"],
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "ok": {
-                        "type": "boolean"
-                      }
-                    }
-                  }
-                },
-                "errors": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
-              }
+              "$ref": "#/$defs/gate"
             },
             "question": {
               "type": "string",
@@ -367,59 +473,7 @@
           "required": ["gate", "review_request", "risks", "scope", "reviewer_notes", "self_review", "spec_refs"],
           "properties": {
             "gate": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["ok"],
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                },
-                "checks": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["id", "ok"],
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "ok": {
-                        "type": "boolean"
-                      }
-                    }
-                  }
-                },
-                "validation": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["command", "exit_code", "result"],
-                    "properties": {
-                      "command": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "exit_code": {
-                        "type": "integer"
-                      },
-                      "result": {
-                        "type": "string",
-                        "minLength": 1
-                      }
-                    }
-                  }
-                },
-                "errors": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
-              }
+              "$ref": "#/$defs/implement_gate"
             },
             "review_request": {
               "type": "object",

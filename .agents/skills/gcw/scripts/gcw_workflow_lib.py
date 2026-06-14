@@ -18,7 +18,9 @@ except ImportError:
 _SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
 _EVENT_SCHEMA_PATH = _SCHEMA_DIR / "event.schema.json"
 _LABELS_PATH = Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "labels.json"
+_READINESS_LIB_DIR = Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts"
 _GITHUB_LEGACY_LABEL_GROUPS = frozenset({"type", "priority"})
+_READINESS_LABELS = frozenset({"ready-to-spec", "needs-info"})
 
 
 STATES = (
@@ -197,6 +199,47 @@ def _validate_prepare_payload(payload: dict[str, Any], platform: str) -> list[st
         if isinstance(labels_applied, list) and isinstance(labels, list):
             if sorted(str(x) for x in labels_applied) != sorted(str(x) for x in labels):
                 errors.append("gcw-issue-prepare remote_sync.labels does not match labels_applied")
+
+    gate = payload.get("gate")
+    if not isinstance(gate, dict):
+        errors.append("gcw-issue-prepare payload.gate is required")
+        return errors
+
+    ready = payload.get("ready")
+    gate_ok = gate.get("ok") is True
+    if isinstance(ready, bool) and ready is not gate_ok:
+        errors.append("gcw-issue-prepare payload.ready must match gate.ok")
+
+    if gate_ok:
+        if not isinstance(remote_sync, dict) or not remote_sync:
+            errors.append("gcw-issue-prepare remote_sync is required when ready is true")
+    else:
+        if not str(payload.get("question", "")).strip():
+            errors.append("gcw-issue-prepare requires question when ready is false")
+        gate_errors = gate.get("errors")
+        if not isinstance(gate_errors, list) or not gate_errors:
+            errors.append("gcw-issue-prepare gate.errors must be non-empty when gate.ok is false")
+
+    if isinstance(labels_applied, list):
+        readiness_labels = [str(label) for label in labels_applied if str(label) in _READINESS_LABELS]
+        expected = "ready-to-spec" if gate_ok else "needs-info"
+        if readiness_labels and expected not in readiness_labels:
+            errors.append(
+                f"gcw-issue-prepare labels_applied must include {expected} for gate.ok={gate_ok}"
+            )
+
+    if _READINESS_LIB_DIR.is_dir():
+        import sys
+
+        scripts_path = str(_READINESS_LIB_DIR)
+        if scripts_path not in sys.path:
+            sys.path.insert(0, scripts_path)
+        try:
+            from readiness_lib import validate_gate_against_rubric
+
+            errors.extend(validate_gate_against_rubric(gate))
+        except ImportError:
+            errors.append("gcw-issue-prepare readiness_lib is unavailable for gate validation")
     return errors
 
 
@@ -251,12 +294,18 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
             errors.append("gcw-issue-prepare missing payload.ready")
         elif not isinstance(payload["ready"], bool):
             errors.append("gcw-issue-prepare payload.ready must be boolean")
-        if payload.get("ready") is False and not str(payload.get("question", "")).strip():
-            errors.append("gcw-issue-prepare requires question when ready is false")
+        if not isinstance(payload.get("gate"), dict):
+            errors.append("gcw-issue-prepare payload.gate is required")
         if not str(payload.get("progress_comment_url", "")).strip():
             errors.append("gcw-issue-prepare requires progress_comment_url")
         if issue_dir is not None:
             errors.extend(_validate_prepare_payload(payload, _intake_platform(issue_dir)))
+        elif isinstance(payload.get("gate"), dict):
+            gate = payload["gate"]
+            if payload.get("ready") is not gate.get("ok"):
+                errors.append("gcw-issue-prepare payload.ready must match gate.ok")
+            if payload.get("ready") is False and not str(payload.get("question", "")).strip():
+                errors.append("gcw-issue-prepare requires question when ready is false")
     elif event_name == "gcw-issue-to-spec":
         if payload.get("planning_commit_pushed") is not True:
             errors.append("gcw-issue-to-spec requires planning_commit_pushed true")
