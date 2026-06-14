@@ -195,7 +195,7 @@ class VerifyGcwRemoteEvidenceTest(unittest.TestCase):
                 "--target",
                 "owner/repo#7",
                 "--progress-comment-url",
-                "https://github.com/owner/repo/issues/42#issuecomment-5",
+                "https://github.com/owner/repo/issues/42#issuecomment-6",
             ],
             check=True,
             text=True,
@@ -233,7 +233,7 @@ class VerifyGcwRemoteEvidenceTest(unittest.TestCase):
                     "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/findings.md",
                     "- https://github.com/owner/repo/blob/feat/example-42/.gcw/issues/42/progress.md",
                     "## Progress Comment",
-                    "https://github.com/owner/repo/issues/42#issuecomment-1",
+                    "https://github.com/owner/repo/issues/42#issuecomment-2",
                     "## Risks",
                     "Low risk; fixture only.",
                 ]

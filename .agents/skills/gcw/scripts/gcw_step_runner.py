@@ -22,7 +22,8 @@ from gcw_workflow_lib import (
 )
 from manage_gcw_workflow import (
     record_implement_check,
-    record_issue_prepare,
+    record_issue_clarify,
+    record_issue_triage,
     record_issue_to_spec,
     record_pr_publish,
     record_pr_review,
@@ -35,7 +36,8 @@ from validate_gcw_evidence import (
 )
 
 SUPPORTED_STEPS = (
-    "gcw-issue-prepare",
+    "gcw-issue-triage",
+    "gcw-issue-clarify",
     "gcw-issue-to-spec",
     "gcw-spec-check",
     "gcw-implement-check",
@@ -282,35 +284,30 @@ class _StepHandler:
         raise NotImplementedError
 
 
-class _PrepareStepHandler(_StepHandler):
-    step = "gcw-issue-prepare"
+class _TriageStepHandler(_StepHandler):
+    step = "gcw-issue-triage"
 
     def validate(self, issue_dir: Path, options: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None]:
-        gate_file = options.get("gate_file")
-        if not gate_file:
+        remote_sync_file = options.get("remote_sync_file")
+        if not remote_sync_file:
             return [], "blocked"
-        gate_path = Path(str(gate_file))
-        if not gate_path.is_file():
+        remote_sync_path = Path(str(remote_sync_file))
+        if not remote_sync_path.is_file():
             return [], "blocked"
-        gate = json.loads(gate_path.read_text(encoding="utf-8"))
-        validation = [_run_validation("prepare_gate", [] if gate.get("ok") else gate.get("errors", ["gate failed"]))]
-        if not gate.get("ok"):
-            return validation, "clarifying" if options.get("ready") is False else "validation_failed"
+        missing = [
+            key
+            for key in ("classification_type", "classification_priority", "labels_applied")
+            if not options.get(key)
+        ]
+        validation = [_run_validation("triage_metadata", missing)]
+        if missing:
+            return validation, "validation_failed"
         return validation, None
 
     def milestone_payload(self, issue_dir: Path, options: dict[str, Any]) -> dict[str, Any]:
-        gate_path = Path(str(options["gate_file"]))
-        if not gate_path.is_file():
-            raise WorkflowError("gate_file does not exist")
-        gate = json.loads(gate_path.read_text(encoding="utf-8"))
-        ready = bool(gate.get("ok")) if options.get("ready") is None else bool(options.get("ready"))
-        payload: dict[str, Any] = {"ready": ready, "gate": gate}
+        payload: dict[str, Any] = {}
         if options.get("summary"):
             payload["summary"] = options["summary"]
-        if options.get("question"):
-            payload["question"] = options["question"]
-        elif not ready:
-            payload["question"] = "Please update the issue so GCW can continue."
         classification: dict[str, Any] = {}
         if options.get("classification_type"):
             classification["type"] = options["classification_type"]
@@ -320,8 +317,8 @@ class _PrepareStepHandler(_StepHandler):
             classification["priority"] = options["classification_priority"]
         if classification:
             payload["classification"] = classification
-        if options.get("labels_applied"):
-            labels = options["labels_applied"]
+        labels = options.get("labels_applied")
+        if labels:
             payload["labels_applied"] = labels if isinstance(labels, list) else [x.strip() for x in str(labels).split(",") if x.strip()]
         remote_sync_file = options.get("remote_sync_file")
         if remote_sync_file and Path(str(remote_sync_file)).is_file():
@@ -339,13 +336,9 @@ class _PrepareStepHandler(_StepHandler):
         options: dict[str, Any],
         milestone_payload: dict[str, Any],
     ) -> None:
-        gate_file = Path(str(options["gate_file"]))
         args = _namespace(
             issue_dir,
-            ready=bool(milestone_payload.get("ready")),
-            gate_file=gate_file,
             progress_comment_url=progress_url,
-            question=str(milestone_payload.get("question", "")),
             summary=str(options.get("summary", "")),
             classification_type=str(milestone_payload.get("classification", {}).get("type", "")),
             classification_area=str(milestone_payload.get("classification", {}).get("area", "")),
@@ -353,7 +346,55 @@ class _PrepareStepHandler(_StepHandler):
             labels_applied=",".join(milestone_payload.get("labels_applied", [])),
             remote_sync_file=Path(str(options["remote_sync_file"])) if options.get("remote_sync_file") else "",
         )
-        record_issue_prepare(args)
+        record_issue_triage(args)
+
+
+class _ClarifyStepHandler(_StepHandler):
+    step = "gcw-issue-clarify"
+
+    def validate(self, issue_dir: Path, options: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None]:
+        gate_file = options.get("gate_file")
+        if not gate_file:
+            return [], "blocked"
+        gate_path = Path(str(gate_file))
+        if not gate_path.is_file():
+            return [], "blocked"
+        gate = json.loads(gate_path.read_text(encoding="utf-8"))
+        validation = [_run_validation("clarify_gate", [] if gate.get("ok") else gate.get("errors", ["gate failed"]))]
+        return validation, None
+
+    def milestone_payload(self, issue_dir: Path, options: dict[str, Any]) -> dict[str, Any]:
+        gate_path = Path(str(options["gate_file"]))
+        if not gate_path.is_file():
+            raise WorkflowError("gate_file does not exist")
+        gate = json.loads(gate_path.read_text(encoding="utf-8"))
+        ready = bool(gate.get("ok")) if options.get("ready") is None else bool(options.get("ready"))
+        payload: dict[str, Any] = {"ready": ready, "gate": gate}
+        if options.get("summary"):
+            payload["summary"] = options["summary"]
+        if options.get("question"):
+            payload["question"] = options["question"]
+        elif not ready:
+            payload["question"] = "Please update the issue so GCW can continue."
+        return payload
+
+    def record(
+        self,
+        issue_dir: Path,
+        progress_url: str,
+        options: dict[str, Any],
+        milestone_payload: dict[str, Any],
+    ) -> None:
+        record_issue_clarify(
+            _namespace(
+                issue_dir,
+                ready=bool(milestone_payload.get("ready")),
+                gate_file=Path(str(options["gate_file"])),
+                progress_comment_url=progress_url,
+                question=str(milestone_payload.get("question", "")),
+                summary=str(options.get("summary", "")),
+            )
+        )
 
 
 class _ToSpecStepHandler(_StepHandler):
@@ -598,7 +639,8 @@ class _PrReviewStepHandler(_StepHandler):
 _STEP_HANDLERS: dict[str, _StepHandler] = {
     handler.step: handler()
     for handler in (
-        _PrepareStepHandler,
+        _TriageStepHandler,
+        _ClarifyStepHandler,
         _ToSpecStepHandler,
         _SpecCheckStepHandler,
         _ImplementCheckStepHandler,

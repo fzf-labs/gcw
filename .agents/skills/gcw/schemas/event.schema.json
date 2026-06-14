@@ -101,6 +101,64 @@
         }
       }
     },
+    "issue_classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["bug", "documentation", "enhancement", "question", "duplicate", "invalid", "wontfix"]
+        },
+        "area": {
+          "type": "string",
+          "enum": ["area:workflow", "area:skills", "area:specs", "area:tests"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["priority:p0", "priority:p1", "priority:p2", "priority:p3"]
+        },
+        "repro": {
+          "type": "string"
+        }
+      }
+    },
+    "remote_sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform"],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": ["github", "gitlab"]
+        },
+        "issue_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "string",
+          "minLength": 1
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "triage_classification": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/issue_classification"
+        },
+        {
+          "type": "object",
+          "required": ["type", "priority"]
+        }
+      ]
+    },
     "implement_gate": {
       "type": "object",
       "additionalProperties": false,
@@ -162,6 +220,8 @@
       "type": "string",
       "enum": [
         "gcw-issue-intake",
+        "gcw-issue-triage",
+        "gcw-issue-clarify",
         "gcw-issue-prepare",
         "gcw-issue-to-spec",
         "gcw-spec-check",
@@ -317,25 +377,7 @@
               "type": "string"
             },
             "classification": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": ["bug", "documentation", "enhancement", "question", "duplicate", "invalid", "wontfix"]
-                },
-                "area": {
-                  "type": "string",
-                  "enum": ["area:workflow", "area:skills", "area:specs", "area:tests"]
-                },
-                "priority": {
-                  "type": "string",
-                  "enum": ["priority:p0", "priority:p1", "priority:p2", "priority:p3"]
-                },
-                "repro": {
-                  "type": "string"
-                }
-              }
+              "$ref": "#/$defs/issue_classification"
             },
             "labels_applied": {
               "type": "array",
@@ -345,30 +387,75 @@
               }
             },
             "remote_sync": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["platform"],
-              "properties": {
-                "platform": {
-                  "type": "string",
-                  "enum": ["github", "gitlab"]
-                },
-                "issue_type": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "priority": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "labels": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
+              "$ref": "#/$defs/remote_sync"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-issue-triage" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["classification", "labels_applied", "remote_sync", "progress_comment_url"],
+          "properties": {
+            "classification": {
+              "$ref": "#/$defs/triage_classification"
+            },
+            "labels_applied": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
               }
+            },
+            "remote_sync": {
+              "$ref": "#/$defs/remote_sync"
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
+            "summary": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": ["event", "payload"],
+      "properties": {
+        "event": { "const": "gcw-issue-clarify" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ready", "progress_comment_url", "gate"],
+          "properties": {
+            "ready": {
+              "type": "boolean"
+            },
+            "gate": {
+              "$ref": "#/$defs/prepare_gate"
+            },
+            "progress_comment_url": {
+              "$ref": "#/$defs/progress_comment_url"
+            },
+            "progress_comment_body_hash": {
+              "$ref": "#/$defs/sha256_hash"
+            },
+            "question": {
+              "type": "string",
+              "minLength": 1
+            },
+            "summary": {
+              "type": "string"
             }
           }
         }

@@ -113,7 +113,7 @@ class GcwSchemaTest(unittest.TestCase):
                 "owner": {"kind": "local", "id": "cursor-session"},
                 "phase": "issue-opened",
                 "last_completed_step": "gcw-issue-intake",
-                "next_allowed_steps": ["gcw-issue-prepare"],
+                "next_allowed_steps": ["gcw-issue-triage"],
                 "refs": {},
             },
             "extra_field": "should_fail",
@@ -126,6 +126,8 @@ class GcwSchemaTest(unittest.TestCase):
         schema = _load_event_schema()
         expected_events = {
             "gcw-issue-intake",
+            "gcw-issue-triage",
+            "gcw-issue-clarify",
             "gcw-issue-prepare",
             "gcw-issue-to-spec",
             "gcw-spec-check",
@@ -143,6 +145,32 @@ class GcwSchemaTest(unittest.TestCase):
             if "event" in branch.get("properties", {})
         }
         self.assertEqual(one_of_events, expected_events)
+
+    @unittest.skipUnless(HAS_JSONSCHEMA, "jsonschema not installed")
+    def test_triage_event_schema_requires_type_and_priority(self) -> None:
+        schema = _load_event_schema()
+        event = _make_valid_event(
+            {
+                "seq": 1,
+                "event": "gcw-issue-triage",
+                "event_id": "gcw-42-001-gcw-issue-triage",
+                "parent": {"expected_last_seq": 0},
+                "payload": {
+                    "classification": {"area": "area:tests"},
+                    "labels_applied": ["triaged", "area:tests"],
+                    "remote_sync": {
+                        "platform": "github",
+                        "issue_type": "Feature",
+                        "priority": "Medium",
+                        "labels": ["triaged", "area:tests"],
+                    },
+                    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
+                },
+            }
+        )
+
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(event, schema)
 
 
 if __name__ == "__main__":

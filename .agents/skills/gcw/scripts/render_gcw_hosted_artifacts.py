@@ -104,7 +104,13 @@ def _context_section(projection: dict[str, Any], owner: dict[str, Any]) -> list[
     ]
 
 
-def _classification_from_prepare(issue_dir: Path) -> dict[str, Any]:
+def _classification_from_triage(issue_dir: Path) -> dict[str, Any]:
+    triage = _event_lookup(issue_dir, "gcw-issue-triage")
+    if triage is not None:
+        payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
+        classification = payload.get("classification")
+        return classification if isinstance(classification, dict) else {}
+
     prepare = _event_lookup(
         issue_dir,
         "gcw-issue-prepare",
@@ -122,7 +128,7 @@ def _classification_from_prepare(issue_dir: Path) -> dict[str, Any]:
 def _triage_lines(issue_dir: Path, phase: str) -> list[str]:
     if phase == "issue-opened":
         return []
-    classification = _classification_from_prepare(issue_dir)
+    classification = _classification_from_triage(issue_dir)
 
     def field(name: str, key: str) -> str:
         value = classification.get(key)
@@ -167,11 +173,13 @@ def _append_section(lines: list[str], title: str, body_lines: list[str]) -> None
     lines.extend(["", title, *body_lines])
 
 
-def _prepare_readiness_lines(issue_dir: Path) -> list[str]:
-    prepare = _event_lookup(issue_dir, "gcw-issue-prepare")
-    if prepare is None:
+def _clarify_readiness_lines(issue_dir: Path) -> list[str]:
+    clarify = _event_lookup(issue_dir, "gcw-issue-clarify")
+    if clarify is None:
+        clarify = _event_lookup(issue_dir, "gcw-issue-prepare")
+    if clarify is None:
         return []
-    payload = prepare.get("payload") if isinstance(prepare.get("payload"), dict) else {}
+    payload = clarify.get("payload") if isinstance(clarify.get("payload"), dict) else {}
     gate = payload.get("gate")
     if not isinstance(gate, dict):
         return []
@@ -201,7 +209,7 @@ def _render_early_progress(
     lines = _progress_header(phase)
     _append_context_and_triage(lines, issue_dir, phase, projection, owner)
     if phase == "ready-for-planning":
-        readiness_lines = _prepare_readiness_lines(issue_dir)
+        readiness_lines = _clarify_readiness_lines(issue_dir)
         _append_section(lines, "## Readiness", readiness_lines or ["- Not recorded."])
     return "\n".join(lines).rstrip() + "\n"
 
@@ -213,12 +221,20 @@ def _render_issue_clarifying(
 ) -> str:
     lines = _progress_header("issue-clarifying")
     _append_context_and_triage(lines, issue_dir, "issue-clarifying", projection, owner)
-    readiness_lines = _prepare_readiness_lines(issue_dir)
+    readiness_lines = _clarify_readiness_lines(issue_dir)
     _append_section(lines, "## Readiness", readiness_lines or ["- Not recorded."])
     question = ""
     clarify = _event_lookup(issue_dir, "gcw-clarify")
     if clarify:
         question = str(clarify.get("payload", {}).get("question", "")).strip()
+    if not question:
+        clarify = _event_lookup(
+            issue_dir,
+            "gcw-issue-clarify",
+            lambda event: event.get("payload", {}).get("ready") is not True,
+        )
+        if clarify:
+            question = str(clarify.get("payload", {}).get("question", "")).strip()
     if not question:
         prepare = _event_lookup(
             issue_dir,

@@ -4,17 +4,12 @@
     "kind": "local"
   },
   "at": "2026-06-13T11:12:08Z",
-  "event": "gcw-issue-prepare",
-  "event_id": "gcw-42-001-gcw-issue-prepare",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-42-002-gcw-issue-clarify",
   "parent": {
-    "expected_last_seq": 0
+    "expected_last_seq": 1
   },
   "payload": {
-    "classification": {
-      "area": "area:tests",
-      "priority": "priority:p2",
-      "type": "enhancement"
-    },
     "gate": {
       "checks": [
         {
@@ -43,29 +38,15 @@
       "profile": "enhancement",
       "rubric_version": "prepare-readiness/v1"
     },
-    "labels_applied": [
-      "triaged",
-      "area:tests",
-      "ready-to-spec"
-    ],
-    "progress_comment_body_hash": "sha256:6be85f31dc819521d6d36e304c5195de397ce57ea4b26bc96eafabdc8feb5a27",
-    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
+    "progress_comment_body_hash": "sha256:136edb30c506bb55056666a09521312272c0ae37b380f49b94739510d9004257",
+    "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
     "ready": true,
-    "remote_sync": {
-      "issue_type": "Feature",
-      "labels": [
-        "triaged",
-        "area:tests",
-        "ready-to-spec"
-      ],
-      "platform": "github",
-      "priority": "Medium"
-    }
+    "summary": "scope clear"
   },
   "refs": {
     "branch": "feat/example-42",
-    "issue": 42
+    "issue": "42"
   },
   "schema": "gcw.event/v1",
-  "seq": 1
+  "seq": 2
 }

@@ -34,7 +34,7 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 - **观察**：平台上应出现的产物
 - **状态**：`workflow.json` 投影中的 `phase`（或由 Issue 评论中的 `<!-- gcw-progress -->` 块反映）
 
-进度评论以 HTML 注释 `<!-- gcw-progress -->` 开头，便于人与 agent 在 Issue 时间线中定位 GCW 状态。**每个主步骤完成时新发一条评论，禁止编辑旧评论**；`workflow.json` 的 `refs.progress_comment_url` 始终指向最新一条。首条结构化进度评论在 `gcw-issue-prepare` 完成时发出；`gcw-issue-intake` 仍只读不写。
+进度评论以 HTML 注释 `<!-- gcw-progress -->` 开头，便于人与 agent 在 Issue 时间线中定位 GCW 状态。**每个主步骤完成时新发一条评论，禁止编辑旧评论**；`workflow.json` 的 `refs.progress_comment_url` 始终指向最新一条。首条结构化进度评论在 `gcw-issue-triage` 完成时发出；`gcw-issue-intake` 只写本地 GCW 事件，不发 Issue 评论。
 
 每种 `GCW Status` 只展示该阶段相关的段落，而不是把所有字段塞进同一条评论：
 
@@ -64,22 +64,32 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 | | |
 | --- | --- |
 | **执行** | 在 Cursor 等 IDE 中：`/gcw 3`，或运行 `gcw-issue-intake` skill |
-| **观察** | 对话中记录 Issue URL、编号、标题；尚无 issue 分支 |
+| **观察** | 创建/切换 `gcw/issue-3`；出现 `.gcw/issues/3/events/000-gcw-issue-intake.json` 与 `workflow.json`；尚无 spec files |
 | **状态** | `issue-opened` |
 
-Intake 只读 Issue，不创建分支、不写 spec。事件持久化在创建 issue 分支后追加到 `events/000-gcw-issue-intake.json`。
+Intake 读取 Issue、创建 issue 分支并持久化第一条事件；不创建 `task_plan.md` / `findings.md` / `progress.md`，也不发进度评论。
 
-## 步骤 2：`gcw-issue-prepare`
+## 步骤 2：`gcw-issue-triage`
 
 | | |
 | --- | --- |
-| **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-prepare` |
-| **观察** | Issue 上出现 triage 标签（如 `documentation`、`triaged`、`ready-to-spec`）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-prepare.json` |
+| **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-triage` |
+| **观察** | Issue 上出现 triage 标签/字段（如 `triaged`、`area:*`、Issue Type、Priority）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-triage.json` |
+| **状态** | `issue-triaged` |
+
+Triage 只负责分类与远端 metadata 同步，不判断需求是否清楚。
+
+## 步骤 3：`gcw-issue-clarify`
+
+| | |
+| --- | --- |
+| **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-clarify` |
+| **观察** | 新发 `<!-- gcw-progress -->` 评论；`events/002-gcw-issue-clarify.json` 包含 readiness gate |
 | **状态** | `ready-for-planning` 或 `issue-clarifying` |
 
-Prepare 负责分类与打标签，运行 structural readiness gate，并发布首条结构化进度评论。信息不足时停在 `issue-clarifying` 并打 `needs-info`；澄清问题也写入 `gcw-progress` 格式，不再单独发非结构化评论。
+Clarify 运行 structural readiness gate。信息不足时停在 `issue-clarifying`；澄清问题写入 `gcw-progress` 的 `## Clarification` 段落。
 
-## 步骤 3：`gcw-issue-to-spec`
+## 步骤 4：`gcw-issue-to-spec`
 
 | | |
 | --- | --- |
@@ -87,35 +97,35 @@ Prepare 负责分类与打标签，运行 structural readiness gate，并发布�
 | **观察** | 分支上有 `.gcw/issues/3/task_plan.md` 等；[进度评论](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697976894) 显示 `GCW Status: planned` |
 | **状态** | `planned` |
 
-## 步骤 4：`gcw-spec-check`
+## 步骤 5：`gcw-spec-check`
 
 | | |
 | --- | --- |
 | **执行** | `gcw-spec-check`：校验 spec 已推送、评论已链接、内容可实施 |
-| **观察** | `events/003-gcw-spec-check.json`；[新发进度评论](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697978196) 为 `ready-for-implementation` |
+| **观察** | `events/004-gcw-spec-check.json`；[新发进度评论](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697978196) 为 `ready-for-implementation` |
 | **状态** | `ready-for-implementation` |
 
 未通过则回到 `issue-clarifying`，spec 草稿保留。
 
-## 步骤 5：`gcw-implement`
+## 步骤 6：`gcw-implement`
 
 | | |
 | --- | --- |
 | **执行** | `gcw-implement`：按 `task_plan.md` 修改代码与文档、补测试 |
-| **观察** | 根目录出现 `README.md` 等实现提交；`events/004-gcw-implement.json` |
+| **观察** | 根目录出现 `README.md` 等实现提交；`events/005-gcw-implement.json` |
 | **状态** | `implementing` |
 
 Issue #3 的交付物是 [README.md](https://github.com/fzf-labs/gcw/blob/gcw/issue-3/README.md)。
 
-## 步骤 6：`gcw-implement-check`
+## 步骤 7：`gcw-implement-check`
 
 | | |
 | --- | --- |
 | **执行** | `gcw-implement-check`：检查 diff 边界、验证结果、风险，写入 implement-check 事件 payload |
-| **观察** | `events/005-gcw-implement-check.json` 含 `gate.ok: true` |
+| **观察** | `events/006-gcw-implement-check.json` 含 `gate.ok: true` |
 | **状态** | `ready-for-review` |
 
-## 步骤 7：`gcw-pr-publish`
+## 步骤 8：`gcw-pr-publish`
 
 | | |
 | --- | --- |
@@ -123,12 +133,12 @@ Issue #3 的交付物是 [README.md](https://github.com/fzf-labs/gcw/blob/gcw/is
 | **观察** | [PR #4](https://github.com/fzf-labs/gcw/pull/4) 创建，body 含 Issue 链接与 summary |
 | **状态** | `reviewing` |
 
-## 步骤 8：`gcw-pr-review`
+## 步骤 9：`gcw-pr-review`
 
 | | |
 | --- | --- |
 | **执行** | `gcw-pr-review`（主要由 Action 执行）：触发 CI、静态检查、汇总 review |
-| **观察** | PR checks 结果；`events/007-gcw-pr-review.json` |
+| **观察** | PR checks 结果；`events/008-gcw-pr-review.json` |
 | **状态** | `reviewing`、`changes-requested` 或 `blocked` |
 
 自动检查通过后仍为 `reviewing`，继续等待人类 reviewer。

@@ -3,8 +3,8 @@
 Executes one milestone step end-to-end: validate projection routing, run step
 gates, publish hosted artifacts, then record the workflow event.
 
-Supported steps: gcw-issue-prepare, gcw-issue-to-spec, gcw-spec-check,
-gcw-implement-check, gcw-pr-publish, gcw-pr-review.
+Supported steps: gcw-issue-triage, gcw-issue-clarify, gcw-issue-to-spec,
+gcw-spec-check, gcw-implement-check, gcw-pr-publish, gcw-pr-review.
 
 Example::
 

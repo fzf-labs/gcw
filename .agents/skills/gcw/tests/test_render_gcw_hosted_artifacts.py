@@ -153,7 +153,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--target",
             "owner/repo#7",
             "--progress-comment-url",
-            progress_comment_url(5),
+            progress_comment_url(6),
         )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
@@ -177,7 +177,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("python3 -m unittest discover -s .agents/skills/gcw/tests", result.stdout)
         self.assertIn("passed", result.stdout)
         self.assertIn("Low risk; fixture only.", result.stdout)
-        self.assertIn(progress_comment_url(4), result.stdout)
+        self.assertIn(progress_comment_url(5), result.stdout)
 
     def test_render_progress_comment_includes_active_feedback_when_present(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
@@ -193,7 +193,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--target",
             "owner/repo#7",
             "--progress-comment-url",
-            progress_comment_url(5),
+            progress_comment_url(6),
         )
         self.run_manager(
             "record-pr-review",
@@ -204,7 +204,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
             "--reason",
             "Hosted apply workflow owns the next transition.",
             "--progress-comment-url",
-            progress_comment_url(6),
+            progress_comment_url(7),
         )
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
@@ -219,7 +219,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
     def test_render_review_request_adds_closes_from_projection_when_issue_link_is_url(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        event_path = issue_dir / "events/005-gcw-implement-check.json"
+        event_path = issue_dir / "events/006-gcw-implement-check.json"
         event = json.loads(event_path.read_text(encoding="utf-8"))
         event["payload"]["review_request"]["issue_link"] = "https://github.com/owner/repo/issues/42"
         event_path.write_text(json.dumps(event, indent=2), encoding="utf-8")
@@ -234,7 +234,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
     def test_render_review_request_includes_optional_scope_and_reviewer_notes(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        event_path = issue_dir / "events/005-gcw-implement-check.json"
+        event_path = issue_dir / "events/006-gcw-implement-check.json"
         event = json.loads(event_path.read_text(encoding="utf-8"))
         event["payload"]["scope"] = "Only the example module."
         event["payload"]["reviewer_notes"] = "Focus on the state transitions."

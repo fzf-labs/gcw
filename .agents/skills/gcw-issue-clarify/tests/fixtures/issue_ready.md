@@ -6,7 +6,7 @@ Add hard validation for GCW events and workflow projections.
 
 - [ ] Event schema validation rejects invalid payloads
 - [ ] Projection rebuild matches event log
-- [ ] prepare-check verifies remote triage metadata
+- [ ] issue-clarify-check verifies readiness metadata
 
 ## Notes
 

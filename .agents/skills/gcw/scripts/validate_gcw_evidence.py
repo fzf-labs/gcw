@@ -18,10 +18,9 @@ from gcw_workflow_lib import (
 from publish_progress_comment import body_hash
 from render_gcw_hosted_artifacts import render_recorded_progress_comment
 
-VERIFY_REMOTE_TRIAGE = (
-    Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts" / "verify_remote_triage.py"
-)
-_READINESS_LIB_DIR = Path(__file__).resolve().parents[2] / "gcw-issue-prepare" / "scripts"
+_SKILLS_DIR = Path(__file__).resolve().parents[2]
+VERIFY_REMOTE_TRIAGE = _SKILLS_DIR / "gcw-issue-triage" / "scripts" / "verify_remote_triage.py"
+_READINESS_LIB_DIR = _SKILLS_DIR / "gcw-issue-clarify" / "scripts"
 
 
 def require_non_empty(data: dict[str, Any], key: str, errors: list[str], prefix: str = "") -> None:
@@ -164,6 +163,42 @@ def _prepare_gate_consistency_errors(payload: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _triage_payload_errors(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    classification = payload.get("classification")
+    if not isinstance(classification, dict) or not classification:
+        errors.append("gcw-issue-triage classification is required")
+    labels_applied = payload.get("labels_applied")
+    if not isinstance(labels_applied, list) or not labels_applied:
+        errors.append("gcw-issue-triage labels_applied must be a non-empty array")
+    remote_sync = payload.get("remote_sync")
+    if not isinstance(remote_sync, dict) or not remote_sync:
+        errors.append("gcw-issue-triage remote_sync is required")
+    if not str(payload.get("progress_comment_url", "")).strip():
+        errors.append("gcw-issue-triage progress_comment_url is required")
+    return errors
+
+
+def _clarify_payload_errors(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    gate = payload.get("gate")
+    if not isinstance(gate, dict):
+        errors.append("gcw-issue-clarify gate is required")
+        return errors
+    if "ok" not in gate or not isinstance(gate["ok"], bool):
+        errors.append("gcw-issue-clarify gate.ok must be boolean")
+    ready = payload.get("ready")
+    if not isinstance(ready, bool):
+        errors.append("gcw-issue-clarify ready must be boolean")
+    elif ready is not gate.get("ok"):
+        errors.append("gcw-issue-clarify ready does not match gate.ok")
+    if not str(payload.get("progress_comment_url", "")).strip():
+        errors.append("gcw-issue-clarify progress_comment_url is required")
+    if not ready and not str(payload.get("question", "")).strip():
+        errors.append("gcw-issue-clarify requires question when ready is false")
+    return errors
+
+
 def _prepare_gate_body_errors(issue_dir: Path, gate: dict[str, Any]) -> list[str]:
     intake_path = issue_dir / "events" / "000-gcw-issue-intake.json"
     if not intake_path.is_file():
@@ -255,6 +290,43 @@ def prepare_check_errors(issue_dir: Path) -> list[str]:
             except json.JSONDecodeError:
                 output = {"errors": [result.stderr or result.stdout or "verify_remote_triage failed"]}
             errors.extend(output.get("errors", []))
+    return errors
+
+
+def triage_check_errors(issue_dir: Path) -> list[str]:
+    errors = workflow_errors(issue_dir)
+    if errors:
+        return errors
+    projection = assert_projection_current(issue_dir)["projection"]
+    if projection.get("phase") != "issue-triaged":
+        errors.append("triage-check requires phase issue-triaged")
+    latest = find_latest_event(issue_dir, "gcw-issue-triage")
+    if latest is None:
+        errors.append("no gcw-issue-triage event found")
+        return errors
+    payload = latest.get("payload", {}) if isinstance(latest.get("payload"), dict) else {}
+    errors.extend(_triage_payload_errors(payload))
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-triage"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-issue-triage"))
+    errors.extend(_refs_match_latest_progress_comment(issue_dir, "gcw-issue-triage"))
+    return errors
+
+
+def issue_clarify_check_errors(issue_dir: Path) -> list[str]:
+    errors = workflow_errors(issue_dir)
+    if errors:
+        return errors
+    projection = assert_projection_current(issue_dir)["projection"]
+    if projection.get("phase") not in ("ready-for-planning", "issue-clarifying"):
+        errors.append("issue-clarify-check requires phase ready-for-planning or issue-clarifying")
+    latest = find_latest_event(issue_dir, "gcw-issue-clarify")
+    if latest is None:
+        errors.append("no gcw-issue-clarify event found")
+        return errors
+    payload = latest.get("payload", {}) if isinstance(latest.get("payload"), dict) else {}
+    errors.extend(_clarify_payload_errors(payload))
+    errors.extend(_latest_milestone_progress_comment_errors(issue_dir, "gcw-issue-clarify"))
+    errors.extend(_progress_comment_body_hash_errors(issue_dir, "gcw-issue-clarify"))
     return errors
 
 
@@ -397,6 +469,8 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
     check_map = {
         "workflow": workflow_errors,
         "prepare-check": prepare_check_errors,
+        "triage-check": triage_check_errors,
+        "issue-clarify-check": issue_clarify_check_errors,
         "spec-check": spec_check_errors,
         "implement-check": implement_check_errors,
         "pr-publish": pr_publish_errors,
@@ -418,7 +492,7 @@ def run_check(args: argparse.Namespace) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate GCW event logs and projections.")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for command in ("workflow", "prepare-check", "spec-check", "implement-check", "pr-publish", "review-check", "block-check", "clarify-check"):
+    for command in ("workflow", "prepare-check", "triage-check", "issue-clarify-check", "spec-check", "implement-check", "pr-publish", "review-check", "block-check", "clarify-check"):
         subparser = subparsers.add_parser(command)
         subparser.add_argument("--issue-dir", required=True, type=Path)
         subparser.set_defaults(handler=run_check)

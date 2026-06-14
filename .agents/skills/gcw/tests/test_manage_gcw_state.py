@@ -9,7 +9,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from gcw_test_helpers import file_sha, planning_shas, prepare_record_cli_args, progress_comment_url
+from gcw_test_helpers import (
+    clarify_record_cli_args,
+    file_sha,
+    planning_shas,
+    prepare_record_cli_args,
+    progress_comment_url,
+    triage_record_cli_args,
+)
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -85,7 +92,8 @@ class ManageGcwStateTest(unittest.TestCase):
             "cursor-session",
         )
         if state != "issue-opened":
-            self.run_manager(*prepare_record_cli_args(self.issue_dir, seq=0, ready=True))
+            self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
+            self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=True))
         if state == "implementing":
             self.write_planning_files()
             self.record_issue_to_spec()
@@ -176,7 +184,8 @@ class ManageGcwStateTest(unittest.TestCase):
 
     def test_main_path_reaches_reviewing(self) -> None:
         self.init()
-        self.run_manager(*prepare_record_cli_args(self.issue_dir, seq=0, ready=True))
+        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
+        self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=True))
         self.write_planning_files()
         self.record_issue_to_spec()
         self.run_manager(
@@ -186,7 +195,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "--result",
             "passed",
             "--progress-comment-url",
-            progress_comment_url(2),
+            progress_comment_url(3),
         )
         self.run_manager(
             "record-implement",
@@ -195,7 +204,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "--work-summary",
             "Implemented.",
             "--progress-comment-url",
-            progress_comment_url(3),
+            progress_comment_url(4),
         )
         payload = self.issue_dir / "implement-check-payload.json"
         payload.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
@@ -206,7 +215,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "--payload-file",
             str(payload),
             "--progress-comment-url",
-            progress_comment_url(4),
+            progress_comment_url(5),
         )
         self.run_manager(
             "record-pr-publish",
@@ -219,7 +228,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "--target",
             "owner/repo#7",
             "--progress-comment-url",
-            progress_comment_url(5),
+            progress_comment_url(6),
         )
 
         projection = self.workflow()["projection"]
@@ -227,6 +236,23 @@ class ManageGcwStateTest(unittest.TestCase):
         self.assertEqual(projection["last_completed_step"], "gcw-pr-publish")
         self.assertEqual(projection["next_allowed_steps"], ["gcw-pr-review"])
         self.assertEqual(self.events()[-1]["payload"]["effects"][0]["status"], "applied")
+
+    def test_legacy_prepare_command_remains_supported(self) -> None:
+        self.init()
+        self.run_manager(*prepare_record_cli_args(self.issue_dir, seq=0, ready=True))
+        projection = self.workflow()["projection"]
+        self.assertEqual(projection["phase"], "ready-for-planning")
+        self.assertEqual(projection["last_completed_step"], "gcw-issue-prepare")
+        self.assertEqual(projection["next_allowed_steps"], ["gcw-issue-to-spec"])
+
+    def test_clarify_not_ready_records_issue_clarifying(self) -> None:
+        self.init()
+        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
+        self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=False))
+        projection = self.workflow()["projection"]
+        self.assertEqual(projection["phase"], "issue-clarifying")
+        self.assertEqual(projection["last_completed_step"], "gcw-issue-clarify")
+        self.assertEqual(projection["next_allowed_steps"], ["gcw-issue-clarify"])
 
     def test_changes_requested_preserves_feedback_source(self) -> None:
         self.init("reviewing")

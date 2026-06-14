@@ -139,7 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--milestone-event",
         default="",
-        help="Milestone event name to render as if already recorded (e.g. gcw-issue-prepare).",
+        help="Milestone event name to render as if already recorded (e.g. gcw-issue-triage).",
     )
     parser.add_argument(
         "--milestone-payload-file",

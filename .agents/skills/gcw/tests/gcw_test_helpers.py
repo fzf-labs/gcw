@@ -92,6 +92,52 @@ def prepare_event_payload(
     return payload
 
 
+def triage_event_payload(
+    *,
+    progress_comment_url: str,
+    labels: list[str] | None = None,
+    **extra: object,
+) -> dict:
+    labels = labels or ["triaged", "area:tests"]
+    payload: dict = {
+        "classification": {
+            "type": "enhancement",
+            "area": "area:tests",
+            "priority": "priority:p2",
+        },
+        "labels_applied": labels,
+        "remote_sync": {
+            "platform": "github",
+            "issue_type": "Feature",
+            "priority": "Medium",
+            "labels": labels,
+        },
+        "progress_comment_url": progress_comment_url,
+    }
+    payload.update(extra)
+    return payload
+
+
+def clarify_event_payload(
+    *,
+    ready: bool,
+    progress_comment_url: str,
+    **extra: object,
+) -> dict:
+    gate = PREPARE_GATE_OK if ready else PREPARE_GATE_FAIL
+    payload: dict = {
+        "ready": ready,
+        "gate": gate,
+        "progress_comment_url": progress_comment_url,
+    }
+    if ready:
+        payload["summary"] = "scope clear"
+    else:
+        payload["question"] = "Please update the issue with acceptance criteria and remove placeholders."
+    payload.update(extra)
+    return payload
+
+
 def write_prepare_gate_file(path: Path, *, ready: bool = True) -> Path:
     gate = PREPARE_GATE_OK if ready else PREPARE_GATE_FAIL
     path.write_text(json.dumps(gate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -145,4 +191,53 @@ def prepare_record_cli_args(
         args.extend(["--question", "Please update the issue with acceptance criteria and remove placeholders."])
     return args
 
+
+def triage_record_cli_args(
+    issue_dir: Path,
+    *,
+    seq: int = 0,
+    labels: list[str] | None = None,
+) -> list[str]:
+    labels = labels or ["triaged", "area:tests"]
+    remote_sync_file = write_remote_sync_file(issue_dir / "remote-sync.json", labels)
+    return [
+        "record-issue-triage",
+        "--issue-dir",
+        str(issue_dir),
+        "--progress-comment-url",
+        progress_comment_url(seq),
+        "--classification-type",
+        "enhancement",
+        "--classification-area",
+        "area:tests",
+        "--classification-priority",
+        "priority:p2",
+        "--labels-applied",
+        ",".join(labels),
+        "--remote-sync-file",
+        str(remote_sync_file),
+    ]
+
+
+def clarify_record_cli_args(
+    issue_dir: Path,
+    *,
+    seq: int = 1,
+    ready: bool = True,
+) -> list[str]:
+    gate_file = write_prepare_gate_file(issue_dir / "clarify-gate.json", ready=ready)
+    args = [
+        "record-issue-clarify",
+        "--issue-dir",
+        str(issue_dir),
+        "--gate-file",
+        str(gate_file),
+        "--progress-comment-url",
+        progress_comment_url(seq),
+    ]
+    if ready:
+        args.extend(["--ready", "--summary", "scope clear"])
+    else:
+        args.extend(["--question", "Please update the issue with acceptance criteria and remove placeholders."])
+    return args
 

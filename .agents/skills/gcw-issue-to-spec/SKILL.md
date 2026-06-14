@@ -5,7 +5,7 @@ description: Convert a ready GCW issue into an issue branch with GCW event log a
 
 # GCW Issue To Spec
 
-Use this after `gcw-issue-prepare` moves the workflow to `ready-for-planning`.
+Use this after `gcw-issue-clarify` moves the workflow to `ready-for-planning`.
 
 ## Scope
 
