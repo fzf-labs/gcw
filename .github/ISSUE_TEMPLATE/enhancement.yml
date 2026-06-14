@@ -1,0 +1,59 @@
+name: Enhancement
+description: 新能力或文档 / 流程改进（对齐 GCW issue-template）
+title: "[Enhancement]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请填写下列各节，结构需与 [issue-template.md](https://github.com/fzf-labs/gcw/blob/master/.agents/skills/issue-create/issue-template.md) 一致，以便 `gcw-issue-prepare` 通过 structural readiness gate。
+  - type: markdown
+    attributes:
+      value: |
+        ## What to build
+  - type: textarea
+    id: what-to-build
+    attributes:
+      label: ""
+      description: 端到端行为或交付结果；描述完整切片，不要写成按层拆的实现清单。
+      placeholder: Describe the complete outcome when this work is done.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ## Acceptance criteria
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: ""
+      description: 至少一条 `- [ ]` 检查项。
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        ## Notes
+  - type: textarea
+    id: notes
+    attributes:
+      label: ""
+      description: 约束、决策、参考或未知项；无则留空。
+      placeholder: Optional constraints or references.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        ## Blocked by
+  - type: textarea
+    id: blocked-by
+    attributes:
+      label: ""
+      description: 无阻塞时填写 `None - can start immediately`。
+      placeholder: None - can start immediately
+    validations:
+      required: false

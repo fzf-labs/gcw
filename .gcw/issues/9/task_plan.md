@@ -14,7 +14,7 @@
 
 ## Current Phase
 
-Phase 1
+Phase 5
 
 ## Phases
 
@@ -27,45 +27,40 @@ Phase 1
 
 ### Phase 2: CONTRIBUTING.md
 
-- [ ] 新增 `CONTRIBUTING.md`，与 `docs/quickstart.md` 互补而非重复
-- [ ] 覆盖：skill 安装路径、常用测试命令、GCW 分支约定（`gcw/issue-<n>`）、提 Issue / PR 基本要求
-- [ ] 在 `README.md` 增加指向 `CONTRIBUTING.md` 的链接
-- **Status:** pending
+- [x] 新增 `CONTRIBUTING.md`，与 `docs/quickstart.md` 互补而非重复
+- [x] 覆盖：skill 安装路径、常用测试命令、GCW 分支约定（`gcw/issue-<n>`）、提 Issue / PR 基本要求
+- [x] 在 `README.md` 增加指向 `CONTRIBUTING.md` 的链接
+- **Status:** complete
 
 ### Phase 3: GitHub Issue Form
 
-- [ ] 新增 `.github/ISSUE_TEMPLATE/config.yml`（禁用空白 Issue 或引导使用模板）
-- [ ] 新增 Issue Form（YAML），字段映射 `issue-template.md` 四节：
-  - What to build
-  - Acceptance criteria（textarea，引导 `- [ ]` 列表）
-  - Notes（可选）
-  - Blocked by
-- [ ] 本地用 `evaluate_issue_readiness.py --profile enhancement` 验证表单生成的正文结构
-- **Status:** pending
+- [x] 新增 `.github/ISSUE_TEMPLATE/config.yml`（禁用空白 Issue）
+- [x] 新增 Issue Form（YAML），字段映射 `issue-template.md` 四节
+- [x] fixture + 单元测试验证 `enhancement` readiness profile
+- **Status:** complete
 
 ### Phase 4: Labels sync（可选）
 
-- [ ] 评估是否新增 GitHub Actions workflow，调用 `manage_triage_metadata.py sync`
-- [ ] 若实现：文档化触发方式（manual `workflow_dispatch` 或 PR 路径过滤）
-- [ ] 若跳过：在 `CONTRIBUTING.md` 或 `findings.md` 记录原因与手动 sync 命令
-- **Status:** pending
+- [x] 新增 `workflow_dispatch` job：`.github/workflows/gcw-labels-sync.yml`
+- [x] 在 `CONTRIBUTING.md` 文档化手动 sync 与 Actions 触发方式
+- **Status:** complete
 
 ### Phase 5: Testing & Verification
 
-- [ ] `python3 -m unittest discover -s .agents/skills/gcw/tests`
-- [ ] 用 Issue Form 草稿或 fixture 正文跑 readiness gate
-- [ ] 检查 `README.md` / `CONTRIBUTING.md` 链接可达
-- **Status:** pending
+- [x] `python3 -m unittest discover -s .agents/skills/gcw/tests`
+- [x] `python3 -m unittest discover -s .agents/skills/gcw-issue-prepare/tests`
+- [x] Issue Form fixture 通过 readiness gate
+- **Status:** complete
 
 ### Phase 6: Delivery
 
 - [ ] `gcw-implement-check` → `gcw-pr-publish` → `gcw-pr-review`
-- **Status:** pending
+- **Status:** in progress
 
 ## Key Questions
 
 1. Issue Form 用单一「Enhancement」模板还是再分 Bug / Documentation？——首期单一表单对齐 `enhancement` profile 即可。
-2. Labels sync CI 是否本 PR 必做？——Issue 标为可选；默认实现 `workflow_dispatch` 最小 job，失败不阻塞主交付。
+2. Labels sync CI 是否本 PR 必做？——已实现可选 `workflow_dispatch`。
 
 ## Decisions Made
 

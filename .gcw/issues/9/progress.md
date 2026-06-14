@@ -5,36 +5,46 @@
 ### Phase 1: Requirements & Discovery
 
 - **Status:** complete
+- Actions taken:
+  - `gcw-issue-intake` → `gcw-issue-prepare`（澄清后 gate 通过）→ `gcw-issue-to-spec` → `gcw-spec-check`
+- Files: `.gcw/issues/9/events/`, spec files on `gcw/issue-9`
+
+### Phase 2–4: Implementation
+
+- **Status:** complete
 - **Started:** 2026-06-14
 - Actions taken:
-  - 执行 `gcw-issue-intake`，接入 Issue #9
-  - 首次 `gcw-issue-prepare` 因 Issue 结构不足进入 `issue-clarifying`
-  - 补充 Issue 正文（What to build / Acceptance criteria 等）
-  - 重新 `gcw-issue-prepare`，gate 通过，状态 `ready-for-planning`
-  - 执行 `gcw-issue-to-spec`，创建 `gcw/issue-9` 分支与 spec files
+  - 记录 `gcw-implement` 事件
+  - 新增 `CONTRIBUTING.md`、`.github/ISSUE_TEMPLATE/`、`.github/workflows/gcw-labels-sync.yml`
+  - 更新 `README.md` 导航
+  - 新增 Issue Form fixture 与 readiness 测试
 - Files created/modified:
-  - `.gcw/issues/9/events/` (intake, prepare ×2)
-  - `.gcw/issues/9/task_plan.md` (created)
-  - `.gcw/issues/9/findings.md` (created)
-  - `.gcw/issues/9/progress.md` (created)
+  - `CONTRIBUTING.md` (created)
+  - `.github/ISSUE_TEMPLATE/config.yml` (created)
+  - `.github/ISSUE_TEMPLATE/enhancement.yml` (created)
+  - `.github/workflows/gcw-labels-sync.yml` (created)
+  - `README.md` (updated)
+  - `.agents/skills/gcw-issue-prepare/tests/fixtures/github_issue_form_body.md` (created)
+  - `.agents/skills/gcw-issue-prepare/tests/test_readiness_lib.py` (updated)
+  - `.gcw/issues/9/task_plan.md` (updated)
 
-### Phase 2–6: Implementation
+### Phase 5–6: Delivery
 
-- **Status:** pending
+- **Status:** in progress
 - Actions taken:
-  - （待 `gcw-implement`）
-- Files created/modified:
-  - （待实现）
+  - （待 implement-check / PR publish）
 
 ## Test Results
 
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | prepare gate | Issue #9 body | `gate.ok: true` | passed | ✓ |
-| unit tests | — | — | — | pending |
+| issue form fixture | `github_issue_form_body.md` | `gate.ok: true` | passed | ✓ |
+| gcw unit tests | `.agents/skills/gcw/tests` | pass | 63 passed | ✓ |
+| prepare tests | `gcw-issue-prepare/tests` | pass | 12 passed | ✓ |
 
 ## Error Log
 
 | Timestamp | Error | Attempt | Resolution |
 |-----------|-------|---------|------------|
-| 2026-06-14 | prepare gate: missing What to build | intake | 更新 Issue 正文 |
+| 2026-06-14 | prepare gate: missing sections | intake | 更新 Issue 正文 |

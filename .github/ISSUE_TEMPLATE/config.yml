@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GCW Quickstart
+    url: https://github.com/fzf-labs/gcw/blob/master/docs/quickstart.md
+    about: 跟着 Issue #3 走一遍 GCW 端到端流程
+  - name: Contributing guide
+    url: https://github.com/fzf-labs/gcw/blob/master/CONTRIBUTING.md
+    about: 环境、测试、分支约定与提 Issue / PR 说明
