@@ -1,0 +1,20 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T09:35:25Z",
+  "event": "gcw-pr-review",
+  "event_id": "gcw-unknown-007-gcw-pr-review",
+  "parent": {
+    "expected_last_seq": 6
+  },
+  "payload": {
+    "feedback_source": "pr-review",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/11#issuecomment-4701347399",
+    "result": "passed"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 7
+}
