@@ -1,0 +1,64 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T14:50:44Z",
+  "event": "gcw-implement-check",
+  "event_id": "gcw-12-006-gcw-implement-check",
+  "parent": {
+    "expected_last_seq": 5
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "diff_boundary",
+          "ok": true
+        },
+        {
+          "id": "implementation_readiness",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "validation": [
+        {
+          "command": "python3 -m unittest discover -s .agents/skills/gcw/tests",
+          "exit_code": 0,
+          "result": "passed"
+        }
+      ]
+    },
+    "planning_links": {
+      "findings": "https://github.com/fzf-labs/gcw/blob/gcw/issue-12/.gcw/issues/12/findings.md",
+      "progress": "https://github.com/fzf-labs/gcw/blob/gcw/issue-12/.gcw/issues/12/progress.md",
+      "task_plan": "https://github.com/fzf-labs/gcw/blob/gcw/issue-12/.gcw/issues/12/task_plan.md"
+    },
+    "progress_comment_body_hash": "sha256:b3b770bb815b0f9978574e822f128d03c5a1319488fd0ebc379ce6f6facf80a1",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/12#issuecomment-4702095355",
+    "review_request": {
+      "issue_link": "Closes #12",
+      "summary": "Adds hosted GitHub Actions entrypoints for GCW milestones 2\u20139: shared `gcw-setup` composite action, `prepare_gcw_hosted_step.py` phase gate, eight `gcw-*.yml` workflows (triage through pr-review), and YAML validation tests. Mutating steps delegate to existing `run_gcw_step.py` / `manage_gcw_workflow.py`; gate steps run `validate_gcw_evidence.py`.",
+      "title": "feat(gcw): add hosted GitHub Actions workflows for steps 2-9"
+    },
+    "reviewer_notes": "Verify `dry_run` paths on each workflow and confirm phase gating via `prepare_gcw_hosted_step.py` matches `workflow.json` phases.",
+    "risks": "Workflow files that modify `.github/workflows/` may require elevated token permissions in consumer repos; `gcw-implement-check` and `gcw-pr-publish` expect a pre-built payload file / PR URL at dispatch time.",
+    "scope": "Hosted automation only; does not embed in-runner LLM agents. Docs update (workflow.md / quickstart.md) deferred to a follow-up within the issue spec.",
+    "self_review": {
+      "progress_section": "## Local Self-Review",
+      "recorded": true
+    },
+    "spec_refs": {
+      "findings_sha": "sha256:6df4662021413219fa4b778a58eb6483148dd08e4fc53facfe1eb396c02ad7d1",
+      "progress_sha": "sha256:84e81b54cd9aab4a19f046ae7aa3f9cf0145a0c6eb3e4f0eea0fe4b85d2c7914",
+      "task_plan_sha": "sha256:99a85a1495c3020d4cdcd3137597490215bfe3b2430be00d30f6f42b125a4a01"
+    }
+  },
+  "refs": {
+    "branch": "gcw/issue-12",
+    "issue": "12"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 6
+}

@@ -10,7 +10,14 @@
 - Generated initial spec files (`task_plan.md`, `findings.md`, `progress.md`).
 - Completed `gcw-issue-to-spec` and `gcw-spec-check` → `ready-for-implementation`.
 
-### 2026-06-14 — Hosted workflow implementation
+## Local Self-Review
+
+- Diff reviewed: `.github/workflows/gcw-*.yml`, `.github/actions/gcw-setup`, `.github/scripts/prepare_gcw_hosted_step.py`, `test_gcw_hosted_workflows.py`, issue #12 GCW artifacts.
+- Validation performed: `python3 -m unittest discover -s .agents/skills/gcw/tests` (89 tests, passed).
+- Planning state checked: `task_plan.md`, `findings.md`, `progress.md` updated for steps 2–9 scope and implementation log.
+- Commit boundaries checked: implementation isolated to hosted workflow deliverable; no unrelated product code.
+- Risks and reviewer notes recorded in implement-check payload.
+
 
 - Recorded `gcw-implement` milestone; phase is `implementing`.
 - Added `.github/actions/gcw-setup` composite action.
