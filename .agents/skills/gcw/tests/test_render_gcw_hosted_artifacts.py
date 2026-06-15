@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[4]
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
+sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
+from render_gcw_hosted_artifacts import render_recorded_progress_comment  # noqa: E402
 
 _FAKE_BODY_HASH = "sha256:" + "a" * 64
 
@@ -166,6 +168,41 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("- Request: https://github.com/owner/repo/pull/7", result.stdout)
         self.assertNotIn("## Planning files", result.stdout)
         self.assertNotIn("## Readiness", result.stdout)
+
+    def test_render_recorded_pr_publish_omits_later_pr_review(self) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/46"
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        self.run_manager(
+            "record-pr-publish",
+            "--issue-dir",
+            str(issue_dir),
+            "--review-request-url",
+            "https://github.com/owner/repo/pull/7",
+            "--body-hash",
+            _FAKE_BODY_HASH,
+            "--target",
+            "owner/repo#7",
+            "--progress-comment-url",
+            progress_comment_url(6),
+        )
+        self.run_manager(
+            "record-pr-review",
+            "--issue-dir",
+            str(issue_dir),
+            "--result",
+            "passed",
+            "--progress-comment-url",
+            progress_comment_url(7),
+        )
+        pr_publish = json.loads(
+            list((issue_dir / "events").glob("*gcw-pr-publish*.json"))[0].read_text(encoding="utf-8")
+        )
+
+        rendered = render_recorded_progress_comment(issue_dir, pr_publish)
+
+        self.assertIn("GCW Status: reviewing", rendered)
+        self.assertIn("- Request: https://github.com/owner/repo/pull/7", rendered)
+        self.assertNotIn("Automatic review", rendered)
 
     def test_render_review_request_body_includes_implement_check_event_payload(self) -> None:
         result = self.run_render("review-request", "--issue-dir", str(COMPLETE_FIXTURE))

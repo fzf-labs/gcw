@@ -456,6 +456,12 @@ def validate_event_log(issue_dir: Path) -> list[str]:
     return errors
 
 
+def _default_actor() -> dict[str, str]:
+    kind = os.environ.get("GCW_ACTOR_KIND", "local").strip() or "local"
+    actor_id = os.environ.get("GCW_ACTOR_ID", "unknown").strip() or "unknown"
+    return {"kind": kind, "id": actor_id}
+
+
 def append_event(
     issue_dir: Path,
     event: dict[str, Any],
@@ -482,7 +488,7 @@ def append_event(
     event["seq"] = seq
     event["event_id"] = event.get("event_id", f"gcw-{_issue_from_event(event)}-{seq:03d}-{event_name}")
     event["at"] = event.get("at", _now())
-    event.setdefault("actor", {"kind": "local", "id": "unknown"})
+    event.setdefault("actor", _default_actor())
     parent.setdefault("expected_last_seq", current_last_seq)
     event.setdefault("refs", {})
     event.setdefault("payload", {})
@@ -754,8 +760,12 @@ def find_latest_event(
     issue_dir: Path,
     event_name: str,
     predicate: Callable[[dict[str, Any]], bool] | None = None,
+    max_seq: int | None = None,
 ) -> dict[str, Any] | None:
     for event in reversed(load_events(issue_dir)):
+        seq = event.get("seq")
+        if max_seq is not None and isinstance(seq, int) and seq > max_seq:
+            continue
         if event.get("event") != event_name:
             continue
         if predicate is None or predicate(event):

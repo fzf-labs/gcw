@@ -44,6 +44,28 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 | `gcw-pr-publish` | `gcw-pr-publish.yml` | `gcw:run-pr-publish` |
 | `gcw-pr-review` | `gcw-pr-review.yml` | `gcw:run-pr-review` |
 
+### Executor labels（hosted 总开关）
+
+Hosted workflow **仅在** Issue 带有 **`gcw:executor-hosted`** 时才会运行（含 `pull_request: synchronize` 与 `gcw:run-*` 触发）。
+
+| Label | 行为 |
+| --- | --- |
+| `gcw:executor-hosted` | 允许 hosted Action 执行（仍受 phase 与 idempotent gate 约束） |
+| `gcw:executor-local` | 所有 hosted workflow 跳过 |
+| （均无） | 默认视为 local，不自动跑 Action |
+
+`gcw:run-*` 只决定**跑哪一步**；必须与 `gcw:executor-hosted` 同时存在才生效。本地 agent 启动 GCW 时应在 triage 打上 `gcw:executor-local`。
+
+### Local vs hosted 职责
+
+| 步骤 | 默认（local） | Hosted（`gcw:executor-hosted`） |
+| --- | --- | --- |
+| intake → spec-check | Agent 本地 | 可选 Action |
+| implement → pr-publish | Agent 本地 | 可选 Action |
+| `gcw-pr-review` | **不**由本地 agent 记录 | Action 负责自动 review gate |
+
+`prepare_gcw_hosted_step.py` 在 phase gate 之外还会：检查 executor label、跳过已完成步骤，并对已通过的 `gcw-pr-review` 仅运行 `review-check` 校验（`run_mode=verify-only`）。
+
 典型自动触发流程：
 
 1. 本地或 Action 完成 `gcw-issue-clarify` → phase 为 `ready-for-planning`
@@ -97,8 +119,8 @@ python .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py progress-comment
 
 | 现象 | 可能原因 |
 | --- | --- |
-| Workflow 被 skip | Job 级 `if` 未满足 label/assign/mention 契约 |
-| `should_run=false` | `workflow.json` phase 与步骤不匹配 |
+| Workflow 被 skip | Job 级 `if` 未满足 label/assign/mention 契约，或缺少 `gcw:executor-hosted` |
+| `should_run=false` | `workflow.json` phase 与步骤不匹配，或步骤已完成 / 被后续步骤取代 |
 | `OPENAI_API_ENDPOINT is not set` | 未配置 Variable |
 | codex 成功但 milestone 失败 | planning 文件路径不对或未通过 `test -f` |
 | push 失败 | `GITHUB_TOKEN` 无 `contents: write` 或分支保护 |

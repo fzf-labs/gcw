@@ -108,6 +108,18 @@
       "color": "C2E0C6",
       "description": "Reviewed and categorized"
     },
+    "gcw:executor-hosted": {
+      "group": "executor",
+      "platforms": ["github", "gitlab"],
+      "color": "0E8A16",
+      "description": "Allow hosted GitHub Actions to run GCW steps"
+    },
+    "gcw:executor-local": {
+      "group": "executor",
+      "platforms": ["github", "gitlab"],
+      "color": "FEF2C0",
+      "description": "GCW steps run locally; hosted Actions skip"
+    },
     "good first issue": {
       "group": "optional",
       "platforms": ["github", "gitlab"],

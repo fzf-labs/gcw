@@ -51,3 +51,4 @@ Require:
 
 - Use `gcw-clarify` semantics and stop in `issue-clarifying` if the Issue needs more information.
 - Use `gcw-block` semantics and stop in `blocked` if permissions, dependencies, tests, infrastructure, or external services prevent progress.
+- Do not record `gcw-pr-review` while the issue carries `gcw:executor-local`; stop after `gcw-pr-publish` and let hosted review run when the label is switched to `gcw:executor-hosted`.

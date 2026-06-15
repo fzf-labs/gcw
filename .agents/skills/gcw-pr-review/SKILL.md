@@ -60,3 +60,4 @@ python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-review \
 
 - Stop in `blocked` if PR/MR metadata, diff, CI results, or artifacts cannot be accessed.
 - Stop in `changes-requested` if automatic review finds issues that require implementation changes.
+- When the issue has `gcw:executor-local` (or no `gcw:executor-hosted`), do not record `gcw-pr-review` locally; the hosted Action owns the automatic review gate.

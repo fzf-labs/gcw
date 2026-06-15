@@ -28,13 +28,27 @@ Run: https://github.com/fzf-labs/gcw/actions/runs/27544543786/job/81414441511
 ## Proposed Gate Logic
 
 ```text
+resolve_trigger(step, event):
+  if issue lacks gcw:executor-hosted → should_trigger=false
+  if event is pull_request synchronize → only if gcw:executor-hosted
+  if event is gcw:run-* / label / assign / comment → only if gcw:executor-hosted
+
 prepare(step):
+  if issue lacks gcw:executor-hosted → should_run=false
   if phase not in allowed → skip
   if last_completed_step == step → skip (idempotent)
   if later main-flow step recorded → skip
   if step == gcw-pr-review and passing pr-review exists → run_mode=verify-only
   else → run_mode=full
 ```
+
+## Label vs actor.kind
+
+| Mechanism | Role |
+| --- | --- |
+| `gcw:executor-hosted` / `gcw:executor-local` | **Intent** on the Issue; gates whether Actions may run at all |
+| `gcw:run-*` | **Which step** to run (only when hosted executor is active) |
+| event `actor.kind` | **Audit** of who recorded each milestone after the fact |
 
 ## Risks
 

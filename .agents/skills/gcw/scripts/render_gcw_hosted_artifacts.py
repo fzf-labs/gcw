@@ -34,6 +34,14 @@ def milestone_render_context(overlay_event: dict[str, Any] | None) -> Iterator[N
         _overlay_event.reset(token)
 
 
+def _max_render_seq() -> int | None:
+    overlay = _overlay_event.get()
+    if overlay is None:
+        return None
+    seq = overlay.get("seq")
+    return seq if isinstance(seq, int) else None
+
+
 def _event_lookup(
     issue_dir: Path,
     event_name: str,
@@ -43,7 +51,7 @@ def _event_lookup(
     if overlay is not None and overlay.get("event") == event_name:
         if predicate is None or predicate(overlay):
             return overlay
-    return find_latest_event(issue_dir, event_name, predicate)
+    return find_latest_event(issue_dir, event_name, predicate, max_seq=_max_render_seq())
 
 
 def load_json(path: Path) -> dict[str, Any]:
