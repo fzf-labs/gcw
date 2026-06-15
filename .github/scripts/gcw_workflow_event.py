@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from gcw_executor_gate import executor_gate_reason, fetch_issue_labels_github
+
 # Trigger label per hosted step (see docs/hosted-agent.md).
 STEP_TRIGGER_LABELS: dict[str, str] = {
     "gcw-issue-triage": "gcw:run-triage",
@@ -54,7 +56,7 @@ def comment_mentions_agent(comment_body: str, agent_login: str) -> bool:
     if not login:
         return False
     body = comment_body or ""
-    return f"@{login}" in body or f"/gcw" in body.lower()
+    return f"@{login}" in body or "/gcw" in body.lower()
 
 
 def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tuple[bool, str]:
@@ -68,6 +70,10 @@ def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tupl
     labels = label_names(issue)
     assignees = assignee_logins(issue)
     agent = agent_login.strip().lstrip("@")
+
+    allowed, gate_reason = executor_gate_reason(labels)
+    if not allowed:
+        return False, gate_reason
 
     if event_name == "issues" and action == "labeled":
         label = event.get("label") if isinstance(event.get("label"), dict) else {}
@@ -95,6 +101,27 @@ def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tupl
     return False, f"unsupported event {event_name}:{action}"
 
 
+def apply_executor_gate(
+    result: dict[str, Any],
+    *,
+    labels: list[str] | None,
+    repo: str,
+    issue_number: str,
+) -> dict[str, Any]:
+    if not result.get("should_trigger"):
+        return result
+    resolved_labels = list(labels or [])
+    if not resolved_labels and repo.strip() and issue_number.strip():
+        resolved_labels = fetch_issue_labels_github(repo, issue_number)
+    allowed, gate_reason = executor_gate_reason(resolved_labels)
+    if allowed:
+        return result
+    updated = dict(result)
+    updated["should_trigger"] = False
+    updated["trigger_reason"] = gate_reason
+    return updated
+
+
 def resolve(
     *,
     step: str,
@@ -104,15 +131,18 @@ def resolve(
     dispatch_issue_branch: str,
     dispatch_dry_run: str,
     agent_login: str,
+    repo: str,
 ) -> dict[str, Any]:
     if event_name == "workflow_dispatch":
-        return {
-            "should_trigger": True,
-            "trigger_reason": "workflow_dispatch",
-            "issue_number": dispatch_issue_number.strip(),
+        issue_number = dispatch_issue_number.strip()
+        result = {
+            "should_trigger": bool(issue_number),
+            "trigger_reason": "workflow_dispatch" if issue_number else "workflow_dispatch missing issue_number",
+            "issue_number": issue_number,
             "issue_branch": dispatch_issue_branch.strip(),
             "dry_run": dispatch_dry_run.strip().lower() in {"1", "true", "yes"},
         }
+        return apply_executor_gate(result, labels=None, repo=repo, issue_number=issue_number)
 
     event = load_event(event_path)
     if event_name == "pull_request":
@@ -121,13 +151,15 @@ def resolve(
         issue_number = ""
         if head_ref.startswith("gcw/issue-"):
             issue_number = head_ref.removeprefix("gcw/issue-")
-        return {
+        result = {
             "should_trigger": bool(issue_number),
             "trigger_reason": "pull_request synchronize on gcw/issue branch",
             "issue_number": issue_number,
             "issue_branch": head_ref,
             "dry_run": False,
         }
+        return apply_executor_gate(result, labels=None, repo=repo, issue_number=issue_number)
+
     payload = {
         "event_name": event_name,
         "action": event.get("action", ""),
@@ -140,13 +172,14 @@ def resolve(
     ok, reason = should_run_event(step, {**payload, "event_name": event_name}, agent_login)
     issue = payload["issue"] if isinstance(payload["issue"], dict) else {}
     number = str(issue.get("number", "")).strip()
-    return {
+    result = {
         "should_trigger": ok,
         "trigger_reason": reason,
         "issue_number": number,
         "issue_branch": "",
         "dry_run": False,
     }
+    return apply_executor_gate(result, labels=label_names(issue), repo=repo, issue_number=number)
 
 
 def write_github_output(path: str | None, result: dict[str, Any]) -> None:
@@ -169,6 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dispatch-issue-number", default="")
     parser.add_argument("--dispatch-issue-branch", default="")
     parser.add_argument("--dispatch-dry-run", default="false")
+    parser.add_argument("--repo", default="")
     parser.add_argument("--github-output", default="")
     return parser
 
@@ -181,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     agent_login = args.agent_login or os.environ.get("AGENT_LOGIN", "")
+    repo = args.repo.strip() or os.environ.get("GITHUB_REPOSITORY", "").strip()
     result = resolve(
         step=args.step,
         event_name=args.event_name,
@@ -189,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         dispatch_issue_branch=args.dispatch_issue_branch,
         dispatch_dry_run=args.dispatch_dry_run,
         agent_login=agent_login,
+        repo=repo,
     )
     write_github_output(args.github_output or os.environ.get("GITHUB_OUTPUT"), result)
     print(json.dumps(result, indent=2, sort_keys=True))

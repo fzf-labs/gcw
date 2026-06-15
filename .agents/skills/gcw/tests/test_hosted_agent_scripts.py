@@ -12,6 +12,7 @@ SCRIPTS = ROOT / ".github" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from finalize_gcw_hosted_step import commit_push, has_changes  # noqa: E402
+from gcw_executor_gate import EXECUTOR_HOSTED, EXECUTOR_LOCAL  # noqa: E402
 from gcw_workflow_event import resolve, should_run_event  # noqa: E402
 from prepare_issue_handoff_context import issue_branch, prepare as prepare_handoff  # noqa: E402
 from validate_handoff_json import validate  # noqa: E402
@@ -24,7 +25,13 @@ class GcwWorkflowEventTest(unittest.TestCase):
             {
                 "event_name": "issues",
                 "action": "labeled",
-                "issue": {"labels": [{"name": "gcw:ready-for-planning"}], "assignees": [{"login": "gcw-bot"}]},
+                "issue": {
+                    "labels": [
+                        {"name": "gcw:ready-for-planning"},
+                        {"name": EXECUTOR_HOSTED},
+                    ],
+                    "assignees": [{"login": "gcw-bot"}],
+                },
                 "label": {"name": "gcw:ready-for-planning"},
                 "pull_request": None,
             },
@@ -33,7 +40,26 @@ class GcwWorkflowEventTest(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("gcw:ready-for-planning", reason)
 
-    def test_dispatch_resolve_defaults(self) -> None:
+    def test_should_not_run_without_executor_hosted(self) -> None:
+        ok, reason = should_run_event(
+            "gcw-issue-to-spec",
+            {
+                "event_name": "issues",
+                "action": "labeled",
+                "issue": {
+                    "labels": [{"name": "gcw:ready-for-planning"}, {"name": EXECUTOR_LOCAL}],
+                    "assignees": [{"login": "gcw-bot"}],
+                },
+                "label": {"name": "gcw:ready-for-planning"},
+                "pull_request": None,
+            },
+            "gcw-bot",
+        )
+        self.assertFalse(ok)
+        self.assertIn(EXECUTOR_LOCAL, reason)
+
+    @patch("gcw_workflow_event.fetch_issue_labels_github", return_value=["gcw:executor-hosted"])
+    def test_dispatch_resolve_requires_executor_hosted(self, _fetch) -> None:
         result = resolve(
             step="gcw-issue-to-spec",
             event_name="workflow_dispatch",
@@ -42,10 +68,26 @@ class GcwWorkflowEventTest(unittest.TestCase):
             dispatch_issue_branch="",
             dispatch_dry_run="false",
             agent_login="",
+            repo="owner/repo",
         )
         self.assertTrue(result["should_trigger"])
         self.assertEqual(result["issue_number"], "12")
         self.assertNotIn("execution_mode", result)
+
+    @patch("gcw_workflow_event.fetch_issue_labels_github", return_value=["gcw:executor-local"])
+    def test_dispatch_resolve_blocks_without_executor_hosted(self, _fetch) -> None:
+        result = resolve(
+            step="gcw-issue-to-spec",
+            event_name="workflow_dispatch",
+            event_path="",
+            dispatch_issue_number="12",
+            dispatch_issue_branch="",
+            dispatch_dry_run="false",
+            agent_login="",
+            repo="owner/repo",
+        )
+        self.assertFalse(result["should_trigger"])
+        self.assertIn(EXECUTOR_LOCAL, result["trigger_reason"])
 
 
 class ValidateHandoffJsonTest(unittest.TestCase):

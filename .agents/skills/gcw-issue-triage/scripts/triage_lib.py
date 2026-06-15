@@ -8,7 +8,7 @@ from typing import Any
 SKILL_DIR = Path(__file__).resolve().parents[1]
 LABELS_FILE = SKILL_DIR / "labels.json"
 MAPPINGS_FILE = SKILL_DIR / "triage_mappings.json"
-GROUPS_WITH_SINGLE_VALUE = {"type", "area", "priority", "readiness", "triage"}
+GROUPS_WITH_SINGLE_VALUE = {"type", "area", "priority", "readiness", "triage", "executor"}
 GITHUB_LEGACY_LABEL_GROUPS = {"type", "priority"}
 GITHUB_API_VERSION = "2026-03-10"
 

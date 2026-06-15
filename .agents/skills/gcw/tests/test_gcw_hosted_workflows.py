@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 import tempfile
 import unittest
+import shutil
 from pathlib import Path
 
 import yaml
@@ -12,8 +15,10 @@ ROOT = Path(__file__).resolve().parents[4]
 WORKFLOWS = ROOT / ".github" / "workflows"
 SCRIPTS = ROOT / ".github" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
 from prepare_gcw_hosted_step import prepare  # noqa: E402
+from gcw_executor_gate import EXECUTOR_HOSTED, EXECUTOR_LOCAL  # noqa: E402
 
 
 EXPECTED_WORKFLOWS = {
@@ -164,19 +169,128 @@ class PrepareHostedStepTest(unittest.TestCase):
         issue_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
         projection = json.loads((issue_dir / "workflow.json").read_text(encoding="utf-8"))
         projection["projection"]["phase"] = "implementing"
+        projection["projection"]["last_completed_step"] = "gcw-implement"
+        projection["projection"]["next_allowed_steps"] = ["gcw-implement", "gcw-implement-check"]
         with tempfile.TemporaryDirectory() as temp_root:
             temp_dir = Path(temp_root) / "prepare-implement"
             temp_dir.mkdir(parents=True, exist_ok=True)
             (temp_dir / "workflow.json").write_text(json.dumps(projection, indent=2) + "\n", encoding="utf-8")
-            result = prepare("gcw-implement", temp_dir, "99", "gcw/issue-99")
+            shutil.copytree(issue_dir / "events", temp_dir / "events")
+            result = prepare("gcw-implement", temp_dir, "99", "gcw/issue-99", issue_labels=[EXECUTOR_HOSTED])
             self.assertTrue(result["should_run"])
             self.assertEqual(result["issue_branch"], "gcw/issue-99")
 
     def test_prepare_blocks_spec_check_while_implementing(self) -> None:
+        issue_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
+        projection = json.loads((issue_dir / "workflow.json").read_text(encoding="utf-8"))
+        projection["projection"]["phase"] = "implementing"
+        projection["projection"]["last_completed_step"] = "gcw-implement"
+        with tempfile.TemporaryDirectory() as temp_root:
+            temp_dir = Path(temp_root) / "prepare-spec-check"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            (temp_dir / "workflow.json").write_text(json.dumps(projection, indent=2) + "\n", encoding="utf-8")
+            shutil.copytree(issue_dir / "events", temp_dir / "events")
+            result = prepare("gcw-spec-check", temp_dir, "99", "", issue_labels=[EXECUTOR_HOSTED])
+            self.assertFalse(result["should_run"])
+            self.assertIn("superseded", result["skip_reason"])
+
+    def test_prepare_blocks_without_executor_hosted(self) -> None:
         issue_dir = ROOT / ".gcw/issues/12"
-        result = prepare("gcw-spec-check", issue_dir, "12", "")
+        result = prepare(
+            "gcw-spec-check",
+            issue_dir,
+            "12",
+            "",
+            issue_labels=[EXECUTOR_LOCAL],
+        )
         self.assertFalse(result["should_run"])
-        self.assertIn("planned", result["skip_reason"])
+        self.assertIn(EXECUTOR_LOCAL, result["skip_reason"])
+
+    def test_prepare_allows_implement_with_executor_hosted(self) -> None:
+        issue_dir = ROOT / ".gcw/issues/17"
+        result = prepare(
+            "gcw-implement",
+            issue_dir,
+            "17",
+            "",
+            issue_labels=[EXECUTOR_HOSTED],
+        )
+        self.assertTrue(result["should_run"])
+        self.assertEqual(result["executor_gate"], EXECUTOR_HOSTED)
+
+    def test_prepare_pr_review_verify_only_when_already_passed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / "issue"
+            shutil.copytree(ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue", issue_dir)
+            from manage_gcw_workflow import main as manage_main  # noqa: E402
+
+            def run_manager(*args: str) -> None:
+                manage_main(list(args))
+
+            run_manager(
+                "record-pr-publish",
+                "--issue-dir",
+                str(issue_dir),
+                "--review-request-url",
+                "https://github.com/owner/repo/pull/7",
+                "--body-hash",
+                "sha256:" + "a" * 64,
+                "--target",
+                "owner/repo#7",
+                "--progress-comment-url",
+                "https://github.com/owner/repo/issues/42#issuecomment-6",
+            )
+            run_manager(
+                "record-pr-review",
+                "--issue-dir",
+                str(issue_dir),
+                "--result",
+                "passed",
+                "--progress-comment-url",
+                "https://github.com/owner/repo/issues/42#issuecomment-7",
+            )
+            result = prepare(
+                "gcw-pr-review",
+                issue_dir,
+                "42",
+                "",
+                issue_labels=[EXECUTOR_HOSTED],
+            )
+        self.assertTrue(result["should_run"])
+        self.assertEqual(result["run_mode"], "verify-only")
+        self.assertEqual(result["validate_command"], "review-check")
+        self.assertFalse(result["record_step"])
+
+    def test_prepare_skips_completed_step(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / "issue"
+            shutil.copytree(ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue", issue_dir)
+            from manage_gcw_workflow import main as manage_main  # noqa: E402
+
+            manage_main(
+                [
+                    "record-pr-publish",
+                    "--issue-dir",
+                    str(issue_dir),
+                    "--review-request-url",
+                    "https://github.com/owner/repo/pull/7",
+                    "--body-hash",
+                    "sha256:" + "a" * 64,
+                    "--target",
+                    "owner/repo#7",
+                    "--progress-comment-url",
+                    "https://github.com/owner/repo/issues/42#issuecomment-6",
+                ]
+            )
+            result = prepare(
+                "gcw-pr-publish",
+                issue_dir,
+                "42",
+                "",
+                issue_labels=[EXECUTOR_HOSTED],
+            )
+        self.assertFalse(result["should_run"])
+        self.assertIn("already completed", result["skip_reason"])
 
 
 if __name__ == "__main__":

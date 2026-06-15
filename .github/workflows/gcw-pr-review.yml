@@ -117,11 +117,25 @@ jobs:
             --issue-dir ".gcw/issues/$issue_number"
 
       - name: Validate pr-publish evidence
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true'
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.prepare.outputs.validate_command == 'pr-publish'
         run: |
           issue_number="${{ steps.event.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py pr-publish \
+            --issue-dir ".gcw/issues/$issue_number"
+
+      - name: Validate review-check evidence
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.prepare.outputs.validate_command == 'review-check'
+        run: |
+          issue_number="${{ steps.event.outputs.issue_number }}"
+          if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py review-check \
             --issue-dir ".gcw/issues/$issue_number"
 
       - name: Optional AI review summary
@@ -142,9 +156,12 @@ jobs:
         if: >-
           steps.event.outputs.should_trigger == 'true' &&
           steps.prepare.outputs.should_run == 'true' &&
+          steps.prepare.outputs.run_mode == 'full' &&
           steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          GCW_ACTOR_KIND: github-actions
+          GCW_ACTOR_ID: github-actions
         run: |
           issue_number="${{ steps.event.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
@@ -167,7 +184,11 @@ jobs:
             --options-file /tmp/pr_review_options.json
 
       - name: Push GCW workflow state
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.prepare.outputs.record_step == 'true' &&
+          steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
