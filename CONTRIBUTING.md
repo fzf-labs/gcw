@@ -74,6 +74,10 @@ python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
 
 也可在 GitHub Actions 中手动触发 **GCW Labels Sync** workflow（`workflow_dispatch`），见 `.github/workflows/gcw-labels-sync.yml`。
 
+## Hosted Agent（GitHub Actions）
+
+在仓库中配置 `OPENAI_API_KEY`（Secret）、`OPENAI_API_ENDPOINT` 与 `AGENT_LOGIN`（Variables）后，可为 Issue 打上 trigger label（如 `gcw:ready-for-planning`）触发托管 agent。详见 [docs/hosted-agent.md](docs/hosted-agent.md)。
+
 ## 文档语言
 
 Markdown 文档正文使用中文；专有名词、命令、路径与配置键保留英文。详见仓库文档规范。

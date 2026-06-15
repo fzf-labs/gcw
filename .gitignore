@@ -2,3 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# GCW runtime handoff/test artifacts
+.gcw-runtime*/

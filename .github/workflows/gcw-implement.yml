@@ -4,90 +4,161 @@ on:
   workflow_dispatch:
     inputs:
       issue_number:
-        description: GitHub issue number
         required: true
       issue_branch:
-        description: Issue branch (default gcw/issue-<number>)
         required: false
         default: ""
       dry_run:
-        description: Validate only; do not record milestone
         type: boolean
         default: false
-      work_summary:
-        description: Summary of the implementation advance (handoff from local agent)
-        required: true
       feedback_source:
-        description: Optional feedback source when resuming from changes-requested
         required: false
         default: ""
       feedback_ref:
-        description: Optional feedback reference URL or id
         required: false
         default: ""
+  issues:
+    types: [labeled, assigned]
+  issue_comment:
+    types: [created]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
-  group: gcw-implement-${{ inputs.issue_number }}
+  group: gcw-implement-${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   implement:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.pull_request == null &&
+        (
+          (github.event_name == 'issue_comment' && vars.AGENT_LOGIN != '' && contains(github.event.comment.body, format('@{0}', vars.AGENT_LOGIN)) && contains(github.event.issue.labels.*.name, 'gcw:run-implement')) ||
+          (github.event.action == 'labeled' && github.event.label.name == 'gcw:run-implement' && (vars.AGENT_LOGIN == '' || contains(github.event.issue.assignees.*.login, vars.AGENT_LOGIN))) ||
+          (github.event.action == 'assigned' && github.event.assignee.login == vars.AGENT_LOGIN && contains(github.event.issue.labels.*.name, 'gcw:run-implement'))
+        )
+      )
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve workflow inputs
+        id: event
+        env:
+          AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
+        run: |
+          python3 .github/scripts/gcw_workflow_event.py \
+            --step gcw-implement \
+            --event-name "${{ github.event_name }}" \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --agent-login "$AGENT_LOGIN" \
+            --dispatch-issue-number "${{ inputs.issue_number || '' }}" \
+            --dispatch-issue-branch "${{ inputs.issue_branch || '' }}" \
+            --dispatch-dry-run "${{ inputs.dry_run || false }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Stop when event does not match trigger contract
+        if: steps.event.outputs.should_trigger != 'true'
+        run: echo "${{ steps.event.outputs.trigger_reason }}"
+
       - name: Checkout issue branch
+        if: steps.event.outputs.should_trigger == 'true'
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+          ref: ${{ steps.event.outputs.issue_branch != '' && steps.event.outputs.issue_branch || format('gcw/issue-{0}', steps.event.outputs.issue_number) }}
+          fetch-depth: 0
 
       - name: Prepare hosted step
+        if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
           python3 .github/scripts/prepare_gcw_hosted_step.py \
             --step gcw-implement \
-            --issue-number "${{ inputs.issue_number }}" \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
-            --issue-branch "${{ inputs.issue_branch }}" \
+            --issue-number "${{ steps.event.outputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-branch "${{ steps.event.outputs.issue_branch }}" \
             --github-output "$GITHUB_OUTPUT"
 
-      - name: Report skip
-        if: steps.prepare.outputs.should_run != 'true'
+      - name: Report phase skip
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run != 'true'
         run: echo "${{ steps.prepare.outputs.skip_reason }}"
 
       - name: Validate workflow evidence
-        if: steps.prepare.outputs.should_run == 'true'
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true'
         run: |
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}"
 
-      - name: Record GCW implement milestone
-        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+      - name: Prepare issue handoff context
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 - <<'PY' > /tmp/implement_milestone.json
-          import json
-          print(json.dumps({"work_summary": """${{ inputs.work_summary }}"""}))
-          PY
-          result="$(python3 .agents/skills/gcw/scripts/publish_progress_comment.py \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
-            --milestone-event gcw-implement \
-            --milestone-payload-file /tmp/implement_milestone.json)"
-          url="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["progress_comment_url"])' <<<"$result")"
-          args=(
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
-            --work-summary "${{ inputs.work_summary }}"
-            --progress-comment-url "$url"
-          )
-          feedback_source="${{ inputs.feedback_source }}"
-          feedback_ref="${{ inputs.feedback_ref }}"
-          if [ -n "$feedback_source" ]; then
-            args+=(--feedback-source "$feedback_source")
-          fi
-          if [ -n "$feedback_ref" ]; then
-            args+=(--feedback-ref "$feedback_ref")
-          fi
-          python3 .agents/skills/gcw/scripts/manage_gcw_workflow.py record-implement "${args[@]}"
+          python3 .github/scripts/prepare_issue_handoff_context.py \
+            --repo "${{ github.repository }}" \
+            --issue "${{ steps.event.outputs.issue_number }}" \
+            --step gcw-implement \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-branch "${{ steps.prepare.outputs.issue_branch }}"
+
+      - name: Implement with Codex
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
+        uses: ./.github/actions/gcw-run-codex
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          handoff_dir: .gcw-runtime/handoff
+          prompt: |
+            Implement the GCW issue per task_plan.md and .agents/skills/gcw-implement/SKILL.md.
+            Use issue_context.json and issue_comments.txt for context.
+            Write code and tests only; do not run git/gh.
+            Write .gcw-runtime/handoff/implement_summary.json with key work_summary describing changes.
+
+      - name: Commit and push implementation
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push-all \
+            --message "feat(gcw): implement issue #${{ steps.event.outputs.issue_number }}" \
+            --branch "${{ steps.prepare.outputs.issue_branch }}" \
+            --exclude .gcw-runtime
+
+      - name: Record GCW implement milestone
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/validate_handoff_json.py \
+            --name implement_summary.json \
+            --path .gcw-runtime/handoff/implement_summary.json
+          python3 .github/scripts/record_implement_milestone.py \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --feedback-source "${{ inputs.feedback_source }}" \
+            --feedback-ref "${{ inputs.feedback_ref }}"
+
+      - name: Push GCW workflow state
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
+          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+            --paths "$issue_dir/events" "$issue_dir/workflow.json" \
+            --message "gcw(${{ steps.event.outputs.issue_number }}): record implementation" \
+            --branch "${{ steps.prepare.outputs.issue_branch }}"

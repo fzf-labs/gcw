@@ -11,7 +11,7 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 - IDE 中已启用 GCW skills（`/gcw` 或各 `gcw-*` step skill）
 - 了解：spec files 写在 issue 分支的 `.gcw/issues/<issue-id>/`，通过 Issue 评论链接，而不是写入 Issue 正文
 
-**关于 Action**：`gcw-issue-intake` 没有对应 Action workflow；其余步骤可由本地 agent 执行，也可由 GitHub Actions / GitLab CI 承接。
+**关于 Action**：`gcw-issue-intake` 没有对应 Action workflow；其余步骤支持 **Hosted agent execution**（runner 内 `openai/codex-action` + 事件触发）。见 [Hosted Agent](hosted-agent.md)。
 
 ## 示例 Issue 一览
 

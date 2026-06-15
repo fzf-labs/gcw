@@ -14,56 +14,190 @@ on:
         description: Validate planning files only; do not record milestone
         type: boolean
         default: false
+  issues:
+    types: [labeled, assigned]
+  issue_comment:
+    types: [created]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
-  group: gcw-issue-to-spec-${{ inputs.issue_number }}
+  group: gcw-issue-to-spec-${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   to-spec:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.pull_request == null &&
+        (
+          (github.event_name == 'issue_comment' && vars.AGENT_LOGIN != '' && contains(github.event.comment.body, format('@{0}', vars.AGENT_LOGIN)) && contains(github.event.issue.labels.*.name, 'gcw:ready-for-planning')) ||
+          (github.event.action == 'labeled' && github.event.label.name == 'gcw:ready-for-planning' && (vars.AGENT_LOGIN == '' || contains(github.event.issue.assignees.*.login, vars.AGENT_LOGIN))) ||
+          (github.event.action == 'assigned' && github.event.assignee.login == vars.AGENT_LOGIN && contains(github.event.issue.labels.*.name, 'gcw:ready-for-planning'))
+        )
+      )
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      PYTHONDONTWRITEBYTECODE: "1"
+
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve workflow inputs
+        id: event
+        env:
+          AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
+        run: |
+          python3 .github/scripts/gcw_workflow_event.py \
+            --step gcw-issue-to-spec \
+            --event-name "${{ github.event_name }}" \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --agent-login "$AGENT_LOGIN" \
+            --dispatch-issue-number "${{ inputs.issue_number || '' }}" \
+            --dispatch-issue-branch "${{ inputs.issue_branch || '' }}" \
+            --dispatch-dry-run "${{ inputs.dry_run || false }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Stop when event does not match trigger contract
+        if: steps.event.outputs.should_trigger != 'true'
+        run: echo "${{ steps.event.outputs.trigger_reason }}"
+
       - name: Checkout issue branch
+        if: steps.event.outputs.should_trigger == 'true'
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+          ref: ${{ steps.event.outputs.issue_branch != '' && steps.event.outputs.issue_branch || format('gcw/issue-{0}', steps.event.outputs.issue_number) }}
+          fetch-depth: 0
 
       - name: Prepare hosted step
+        if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
           python3 .github/scripts/prepare_gcw_hosted_step.py \
             --step gcw-issue-to-spec \
-            --issue-number "${{ inputs.issue_number }}" \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
-            --issue-branch "${{ inputs.issue_branch }}" \
+            --issue-number "${{ steps.event.outputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-branch "${{ steps.event.outputs.issue_branch }}" \
             --github-output "$GITHUB_OUTPUT"
 
-      - name: Report skip
-        if: steps.prepare.outputs.should_run != 'true'
+      - name: Report phase skip
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run != 'true'
         run: echo "${{ steps.prepare.outputs.skip_reason }}"
 
-      - name: Verify planning files exist
-        if: steps.prepare.outputs.should_run == 'true'
+      - name: Prepare issue handoff context
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true'
+        id: handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          issue_dir=".gcw/issues/${{ inputs.issue_number }}"
+          python3 .github/scripts/prepare_issue_handoff_context.py \
+            --repo "${{ github.repository }}" \
+            --issue "${{ steps.event.outputs.issue_number }}" \
+            --step gcw-issue-to-spec \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-branch "${{ steps.prepare.outputs.issue_branch }}" \
+            --output-dir ".gcw-runtime/handoff" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Generate planning files with Codex
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
+        uses: ./.github/actions/gcw-run-codex
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          handoff_dir: .gcw-runtime/handoff
+          prompt: |
+            Create GCW planning spec files from the stable local context files.
+
+            Inputs:
+            - .gcw-runtime/handoff/issue_context.json
+            - .gcw-runtime/handoff/issue_comments.txt
+
+            Read issue_context.json first, then issue_comments.txt.
+            Then read and follow these skills in order:
+            1. .agents/skills/planning-with-files/SKILL.md
+            2. .agents/skills/gcw-issue-to-spec/SKILL.md
+
+            Required outputs under the issue_dir from issue_context.json:
+            - task_plan.md
+            - findings.md
+            - progress.md
+
+            This workflow is only for writing planning specs. Do not modify production
+            code, tests outside the issue planning directory, or GCW event files.
+            Do not run git commands, commit, push, or call GitHub APIs.
+
+      - name: Verify planning files exist
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true'
+        run: |
+          issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
           for name in task_plan.md findings.md progress.md; do
             test -f "$issue_dir/$name" || { echo "missing $issue_dir/$name" >&2; exit 1; }
           done
 
+      - name: Commit and push planning files
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
+        id: finalize
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
+          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+            --paths "$issue_dir/task_plan.md" "$issue_dir/findings.md" "$issue_dir/progress.md" \
+            --message "docs(gcw): add planning specs for issue #${{ steps.event.outputs.issue_number }}" \
+            --branch "${{ steps.prepare.outputs.issue_branch }}" \
+            --github-output "$GITHUB_OUTPUT"
+
       - name: Run GCW issue-to-spec step
-        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-to-spec \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}"
+
+      - name: Push GCW workflow state
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
+          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+            --paths "$issue_dir/events" "$issue_dir/workflow.json" \
+            --message "gcw(${{ steps.event.outputs.issue_number }}): record issue-to-spec" \
+            --branch "${{ steps.prepare.outputs.issue_branch }}"
 
       - name: Dry-run workflow validation
-        if: steps.prepare.outputs.should_run == 'true' && inputs.dry_run
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run == 'true'
         run: |
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}"
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.event.outputs.should_trigger == 'true'
+        with:
+          name: gcw-issue-to-spec-${{ github.run_id }}
+          path: |
+            .gcw-runtime/handoff/issue_context.json
+            .gcw-runtime/handoff/issue_comments.txt
+          if-no-files-found: ignore

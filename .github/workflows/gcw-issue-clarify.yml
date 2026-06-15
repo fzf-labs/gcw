@@ -7,96 +7,147 @@ on:
         description: GitHub issue number
         required: true
       issue_branch:
-        description: Issue branch (default gcw/issue-<number>)
         required: false
         default: ""
       dry_run:
-        description: Evaluate readiness only; do not record milestone
         type: boolean
         default: false
       profile:
-        description: Readiness profile
-        required: false
         default: enhancement
+  issues:
+    types: [labeled, assigned]
+  issue_comment:
+    types: [created]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
-  group: gcw-issue-clarify-${{ inputs.issue_number }}
+  group: gcw-issue-clarify-${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   clarify:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.pull_request == null &&
+        (
+          (github.event_name == 'issue_comment' && vars.AGENT_LOGIN != '' && contains(github.event.comment.body, format('@{0}', vars.AGENT_LOGIN)) && contains(github.event.issue.labels.*.name, 'gcw:run-clarify')) ||
+          (github.event.action == 'labeled' && github.event.label.name == 'gcw:run-clarify' && (vars.AGENT_LOGIN == '' || contains(github.event.issue.assignees.*.login, vars.AGENT_LOGIN))) ||
+          (github.event.action == 'assigned' && github.event.assignee.login == vars.AGENT_LOGIN && contains(github.event.issue.labels.*.name, 'gcw:run-clarify'))
+        )
+      )
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve workflow inputs
+        id: event
+        env:
+          AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
+        run: |
+          python3 .github/scripts/gcw_workflow_event.py \
+            --step gcw-issue-clarify \
+            --event-name "${{ github.event_name }}" \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --agent-login "$AGENT_LOGIN" \
+            --dispatch-issue-number "${{ inputs.issue_number || '' }}" \
+            --dispatch-issue-branch "${{ inputs.issue_branch || '' }}" \
+            --dispatch-dry-run "${{ inputs.dry_run || false }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Stop when event does not match trigger contract
+        if: steps.event.outputs.should_trigger != 'true'
+        run: echo "${{ steps.event.outputs.trigger_reason }}"
+
       - name: Checkout issue branch
+        if: steps.event.outputs.should_trigger == 'true'
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+          ref: ${{ steps.event.outputs.issue_branch != '' && steps.event.outputs.issue_branch || format('gcw/issue-{0}', steps.event.outputs.issue_number) }}
 
       - name: Prepare hosted step
+        if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
           python3 .github/scripts/prepare_gcw_hosted_step.py \
             --step gcw-issue-clarify \
-            --issue-number "${{ inputs.issue_number }}" \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
-            --issue-branch "${{ inputs.issue_branch }}" \
+            --issue-number "${{ steps.event.outputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-branch "${{ steps.event.outputs.issue_branch }}" \
             --github-output "$GITHUB_OUTPUT"
 
-      - name: Report skip
-        if: steps.prepare.outputs.should_run != 'true'
+      - name: Report phase skip
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run != 'true'
         run: echo "${{ steps.prepare.outputs.skip_reason }}"
 
-      - name: Evaluate issue readiness
-        if: steps.prepare.outputs.should_run == 'true'
-        id: gate
+      - name: Prepare issue handoff context
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
-            --profile "${{ inputs.profile }}" \
-            --platform github --repo "${{ github.repository }}" \
-            --issue "${{ inputs.issue_number }}" \
-            --output /tmp/clarify_gate.json \
-            --question
+          python3 .github/scripts/prepare_issue_handoff_context.py \
+            --repo "${{ github.repository }}" \
+            --issue "${{ steps.event.outputs.issue_number }}" \
+            --step gcw-issue-clarify \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-branch "${{ steps.prepare.outputs.issue_branch }}"
+
+      - name: Clarify issue with Codex
+        if: >-
+          steps.event.outputs.should_trigger == 'true' &&
+          steps.prepare.outputs.should_run == 'true' &&
+          steps.event.outputs.dry_run != 'true'
+        uses: ./.github/actions/gcw-run-codex
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          handoff_dir: .gcw-runtime/handoff
+          prompt: |
+            Evaluate issue readiness using handoff context and .agents/skills/gcw-issue-clarify/SKILL.md.
+            The structural readiness gate in evaluate_issue_readiness.py remains authoritative.
+            Write .gcw-runtime/handoff/clarify_result.json with keys: ready (bool), summary, optional question.
+            Do not guess business answers when readiness fails. Do not run git/gh.
+
+      - name: Build clarify options
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/build_clarify_options.py \
+            --profile "${{ inputs.profile || 'enhancement' }}" \
+            --repo "${{ github.repository }}" \
+            --issue "${{ steps.event.outputs.issue_number }}"
 
       - name: Run GCW issue clarify step
-        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 - <<'PY' > /tmp/clarify_options.json
-          import json
-          gate = json.load(open("/tmp/clarify_gate.json", encoding="utf-8"))
-          options = {"gate_file": "/tmp/clarify_gate.json"}
-          if gate.get("ok"):
-              options["summary"] = "Hosted clarify gate passed."
-          else:
-              import subprocess
-              question = subprocess.check_output(
-                  [
-                      "python3",
-                      ".agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py",
-                      "--profile", "${{ inputs.profile }}",
-                      "--platform", "github",
-                      "--repo", "${{ github.repository }}",
-                      "--issue", "${{ inputs.issue_number }}",
-                      "--question",
-                  ],
-                  text=True,
-              ).strip()
-              options["question"] = question
-          print(json.dumps(options))
-          PY
           python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-clarify \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
             --options-file /tmp/clarify_options.json
 
+      - name: Push GCW workflow state
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
+          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+            --paths "$issue_dir/events" "$issue_dir/workflow.json" \
+            --message "gcw(${{ steps.event.outputs.issue_number }}): record issue clarify" \
+            --branch "${{ steps.prepare.outputs.issue_branch }}"
+
       - name: Dry-run workflow validation
-        if: steps.prepare.outputs.should_run == 'true' && inputs.dry_run
+        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run == 'true'
         run: |
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
-            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}"

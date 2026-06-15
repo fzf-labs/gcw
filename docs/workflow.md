@@ -10,6 +10,16 @@ GCW 由人、agent、Action 三方协作推进：
 - **agent**：Codex、Cursor、Claude Code 等 AI 编码工具，承担需要判断和代码能力的工作；可跑在本地 IDE，也可在 Action 里运行。
 - **Action**：GitHub Actions / GitLab CI 等托管流水线，跑在远端 runner 上，由平台事件触发。
 
+## Hosted Action 两种模式
+
+GitHub Actions 托管入口支持两种互补模式（详见 [Hosted Agent](hosted-agent.md)）：
+
+| 名称 | Agent 位置 | Action 职责 | 典型触发 |
+| --- | --- | --- | --- |
+| Hosted agent execution | GitHub runner（`openai/codex-action`） | 准备 handoff 上下文 → 运行 agent 生成产物 → 校验 → commit/push/开 PR → 记录 GCW 事件 | `workflow_dispatch`、`issues` label/assign、`issue_comment` @agent |
+
+**Hosted gate + milestone recorder**（仅校验与记事件、不在 runner 内生成产物）适用于 `gcw-spec-check` 等硬门槛步骤；**Hosted agent execution** 适用于 `gcw-issue-to-spec`、`gcw-implement` 等需要生成内容的步骤。
+
 本文把三个层次拆开说明：
 
 - **步骤**：人、agent 或 Action 可以承载或执行的具体动作。
@@ -47,7 +57,7 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 | 1 | `gcw-issue-intake` | 无 | 接入已经存在的 GitHub/GitLab Issue，创建/切换 issue 分支，写入 `.gcw/issues/<id>/events/000-gcw-issue-intake.json` 并初始化 GCW 状态。 | 人 / agent | 不需要：Issue 接入由人或 agent 发起，不由托管流水线自动接入 | `issue-opened` | Issue 创建属于流程外前置动作；不创建 spec files，不发进度评论 |
 | 2 | `gcw-issue-triage` | `gcw-issue-triage.yml` | 分类 Issue，并同步 GitHub/GitLab 结构化 triage metadata。 | 人 / agent / Action | 需要：运行 agent 分类、同步标签/字段、校验远端元数据、记录状态 | `issue-triaged` | 只负责分类和标签/字段，不判断需求是否清楚 |
 | 3 | `gcw-issue-clarify` | `gcw-issue-clarify.yml` | 收集讨论并检查信息是否足以进入 spec 编写。 | 人 / agent / Action | 需要：运行 readiness gate、整理澄清问题、记录讨论和状态；不能替代关键业务判断 | `ready-for-planning` 或 `issue-clarifying` | 关键业务答案必须来自人类或可信来源，不能由 Action 猜测 |
-| 4 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | 创建隔离 worktree，将 Issue 生成 spec files，提交并推送，然后在 Issue 评论中链接。 | agent / Action | 建议有：运行 agent 生成 spec，或接收本地 agent 产物并完成推送和 Issue 评论 | `planned` | spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md` |
+| 4 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | 创建隔离 worktree，将 Issue 生成 spec files，提交并推送，然后在 Issue 评论中链接。 | agent / Action | **Hosted agent execution**：runner 内 codex 写 spec、commit/push 并记录里程碑 | `planned` | spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md` |
 | 5 | `gcw-spec-check` | `gcw-spec-check.yml` | 检查 spec files 是否已生成并推送、Issue 评论是否已链接、内容是否足以进入实现。 | agent / Action | 应该有：作为进入实现前的远端 gate | `ready-for-implementation`、`issue-clarifying` 或 `blocked` | 这是实现前的 spec 硬门槛 |
 | 6 | `gcw-implement` | `gcw-implement.yml` | 按计划修改代码、补测试、更新必要文档。 | agent / Action | 可以有：在 runner 内运行 agent，或记录本地 agent 通过 repo / issue / PR 的交接 | `implementing` | 表示实现阶段内的一次推进；实现是否足以进入 review 由 `gcw-implement-check` 判定。PR review 或人审反馈修复也回到这里 |
 | 7 | `gcw-implement-check` | `gcw-implement-check.yml` | 创建 review request 前检查 diff、提交边界、风险、验证结果和 spec files，并追加用于 PR/MR 渲染的 `gcw-implement-check` 事件 payload。 | agent / Action | 应该有：作为创建或更新 review request 前的远端 gate | `ready-for-review` | 把实现自查和 review request 证据收敛成一个主步骤 |
@@ -60,7 +70,7 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 
 首次提交与反馈修改都以 `gcw-implement` -> `gcw-implement-check` -> `gcw-pr-publish` -> `gcw-pr-review` 收尾；区别在于反馈修改从 `changes-requested` 回到 `implementing`，再重新走这条收尾链路。`gcw-pr-publish` 幂等：首次创建 review request、之后推送更新都走它。
 
-当前 GitHub Actions 实现仍有聚合入口；目标上应拆成上表所列的 workflow 文件。`gcw-issue-intake` 没有对应 Action 文件。
+当前 GitHub Actions 实现已拆成上表所列的 workflow 文件；`gcw-issue-to-spec` 为 Hosted agent execution 试点。`gcw-issue-intake` 没有对应 Action 文件。
 
 ## 状态拆解
 
