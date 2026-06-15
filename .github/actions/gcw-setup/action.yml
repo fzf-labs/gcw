@@ -1,0 +1,31 @@
+name: GCW Setup
+description: Checkout repository and install GitHub CLI for GCW hosted workflows.
+
+inputs:
+  ref:
+    description: Git ref to checkout (issue branch or default)
+    required: false
+    default: ""
+  fetch-depth:
+    description: Checkout fetch depth
+    required: false
+    default: "1"
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - name: Install GitHub CLI
+      shell: bash
+      run: |
+        type gh >/dev/null 2>&1 || (
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
+        )

@@ -1,0 +1,69 @@
+name: GCW Issue To Spec
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number
+        required: true
+      issue_branch:
+        description: Issue branch (default gcw/issue-<number>)
+        required: false
+        default: ""
+      dry_run:
+        description: Validate planning files only; do not record milestone
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: gcw-issue-to-spec-${{ inputs.issue_number }}
+  cancel-in-progress: true
+
+jobs:
+  to-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+
+      - name: Prepare hosted step
+        id: prepare
+        run: |
+          python3 .github/scripts/prepare_gcw_hosted_step.py \
+            --step gcw-issue-to-spec \
+            --issue-number "${{ inputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --issue-branch "${{ inputs.issue_branch }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Report skip
+        if: steps.prepare.outputs.should_run != 'true'
+        run: echo "${{ steps.prepare.outputs.skip_reason }}"
+
+      - name: Verify planning files exist
+        if: steps.prepare.outputs.should_run == 'true'
+        run: |
+          issue_dir=".gcw/issues/${{ inputs.issue_number }}"
+          for name in task_plan.md findings.md progress.md; do
+            test -f "$issue_dir/$name" || { echo "missing $issue_dir/$name" >&2; exit 1; }
+          done
+
+      - name: Run GCW issue-to-spec step
+        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-to-spec \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+
+      - name: Dry-run workflow validation
+        if: steps.prepare.outputs.should_run == 'true' && inputs.dry_run
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"

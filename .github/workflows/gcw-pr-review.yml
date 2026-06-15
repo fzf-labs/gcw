@@ -1,0 +1,104 @@
+name: GCW PR Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number
+        required: true
+      issue_branch:
+        description: Issue branch (default gcw/issue-<number>)
+        required: false
+        default: ""
+      pr_number:
+        description: Pull request number to validate (optional)
+        required: false
+        default: ""
+      dry_run:
+        description: Validate only; do not record milestone
+        type: boolean
+        default: false
+      result:
+        description: Review gate result when recording
+        required: false
+        default: passed
+      reason:
+        description: Optional reason when result is not passed
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: gcw-pr-review-${{ inputs.issue_number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+          fetch-depth: 0
+
+      - name: Prepare hosted step
+        id: prepare
+        run: |
+          python3 .github/scripts/prepare_gcw_hosted_step.py \
+            --step gcw-pr-review \
+            --issue-number "${{ inputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --issue-branch "${{ inputs.issue_branch }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Report skip
+        if: steps.prepare.outputs.should_run != 'true'
+        run: echo "${{ steps.prepare.outputs.skip_reason }}"
+
+      - name: Run repository unit tests
+        if: steps.prepare.outputs.should_run == 'true'
+        run: python3 -m unittest discover -s .agents/skills/gcw/tests
+
+      - name: Validate workflow evidence
+        if: steps.prepare.outputs.should_run == 'true'
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+
+      - name: Validate pr-publish evidence
+        if: steps.prepare.outputs.should_run == 'true'
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py pr-publish \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+
+      - name: Run GCW pr-review step
+        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > /tmp/pr_review_options.json
+          import json
+          options = {
+              "result": "${{ inputs.result }}",
+              "feedback_source": "pr-review",
+          }
+          reason = "${{ inputs.reason }}".strip()
+          if reason:
+              options["reason"] = reason
+          print(json.dumps(options))
+          PY
+          python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-review \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --options-file /tmp/pr_review_options.json
+
+      - name: Dry-run review-check evidence
+        if: steps.prepare.outputs.should_run == 'true' && inputs.dry_run
+        continue-on-error: true
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py review-check \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"

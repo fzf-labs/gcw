@@ -1,0 +1,88 @@
+name: GCW PR Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number
+        required: true
+      issue_branch:
+        description: Issue branch (default gcw/issue-<number>)
+        required: false
+        default: ""
+      dry_run:
+        description: Render review request only; do not record milestone
+        type: boolean
+        default: false
+      review_request_url:
+        description: PR/MR URL after upsert (required when dry_run is false)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: gcw-pr-publish-${{ inputs.issue_number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ inputs.issue_branch != '' && inputs.issue_branch || format('gcw/issue-{0}', inputs.issue_number) }}
+
+      - name: Prepare hosted step
+        id: prepare
+        run: |
+          python3 .github/scripts/prepare_gcw_hosted_step.py \
+            --step gcw-pr-publish \
+            --issue-number "${{ inputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --issue-branch "${{ inputs.issue_branch }}" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Report skip
+        if: steps.prepare.outputs.should_run != 'true'
+        run: echo "${{ steps.prepare.outputs.skip_reason }}"
+
+      - name: Validate implement-check evidence
+        if: steps.prepare.outputs.should_run == 'true'
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py implement-check \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"
+
+      - name: Render review request preview
+        if: steps.prepare.outputs.should_run == 'true'
+        run: |
+          python3 .agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py review-request \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            > /tmp/gcw_review_request.md
+
+      - name: Run GCW pr-publish step
+        if: steps.prepare.outputs.should_run == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          review_url="${{ inputs.review_request_url }}"
+          if [ -z "$review_url" ]; then
+            echo "review_request_url input is required when dry_run is false" >&2
+            exit 1
+          fi
+          python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-publish \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}" \
+            --options-file /dev/stdin <<EOF
+          {"review_request_url": "$review_url", "target": "github_pr"}
+          EOF
+
+      - name: Dry-run pr-publish evidence
+        if: steps.prepare.outputs.should_run == 'true' && inputs.dry_run
+        continue-on-error: true
+        run: |
+          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py pr-publish \
+            --issue-dir ".gcw/issues/${{ inputs.issue_number }}"

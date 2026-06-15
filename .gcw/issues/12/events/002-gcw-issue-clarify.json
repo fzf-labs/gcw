@@ -1,0 +1,52 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T14:25:22Z",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-12-002-gcw-issue-clarify",
+  "parent": {
+    "expected_last_seq": 1
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "issue-clarify-readiness/v1"
+    },
+    "progress_comment_body_hash": "sha256:e6aeb4a722899abfe6a66685302966e4663bd936476af42184421d8af1c3920f",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/12#issuecomment-4702032765",
+    "ready": true,
+    "summary": "Issue is well-scoped: add hosted GitHub Actions workflows for main GCW steps with acceptance criteria covering permissions, triggers, validation gates, progress comments, tests, and documentation. No blockers."
+  },
+  "refs": {
+    "branch": "gcw/issue-12",
+    "issue": "12"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 2
+}

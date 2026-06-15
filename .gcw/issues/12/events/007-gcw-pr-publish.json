@@ -1,0 +1,35 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-14T14:51:17Z",
+  "event": "gcw-pr-publish",
+  "event_id": "gcw-12-007-gcw-pr-publish",
+  "parent": {
+    "expected_last_seq": 6
+  },
+  "payload": {
+    "body_hash": "sha256:5f7c9f2994e1fe2102cfd52b6642ab5cc8c7637ca801cb741fef2debca4a5e23",
+    "effects": [
+      {
+        "body_hash": "sha256:5f7c9f2994e1fe2102cfd52b6642ab5cc8c7637ca801cb741fef2debca4a5e23",
+        "kind": "github_pr_upsert",
+        "operation_id": "gcw-pr-publish",
+        "remote_updated_at": "",
+        "status": "applied",
+        "target": "github_pr"
+      }
+    ],
+    "progress_comment_body_hash": "sha256:84c292b316ba6e0ab08e42936984ff8b2a3e00e308d220cf3d9a8ff9f833afa6",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/12#issuecomment-4702096617",
+    "rendered_from_event_id": "gcw-12-006-gcw-implement-check",
+    "review_request_url": "https://github.com/fzf-labs/gcw/pull/15"
+  },
+  "refs": {
+    "branch": "gcw/issue-12",
+    "issue": "12"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 7
+}
