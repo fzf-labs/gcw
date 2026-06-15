@@ -1,0 +1,24 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-15T11:56:27Z",
+  "event": "gcw-pr-review",
+  "event_id": "gcw-13-008-gcw-pr-review",
+  "parent": {
+    "expected_last_seq": 7
+  },
+  "payload": {
+    "feedback_source": "pr-review",
+    "progress_comment_body_hash": "sha256:b3d6327b55d7a7e71a4cae7559dbd38baef1b3eb6f3c09aa71d75918fa494838",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/13#issuecomment-4707658478",
+    "result": "passed"
+  },
+  "refs": {
+    "branch": "gcw/issue-13",
+    "issue": "13"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 8
+}
