@@ -5,10 +5,11 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from gcw_workflow_lib import assert_projection_current, find_latest_event
 
+from remote_fetch import RemoteFetchError, fetch_url
 from render_gcw_hosted_artifacts import (
     PROGRESS_MARKER,
     REVIEW_REQUEST_END,
@@ -17,6 +18,8 @@ from render_gcw_hosted_artifacts import (
     render_recorded_progress_comment,
     render_review_request,
 )
+
+FetchFn = Callable[[str], str]
 
 
 def read_remote_text(path: Path, errors: list[str], artifact_name: str) -> str:
@@ -27,6 +30,29 @@ def read_remote_text(path: Path, errors: list[str], artifact_name: str) -> str:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         errors.append(f"remote {artifact_name} file is not valid UTF-8")
+        return ""
+    if not text:
+        errors.append(f"remote {artifact_name} file is empty")
+    return text
+
+
+def load_remote_text(
+    *,
+    remote_file: Path | None,
+    fetch_target_url: str,
+    artifact_name: str,
+    errors: list[str],
+    fetcher: FetchFn | None = None,
+) -> str:
+    if remote_file is not None:
+        return read_remote_text(remote_file, errors, artifact_name)
+    if not fetch_target_url:
+        errors.append(f"no fetch URL available for remote {artifact_name}")
+        return ""
+    try:
+        text = fetch_url(fetch_target_url, fetcher=fetcher)
+    except RemoteFetchError as exc:
+        errors.append(str(exc))
         return ""
     if not text:
         errors.append(f"remote {artifact_name} file is empty")
@@ -98,16 +124,63 @@ def _verify_progress_body_hash(remote_text: str, issue_dir: Path, errors: list[s
         errors.append(f"remote progress comment body hash {actual_hash} does not match event progress_comment_body_hash {expected_hash}")
 
 
+def resolve_progress_comment_url(issue_dir: Path, args: argparse.Namespace, errors: list[str]) -> str:
+    expected_url = str(getattr(args, "progress_comment_url", "") or "").strip()
+    if expected_url:
+        return expected_url
+    if str(getattr(args, "fetch_url", "") or "").strip():
+        return str(args.fetch_url).strip()
+    current = assert_projection_current(issue_dir)
+    if not current.get("ok"):
+        errors.extend(str(item) for item in current.get("errors", []))
+    projection = current.get("projection") if isinstance(current.get("projection"), dict) else {}
+    refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
+    return str(refs.get("progress_comment_url", "")).strip()
+
+
+def resolve_review_request_url(issue_dir: Path, args: argparse.Namespace, errors: list[str]) -> str:
+    expected_url = str(getattr(args, "review_request_url", "") or "").strip()
+    if expected_url:
+        return expected_url
+    if str(getattr(args, "fetch_url", "") or "").strip():
+        return str(args.fetch_url).strip()
+    current = assert_projection_current(issue_dir)
+    if not current.get("ok"):
+        errors.extend(str(item) for item in current.get("errors", []))
+    projection = current.get("projection") if isinstance(current.get("projection"), dict) else {}
+    refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
+    expected_url = str(refs.get("review_request_url", "")).strip()
+    if expected_url:
+        return expected_url
+    try:
+        latest = find_latest_event(issue_dir, "gcw-pr-publish")
+    except Exception as exc:
+        errors.append(str(exc))
+        return ""
+    if latest is None:
+        return ""
+    payload = latest.get("payload") if isinstance(latest.get("payload"), dict) else {}
+    return str(payload.get("review_request_url", "")).strip()
+
+
 def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
-    expected_url = str(getattr(args, "progress_comment_url", "") or "").strip()
-    if not expected_url:
-        projection = assert_projection_current(args.issue_dir)["projection"]
-        refs = projection.get("refs") if isinstance(projection.get("refs"), dict) else {}
-        expected_url = str(refs.get("progress_comment_url", "")).strip()
-    if not expected_url:
-        errors.append("progress_comment_url is missing from projection refs")
-    remote_text = read_remote_text(args.remote_file, errors, "progress comment")
+    remote_file = getattr(args, "remote_file", None)
+    fetcher = getattr(args, "fetcher", None)
+    expected_url = ""
+    if remote_file is None:
+        expected_url = resolve_progress_comment_url(args.issue_dir, args, errors)
+        if not expected_url:
+            errors.append("progress_comment_url is missing from projection refs")
+    else:
+        expected_url = str(getattr(args, "progress_comment_url", "") or getattr(args, "fetch_url", "") or "").strip()
+    remote_text = load_remote_text(
+        remote_file=remote_file,
+        fetch_target_url=expected_url,
+        artifact_name="progress comment",
+        errors=errors,
+        fetcher=fetcher,
+    )
     if remote_text and PROGRESS_MARKER not in remote_text:
         errors.append("remote progress comment is missing gcw progress marker")
     can_compare = not errors
@@ -137,7 +210,22 @@ def verify_progress_comment(args: argparse.Namespace) -> dict[str, Any]:
 
 def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
     errors: list[str] = []
-    remote_text = read_remote_text(args.remote_file, errors, "review request")
+    remote_file = getattr(args, "remote_file", None)
+    fetcher = getattr(args, "fetcher", None)
+    expected_url = ""
+    if remote_file is None:
+        expected_url = resolve_review_request_url(args.issue_dir, args, errors)
+        if not expected_url:
+            errors.append("review_request_url is missing from projection refs and gcw-pr-publish events")
+    else:
+        expected_url = str(getattr(args, "review_request_url", "") or getattr(args, "fetch_url", "") or "").strip()
+    remote_text = load_remote_text(
+        remote_file=remote_file,
+        fetch_target_url=expected_url,
+        artifact_name="review request",
+        errors=errors,
+        fetcher=fetcher,
+    )
     can_compare = not errors
     expected_text = ""
     if can_compare:
@@ -164,6 +252,7 @@ def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
         "step": "remote-review-request",
         "ok": not errors,
         "errors": errors,
+        "review_request_url": expected_url,
     }
 
 
@@ -176,21 +265,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Verify a hosted issue progress comment body against local GCW events.",
     )
     progress_parser.add_argument("--issue-dir", required=True, type=Path)
-    progress_parser.add_argument("--remote-file", required=True, type=Path)
+    progress_parser.add_argument(
+        "--remote-file",
+        default=None,
+        type=Path,
+        help="Offline/local copy of the hosted comment body. When omitted, fetch from the resolved comment URL.",
+    )
+    progress_parser.add_argument(
+        "--fetch-url",
+        default="",
+        help="Override the hosted comment URL to fetch.",
+    )
     progress_parser.add_argument(
         "--progress-comment-url",
         default="",
         help="Latest hosted progress comment URL; defaults to projection refs.progress_comment_url.",
     )
-    progress_parser.set_defaults(handler=verify_progress_comment)
+    progress_parser.set_defaults(handler=verify_progress_comment, fetcher=None)
 
     review_parser = subparsers.add_parser(
         "review-request",
         help="Verify a hosted review request body against local GCW events.",
     )
     review_parser.add_argument("--issue-dir", required=True, type=Path)
-    review_parser.add_argument("--remote-file", required=True, type=Path)
-    review_parser.set_defaults(handler=verify_review_request)
+    review_parser.add_argument(
+        "--remote-file",
+        default=None,
+        type=Path,
+        help="Offline/local copy of the hosted review request body. When omitted, fetch from the resolved review URL.",
+    )
+    review_parser.add_argument(
+        "--fetch-url",
+        default="",
+        help="Override the hosted review request URL to fetch.",
+    )
+    review_parser.add_argument(
+        "--review-request-url",
+        default="",
+        help="Hosted review request URL; defaults to projection refs or latest gcw-pr-publish event.",
+    )
+    review_parser.set_defaults(handler=verify_review_request, fetcher=None)
 
     return parser
 
