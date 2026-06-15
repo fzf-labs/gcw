@@ -59,6 +59,40 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 事件触发：在 phase 为 `ready-for-planning` 的 Issue 上打 `gcw:ready-for-planning` 并 assign agent。
 
+## Remote evidence verification
+
+`verify_gcw_remote_evidence.py` 可在 hosted gate 中校验 GitHub/GitLab 上的 progress comment 与 review request 正文是否与本地 event log 一致。
+
+### 直接拉取（默认）
+
+在 Action 或已配置 `gh` / `glab` 认证的本地环境中，通常只需 `--issue-dir`：
+
+```bash
+python .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py progress-comment \
+  --issue-dir .gcw/issues/42
+
+python .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py review-request \
+  --issue-dir .gcw/issues/42
+```
+
+脚本会从 `workflow.json` `refs` 或最新 `gcw-pr-publish` 事件解析 URL，经平台 adapter 拉取正文，再比对 GCW marker 与记录的 `body_hash`。
+
+需要 `issues: read`（comment）与 `pull-requests: read`（PR body）。GitLab 路径依赖 `glab` 已登录。
+
+可选 `--fetch-url` 覆盖自动解析的 URL；`--progress-comment-url` / `--review-request-url` 仍可显式指定。
+
+### 离线 `--remote-file` 模式
+
+单元测试或无 API 访问时使用本地副本：
+
+```bash
+python .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py progress-comment \
+  --issue-dir .gcw/issues/42 \
+  --remote-file /tmp/progress-comment.md
+```
+
+显式提供 `--remote-file` 时不会发起远程拉取。
+
 ## 故障排查
 
 | 现象 | 可能原因 |

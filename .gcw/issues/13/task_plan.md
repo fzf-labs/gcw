@@ -17,36 +17,36 @@ This is a prerequisite for reliable hosted review gates: Actions must verify wha
 
 ### Phase 1 — Platform fetch adapters
 
-- [ ] Add a small `remote_fetch.py` (or equivalent module) with platform adapters behind a common interface:
+- [x] Add a small `remote_fetch.py` (or equivalent module) with platform adapters behind a common interface:
   - `fetch_url(url: str) -> str` returning normalized UTF-8 body text.
   - GitHub adapter: parse issue comment URLs (`.../issues/<n>#issuecomment-<id>`) and PR/MR body URLs (`.../pull/<n>`); use `gh api` subprocess (consistent with existing GCW scripts).
   - GitLab adapter: parse issue note and MR URLs; use `glab api` subprocess.
-- [ ] Clear error messages for: authentication failure, missing permissions, artifact not found, unsupported URL shape.
-- [ ] Keep fetch logic separate from verification so tests can inject a fetch function.
+- [x] Clear error messages for: authentication failure, missing permissions, artifact not found, unsupported URL shape.
+- [x] Keep fetch logic separate from verification so tests can inject a fetch function.
 
 ### Phase 2 — CLI integration
 
-- [ ] Make `--remote-file` optional for both subcommands.
-- [ ] When `--remote-file` is omitted, resolve fetch URL from:
+- [x] Make `--remote-file` optional for both subcommands.
+- [x] When `--remote-file` is omitted, resolve fetch URL from:
   - **Progress comment:** `workflow.json` `refs.progress_comment_url` (existing fallback in verifier).
   - **Review request:** `workflow.json` `refs.review_request_url` or latest `gcw-pr-publish` event payload.
-- [ ] Add `--fetch-url` override for tests and diagnostics.
-- [ ] Preserve existing `--remote-file` behavior unchanged for offline/local-substitutable checks.
+- [x] Add `--fetch-url` override for tests and diagnostics.
+- [x] Preserve existing `--remote-file` behavior unchanged for offline/local-substitutable checks.
 
 ### Phase 3 — Tests
 
-- [ ] Mock/inject fetch layer; do not require live GitHub/GitLab in unit tests.
-- [ ] GitHub fetch success path (mocked `gh api` or injected fetch).
-- [ ] GitLab fetch success path or documented fallback when `glab` unavailable.
-- [ ] Missing refs in projection (no URL to fetch).
-- [ ] Body hash mismatch (existing cases extended to fetch path).
-- [ ] Duplicate review-request markers (existing `test_hosted_artifact_hardening.py` coverage).
-- [ ] Offline `--remote-file` mode regression (existing tests unchanged).
+- [x] Mock/inject fetch layer; do not require live GitHub/GitLab in unit tests.
+- [x] GitHub fetch success path (mocked `gh api` or injected fetch).
+- [x] GitLab fetch success path or documented fallback when `glab` unavailable.
+- [x] Missing refs in projection (no URL to fetch).
+- [x] Body hash mismatch (existing cases extended to fetch path).
+- [x] Duplicate review-request markers (existing `test_hosted_artifact_hardening.py` coverage).
+- [x] Offline `--remote-file` mode regression (existing tests unchanged).
 
 ### Phase 4 — Documentation
 
-- [ ] Document when to use direct remote fetch vs `--remote-file` in `docs/hosted-agent.md` or adjacent GCW docs.
-- [ ] Note token requirements (`GITHUB_TOKEN` / `GH_TOKEN`, `glab` auth) for hosted Actions.
+- [x] Document when to use direct remote fetch vs `--remote-file` in `docs/hosted-agent.md` or adjacent GCW docs.
+- [x] Note token requirements (`GITHUB_TOKEN` / `GH_TOKEN`, `glab` auth) for hosted Actions.
 
 ## Acceptance Criteria
 
