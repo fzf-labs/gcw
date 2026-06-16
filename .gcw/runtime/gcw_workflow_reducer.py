@@ -70,6 +70,7 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
             _require_phase(phase, {"issue-triaged", "issue-clarifying"}, event_name)
             if event_payload.get("ready") is True:
                 phase = "ready-for-planning"
+                active_feedback = None
             else:
                 if not str(event_payload.get("question", "")).strip():
                     raise WorkflowError("gcw-issue-clarify requires question when ready is false")

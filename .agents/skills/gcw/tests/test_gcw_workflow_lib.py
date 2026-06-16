@@ -182,6 +182,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         projection = reduce_workflow(load_events(self.issue_dir))
         self.assertEqual(projection["phase"], "ready-for-planning")
         self.assertEqual(projection["next_allowed_steps"], ["gcw-issue-to-spec"])
+        self.assertNotIn("active_feedback", projection)
 
     def test_unknown_issue_event_is_rejected(self) -> None:
         self.append(
