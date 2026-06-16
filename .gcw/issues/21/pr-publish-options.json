@@ -1,0 +1,6 @@
+{
+  "review_request_url": "https://github.com/fzf-labs/gcw/pull/22",
+  "body_hash": "sha256:6e95cd239998e5546e5b93ae00c064bd5e57be9b6fee864ed2529df58b24a1ac",
+  "effect_kind": "github_pr_upsert",
+  "target": "fzf-labs/gcw#22"
+}
