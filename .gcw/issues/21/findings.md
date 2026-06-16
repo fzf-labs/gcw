@@ -34,11 +34,20 @@
 - Prefer thin CI jobs that delegate to existing Python scripts, matching the existing hosted workflow style.
 - Keep executor labels and phase gating semantically identical across platforms.
 
-## Open Questions
+## Implementation Findings
 
-- Should GitLab CI jobs be generated as a single pipeline file with multiple jobs, or as reusable include files per GCW step?
-- Which GitLab token should be documented as the default: `CI_JOB_TOKEN`, project access token, or personal access token?
-- Should GitLab hosted execution attempt in-runner agent execution for planning/implementation immediately, or first support local-agent handoff plus hosted gates?
+- `.gitlab-ci.yml` is installed as an optional template via `gcw init --with-gitlab-ci`.
+- GitLab CI jobs use `GCW_ISSUE_NUMBER`, `GCW_ISSUE_BRANCH`, `GCW_DRY_RUN`, `GCW_EXECUTOR`, and `GLAB_TOKEN`.
+- `prepare_gcw_hosted_step.py` previously inferred executor labels only from GitHub; it now accepts explicit `--issue-labels` so GitLab CI can pass `GCW_EXECUTOR`.
+- `record_implement_milestone.py` previously required a handoff summary file; it now also accepts direct `--work-summary` for GitLab/manual hosted handoff.
+- GitLab CI v1 uses manual jobs and local-agent handoff semantics for content generation. It delegates state transitions and validation to the same Python scripts as GitHub Actions.
+- `scripts/build-npm-package.mjs` now includes `.gitlab-ci.yml` in package templates.
+
+## Decisions Resolved
+
+- GitLab CI is delivered as a single root `.gitlab-ci.yml` with one manual job per supported GCW hosted step.
+- The default documented auth path is `GLAB_TOKEN`, preferably backed by a project access token or bot personal access token.
+- In-runner agent generation is not required for GitLab CI v1; the template supports local-agent handoff plus hosted gates and milestone recording.
 
 ## Risks
 
@@ -46,6 +55,7 @@
 - MR upsert behavior differs from PR upsert behavior and may need a dedicated idempotency strategy.
 - GitLab protected branch and token policies may prevent branch push from CI unless setup instructions are precise.
 - GitLab comments, labels, and MR APIs may require pagination or different URL parsing for remote evidence verification.
+- GitLab CI template has not been executed against a live GitLab project in this implementation pass; validation is static/unit-test based.
 
 ## Useful References
 

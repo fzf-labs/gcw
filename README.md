@@ -15,10 +15,11 @@ gcw init
 gcw doctor
 ```
 
-`gcw init` 默认复制本地 agent 所需的 `.agents/skills/gcw*`、`.agents/skills/planning-with-files` 与 `.gcw/runtime`。如果目标仓库也要安装 GitHub hosted workflow assets，使用：
+`gcw init` 默认复制本地 agent 所需的 `.agents/skills/gcw*`、`.agents/skills/planning-with-files` 与 `.gcw/runtime`。如果目标仓库也要安装 hosted workflow assets，按平台选择：
 
 ```bash
 gcw init --with-github-actions
+gcw init --with-gitlab-ci
 ```
 
 默认不会覆盖已有文件；需要明确覆盖时加 `--force`。发布包前可用 `npm pack --dry-run` 检查实际包含的 template assets。

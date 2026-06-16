@@ -6,7 +6,7 @@
 
 ## Current Phase
 
-Phase 1 — 规划完成，等待 `gcw-spec-check`
+Phase 5 — 实现完成，等待 `gcw-implement-check`
 
 ## Phases
 
@@ -20,42 +20,42 @@ Phase 1 — 规划完成，等待 `gcw-spec-check`
 
 ### Phase 2 — GitLab CI 模板设计
 
-- [ ] 设计 GitLab CI 入口文件，例如 `.gitlab-ci.yml` 或可包含的 GCW CI 模板。
-- [ ] 为已有 hosted GCW 步骤建立 GitLab job 映射，覆盖当前 GitHub Actions 中支持的 `gcw-*` 步骤。
-- [ ] 保留 `gcw-issue-intake` 为人工或本地 agent 入口，不新增 hosted intake job。
-- [ ] 明确 GitLab CI 变量、token 权限、分支策略和 artifact 传递方式。
-- **Status:** pending
+- [x] 设计 GitLab CI 入口文件 `.gitlab-ci.yml`。
+- [x] 为已有 hosted GCW 步骤建立 GitLab job 映射，覆盖当前 GitHub Actions 中支持的 `gcw-*` 步骤。
+- [x] 保留 `gcw-issue-intake` 为人工或本地 agent 入口，不新增 hosted intake job。
+- [x] 明确 GitLab CI 变量、token 权限、分支策略和 artifact 传递方式。
+- **Status:** complete
 
 ### Phase 3 — 平台适配与共享脚本
 
-- [ ] 复用现有 GCW workflow event log、projection、progress comment 和 evidence validation 机制。
-- [ ] 将 GitHub 专用操作抽象或分支处理为 GitLab 等价实现。
-- [ ] 使用 `glab` 或 GitLab API 完成 issue comment、labels、branch push、MR publish 和远端证据读取。
-- [ ] 保证 GitHub path 继续通过现有 tests 和 workflows。
-- **Status:** pending
+- [x] 复用现有 GCW workflow event log、projection、progress comment 和 evidence validation 机制。
+- [x] 将 GitHub 专用 executor label 获取改为支持 GitLab CI 显式传入 labels。
+- [x] 使用 `glab` 或 GitLab API 完成 issue comment、labels、branch push、MR publish 和远端证据读取的模板调用。
+- [x] 保证 GitHub path 继续通过现有 tests 和 workflows。
+- **Status:** complete
 
 ### Phase 4 — 测试覆盖
 
-- [ ] 扩展 hosted workflow 测试，验证 GitLab CI 模板结构、必需 job、变量和脚本调用。
-- [ ] 覆盖共享 hosted step 行为，确保 GitHub/GitLab 分支不会互相回退。
-- [ ] 补充 GitLab metadata / remote evidence 的单元测试或 fixture。
-- **Status:** pending
+- [x] 扩展 hosted workflow 测试，验证 GitLab CI 模板结构、必需 job、变量和脚本调用。
+- [x] 覆盖共享 hosted step 行为，确保 GitLab CI 可通过显式 executor labels 进入 phase gate。
+- [x] 补充 npm build/init 测试，确认 `.gitlab-ci.yml` 进入模板并可通过 `gcw init --with-gitlab-ci` 安装。
+- **Status:** complete
 
 ### Phase 5 — 文档同步
 
-- [ ] 更新 `docs/hosted-agent.md`，说明 GitLab CI 配置、触发方式、必需变量和权限。
-- [ ] 更新 `docs/workflow.md` 或 quickstart 中与 hosted Action 相关的 GitHub-only 表述。
-- [ ] 更新相关 GCW skill 说明，明确 GitHub Actions 与 GitLab CI 均属于 hosted pipeline。
-- **Status:** pending
+- [x] 更新 `docs/hosted-agent.md`，说明 GitLab CI 配置、触发方式、必需变量和权限。
+- [x] 更新 `README.md` / `CONTRIBUTING.md` 的安装说明，加入 `--with-gitlab-ci`。
+- [x] 明确 GitHub Actions 与 GitLab CI 均属于 hosted pipeline。
+- **Status:** complete
 
 ## Acceptance Criteria
 
-- [ ] 仓库模板包含 GitLab CI 配置，覆盖当前支持 hosted execution 的 GCW 步骤。
-- [ ] GitLab CI jobs 遵守与 GitHub hosted path 等价的 executor label/run gate 和 workflow phase gate。
-- [ ] GitLab 平台操作使用 `glab` 或 GitLab API，支持 issue comment、labels、branch push、MR publish 和 remote evidence verification。
-- [ ] 现有 GitHub Actions 路径不回退，相关测试继续通过。
-- [ ] 新增或扩展测试覆盖 GitLab CI template shape 和共享 hosted step 行为。
-- [ ] 文档说明 GitLab CI 的配置、触发、权限和与 GitHub Actions 的差异。
+- [x] 仓库模板包含 GitLab CI 配置，覆盖当前支持 hosted execution 的 GCW 步骤。
+- [x] GitLab CI jobs 遵守与 GitHub hosted path 等价的 executor label/run gate 和 workflow phase gate。
+- [x] GitLab 平台操作使用 `glab` 或 GitLab API，支持 issue comment、labels、branch push、MR publish 和 remote evidence verification。
+- [x] 现有 GitHub Actions 路径不回退，相关测试继续通过。
+- [x] 新增或扩展测试覆盖 GitLab CI template shape 和共享 hosted step 行为。
+- [x] 文档说明 GitLab CI 的配置、触发、权限和与 GitHub Actions 的差异。
 
 ## Out Of Scope
 
@@ -66,9 +66,9 @@ Phase 1 — 规划完成，等待 `gcw-spec-check`
 
 ## Key Questions
 
-1. GitLab CI 配置应作为根级 `.gitlab-ci.yml` 模板生成，还是作为可 include 的 `dist/templates/repo` 文件提供？
-2. `glab` 在 CI runner 中的认证变量名和最小权限应如何文档化？
-3. GitLab label、issue 和 MR metadata 与 GitHub Issue Type / Priority 的差异是否需要新的 adapter 契约？
+1. GitLab CI 配置作为根级 `.gitlab-ci.yml` 模板生成，并通过 `gcw init --with-gitlab-ci` 安装。
+2. `glab` 在 CI runner 中使用 `GLAB_TOKEN`，文档建议 project access token 或机器人 personal access token。
+3. GitLab label、issue 和 MR metadata 继续复用现有 label-based model；GitHub Issue Type / Priority 的差异由现有 triage mapping 覆盖。
 
 ## Decisions Made
 

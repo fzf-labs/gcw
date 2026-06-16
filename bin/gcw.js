@@ -28,6 +28,7 @@ const githubActionsAssetRoots = [
   ".github/actions/gcw-run-codex",
   ".github/scripts",
 ];
+const gitlabCiAssetRoots = [".gitlab-ci.yml"];
 
 function printVersion() {
   console.log(packageJson.version);
@@ -39,6 +40,7 @@ function parseInitArgs(args) {
     dryRun: false,
     force: false,
     withGithubActions: false,
+    withGitlabCi: false,
   };
 
   for (let i = 0; i < args.length; i += 1) {
@@ -49,6 +51,8 @@ function parseInitArgs(args) {
       options.force = true;
     } else if (arg === "--with-github-actions") {
       options.withGithubActions = true;
+    } else if (arg === "--with-gitlab-ci") {
+      options.withGitlabCi = true;
     } else if (arg === "--target") {
       const value = args[i + 1];
       if (!value) {
@@ -131,6 +135,9 @@ async function initCommand(args) {
   const assetRoots = options.withGithubActions
     ? [...requiredAssetRoots, ...githubActionsAssetRoots]
     : requiredAssetRoots;
+  if (options.withGitlabCi) {
+    assetRoots.push(...gitlabCiAssetRoots);
+  }
   const files = (await Promise.all(assetRoots.map((assetRoot) => listFiles(sourceRoot, assetRoot))))
     .flat()
     .sort();

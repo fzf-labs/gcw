@@ -16,6 +16,7 @@ from finalize_gcw_hosted_step import commit_push, has_changes  # noqa: E402
 from gcw_executor_gate import EXECUTOR_HOSTED, EXECUTOR_LOCAL  # noqa: E402
 from gcw_workflow_event import comment_requests_step, resolve, should_run_event  # noqa: E402
 from prepare_issue_handoff_context import issue_branch, prepare as prepare_handoff  # noqa: E402
+from record_implement_milestone import resolve_work_summary  # noqa: E402
 from validate_handoff_json import validate  # noqa: E402
 
 
@@ -146,7 +147,15 @@ class PrepareHandoffTest(unittest.TestCase):
 
 class FinalizeHostedStepTest(unittest.TestCase):
     def test_has_changes_false_on_clean_tree(self) -> None:
-        self.assertFalse(has_changes(["README.md"]))
+        self.assertFalse(has_changes(["package.json"]))
+
+
+class RecordImplementMilestoneTest(unittest.TestCase):
+    def test_resolve_work_summary_accepts_direct_input(self) -> None:
+        self.assertEqual(
+            resolve_work_summary("Implemented GitLab CI support.", Path("/missing/handoff.json")),
+            "Implemented GitLab CI support.",
+        )
 
 
 if __name__ == "__main__":

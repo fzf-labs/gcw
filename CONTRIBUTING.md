@@ -22,10 +22,11 @@ gcw init
 gcw doctor
 ```
 
-如需安装 GitHub hosted workflow assets：
+如需安装 hosted workflow assets，按平台选择：
 
 ```bash
 gcw init --with-github-actions
+gcw init --with-gitlab-ci
 ```
 
 初始化后，在 Cursor / 支持 Agent Skills 的环境中，将目标仓库的 `.agents/skills/` 加入 skill 搜索路径，或按你使用的 IDE 文档把该目录链到本地 skills 目录。
@@ -111,9 +112,9 @@ python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
 
 也可在 GitHub Actions 中手动触发 **GCW Labels Sync** workflow（`workflow_dispatch`），见 `.github/workflows/gcw-labels-sync.yml`。
 
-## Hosted Agent（GitHub Actions）
+## Hosted Agent（GitHub Actions / GitLab CI）
 
-在仓库中配置 `OPENAI_API_KEY`（Secret）、`OPENAI_API_ENDPOINT` 与 `AGENT_LOGIN`（Variables）后，可为 Issue 打上 trigger label（如 `gcw:ready-for-planning`）触发托管 agent。详见 [docs/hosted-agent.md](docs/hosted-agent.md)。
+GitHub Actions 路径需要配置 `OPENAI_API_KEY`（Secret）、`OPENAI_API_ENDPOINT` 与 `AGENT_LOGIN`（Variables）后，通过 trigger label（如 `gcw:ready-for-planning`）触发托管 agent。GitLab CI 路径使用 `.gitlab-ci.yml` 与 `GLAB_TOKEN`，通过 pipeline variables 选择 Issue 与 job。详见 [docs/hosted-agent.md](docs/hosted-agent.md)。
 
 ## 文档语言
 

@@ -111,6 +111,22 @@ test("gcw init installs GitHub Actions assets only when requested", async () => 
   }
 });
 
+test("gcw init installs GitLab CI template only when requested", async () => {
+  const defaultTarget = await tempDir();
+  const gitlabTarget = await tempDir();
+  try {
+    await runCli(["init", "--target", defaultTarget]);
+    assert.equal(await exists(path.join(defaultTarget, ".gitlab-ci.yml")), false);
+
+    const { stdout } = await runCli(["init", "--target", gitlabTarget, "--with-gitlab-ci"]);
+    assert.match(stdout, /Copied \.gitlab-ci\.yml/);
+    assert.equal(await exists(path.join(gitlabTarget, ".gitlab-ci.yml")), true);
+  } finally {
+    await cleanup(defaultTarget);
+    await cleanup(gitlabTarget);
+  }
+});
+
 test("gcw doctor reports initialized repository health", async () => {
   const target = await tempDir();
   try {
@@ -137,4 +153,5 @@ test("npm build creates package templates without runtime issue state", async ()
   );
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "issues")), false);
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "runtime", "__pycache__")), false);
+  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gitlab-ci.yml")), true);
 });

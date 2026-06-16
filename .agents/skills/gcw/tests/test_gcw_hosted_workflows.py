@@ -14,6 +14,7 @@ import json
 ROOT = Path(__file__).resolve().parents[4]
 WORKFLOWS = ROOT / ".github" / "workflows"
 SCRIPTS = ROOT / ".github" / "scripts"
+GITLAB_CI = ROOT / ".gitlab-ci.yml"
 sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
@@ -196,6 +197,62 @@ class HostedWorkflowYamlTest(unittest.TestCase):
         self.assertEqual(jobs["finalize"]["needs"], ["preflight", "classify"])
 
 
+class GitLabCiTemplateTest(unittest.TestCase):
+    EXPECTED_JOBS = (
+        "gcw:issue-triage",
+        "gcw:issue-clarify",
+        "gcw:issue-to-spec",
+        "gcw:spec-check",
+        "gcw:implement",
+        "gcw:implement-check",
+        "gcw:pr-publish",
+        "gcw:pr-review",
+    )
+
+    def template_text(self) -> str:
+        return GITLAB_CI.read_text(encoding="utf-8")
+
+    def template_data(self) -> dict:
+        return yaml.safe_load(self.template_text())
+
+    def test_gitlab_ci_template_exists_with_gcw_jobs(self) -> None:
+        self.assertTrue(GITLAB_CI.is_file())
+        data = self.template_data()
+        for job in self.EXPECTED_JOBS:
+            self.assertIn(job, data)
+
+    def test_gitlab_ci_template_defines_trigger_contract(self) -> None:
+        text = self.template_text()
+        for token in (
+            "GCW_ISSUE_NUMBER",
+            "GCW_ISSUE_BRANCH",
+            "GCW_DRY_RUN",
+            "GCW_EXECUTOR",
+            "gcw:executor-hosted",
+            "gcw:executor-local",
+            "GLAB_TOKEN",
+            "--issue-labels \"$GCW_EXECUTOR\"",
+        ):
+            self.assertIn(token, text)
+
+    def test_gitlab_ci_template_delegates_to_existing_gcw_scripts(self) -> None:
+        text = self.template_text()
+        for command in (
+            "glab",
+            "prepare_gcw_hosted_step.py",
+            "validate_gcw_evidence.py workflow",
+            "run_gcw_step.py --step gcw-issue-triage",
+            "run_gcw_step.py --step gcw-issue-clarify",
+            "run_gcw_step.py --step gcw-issue-to-spec",
+            "run_gcw_step.py --step gcw-spec-check",
+            "record_implement_milestone.py",
+            "run_gcw_step.py --step gcw-implement-check",
+            "run_gcw_step.py --step gcw-pr-publish",
+            "run_gcw_step.py --step gcw-pr-review",
+        ):
+            self.assertIn(command, text)
+
+
 class PrepareHostedStepTest(unittest.TestCase):
     def test_prepare_allows_implement_from_implementing(self) -> None:
         issue_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
@@ -237,6 +294,26 @@ class PrepareHostedStepTest(unittest.TestCase):
         )
         self.assertFalse(result["should_run"])
         self.assertIn(EXECUTOR_LOCAL, result["skip_reason"])
+
+    def test_prepare_accepts_explicit_issue_labels_for_gitlab_ci(self) -> None:
+        fixture_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
+        projection = json.loads((fixture_dir / "workflow.json").read_text(encoding="utf-8"))
+        projection["projection"]["phase"] = "ready-for-implementation"
+        projection["projection"]["last_completed_step"] = "gcw-spec-check"
+        projection["projection"]["next_allowed_steps"] = ["gcw-implement"]
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / "issue"
+            issue_dir.mkdir(parents=True, exist_ok=True)
+            (issue_dir / "workflow.json").write_text(json.dumps(projection, indent=2) + "\n", encoding="utf-8")
+            result = prepare(
+                "gcw-implement",
+                issue_dir,
+                "17",
+                "",
+                issue_labels=[EXECUTOR_HOSTED],
+            )
+            self.assertTrue(result["should_run"])
+            self.assertEqual(result["executor_gate"], EXECUTOR_HOSTED)
 
     def test_prepare_allows_implement_with_executor_hosted(self) -> None:
         fixture_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"

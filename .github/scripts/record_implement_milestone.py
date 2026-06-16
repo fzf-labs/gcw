@@ -10,16 +10,24 @@ import sys
 from pathlib import Path
 
 
+def resolve_work_summary(work_summary: str, handoff_summary: Path) -> str:
+    summary = work_summary.strip()
+    if summary:
+        return summary
+    data = json.loads(handoff_summary.read_text(encoding="utf-8"))
+    return str(data.get("work_summary", "")).strip()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--issue-dir", type=Path, required=True)
     parser.add_argument("--handoff-summary", type=Path, default=Path(".gcw-runtime/handoff/implement_summary.json"))
+    parser.add_argument("--work-summary", default="")
     parser.add_argument("--feedback-source", default="")
     parser.add_argument("--feedback-ref", default="")
     args = parser.parse_args(argv)
 
-    data = json.loads(args.handoff_summary.read_text(encoding="utf-8"))
-    work_summary = str(data.get("work_summary", "")).strip()
+    work_summary = resolve_work_summary(args.work_summary, args.handoff_summary)
     if not work_summary:
         print("work_summary is required", file=sys.stderr)
         return 1
