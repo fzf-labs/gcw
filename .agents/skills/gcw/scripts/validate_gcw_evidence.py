@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import hashlib
 import json
@@ -8,14 +12,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from gcw_artifact_contracts import body_hash, normalize_body
+from gcw_workflow_contracts import PLANNING_FILES
 from gcw_workflow_lib import (
-    PLANNING_FILES,
     WorkflowError,
     assert_projection_current,
     find_latest_event,
     validate_event_log,
 )
-from publish_progress_comment import body_hash
 from render_gcw_hosted_artifacts import render_recorded_progress_comment
 
 _SKILLS_DIR = Path(__file__).resolve().parents[2]

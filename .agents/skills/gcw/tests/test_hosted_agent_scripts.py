@@ -21,11 +21,7 @@ from validate_handoff_json import validate  # noqa: E402
 class GcwWorkflowEventTest(unittest.TestCase):
     def test_comment_requests_explicit_step_command(self) -> None:
         self.assertTrue(comment_requests_step("@gcw-bot /gcw issue-to-spec", "gcw-bot", "gcw-issue-to-spec"))
-        self.assertTrue(comment_requests_step("@gcw-bot /gcw to-spec", "gcw-bot", "gcw-issue-to-spec"))
         self.assertFalse(comment_requests_step("@gcw-bot /gcw implement", "gcw-bot", "gcw-issue-to-spec"))
-
-    def test_comment_requests_legacy_mention_for_compatibility(self) -> None:
-        self.assertTrue(comment_requests_step("@gcw-bot please continue", "gcw-bot", "gcw-issue-to-spec"))
 
     def test_should_run_on_trigger_label(self) -> None:
         ok, reason = should_run_event(

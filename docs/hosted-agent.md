@@ -52,14 +52,12 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 - `@gcw-bot /gcw triage`
 - `@gcw-bot /gcw clarify`
-- `@gcw-bot /gcw to-spec`
+- `@gcw-bot /gcw issue-to-spec`
 - `@gcw-bot /gcw spec-check`
 - `@gcw-bot /gcw implement`
 - `@gcw-bot /gcw implement-check`
 - `@gcw-bot /gcw pr-publish`
 - `@gcw-bot /gcw pr-review`
-
-为兼容现有自动化，短期内仍接受旧式 `@AGENT_LOGIN` 评论触发；脚本层保留裸 `/gcw` 兜底，但 issue comment 的 job `if` 仍要求 `@AGENT_LOGIN`。新集成应优先使用显式命令，避免普通 mention 误触发。
 
 ### Executor labels（hosted 总开关）
 

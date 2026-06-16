@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import json
 import sys
@@ -16,11 +20,7 @@ from gcw_workflow_lib import (
     load_events,
     reduce_workflow,
 )
-
-
-PROGRESS_MARKER = "<!-- gcw-progress -->"
-REVIEW_REQUEST_START = "<!-- gcw-review-request:start -->"
-REVIEW_REQUEST_END = "<!-- gcw-review-request:end -->"
+from gcw_artifact_contracts import PROGRESS_MARKER, REVIEW_REQUEST_END, REVIEW_REQUEST_START
 
 _overlay_event: ContextVar[dict[str, Any] | None] = ContextVar("gcw_render_overlay_event", default=None)
 

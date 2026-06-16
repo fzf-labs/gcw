@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import hashlib
 import json
@@ -10,10 +14,16 @@ from typing import Any, Callable
 from gcw_workflow_lib import assert_projection_current, find_latest_event
 
 from remote_fetch import RemoteFetchError, fetch_url
-from render_gcw_hosted_artifacts import (
+from gcw_artifact_contracts import (
     PROGRESS_MARKER,
     REVIEW_REQUEST_END,
     REVIEW_REQUEST_START,
+    body_hash,
+    count_markers,
+    extract_marked_body,
+    normalize_body,
+)
+from render_gcw_hosted_artifacts import (
     render_progress_comment,
     render_recorded_progress_comment,
     render_review_request,
@@ -59,30 +69,6 @@ def load_remote_text(
     return text
 
 
-def normalize_body(text: str) -> str:
-    return text.replace("\r\n", "\n").rstrip() + "\n"
-
-
-def extract_marked_body(remote_text: str, start_marker: str, end_marker: str) -> str | None:
-    start = remote_text.find(start_marker)
-    end = remote_text.find(end_marker, start + len(start_marker)) if start != -1 else -1
-    if start == -1 or end == -1 or end < start:
-        return None
-    return remote_text[start : end + len(end_marker)]
-
-
-def _count_markers(text: str, marker: str) -> int:
-    count = 0
-    pos = 0
-    while True:
-        idx = text.find(marker, pos)
-        if idx == -1:
-            break
-        count += 1
-        pos = idx + len(marker)
-    return count
-
-
 def _verify_body_hash(remote_text: str, issue_dir: Path, errors: list[str]) -> None:
     latest = find_latest_event(issue_dir, "gcw-pr-publish")
     if latest is None:
@@ -91,7 +77,7 @@ def _verify_body_hash(remote_text: str, issue_dir: Path, errors: list[str]) -> N
     expected_hash = str(payload.get("body_hash", ""))
     if not expected_hash.startswith("sha256:"):
         return
-    actual_hash = f"sha256:{hashlib.sha256(normalize_body(remote_text).encode('utf-8')).hexdigest()}"
+    actual_hash = body_hash(remote_text)
     if actual_hash != expected_hash:
         errors.append(f"remote body hash {actual_hash} does not match event body_hash {expected_hash}")
 
@@ -235,7 +221,7 @@ def verify_review_request(args: argparse.Namespace) -> dict[str, Any]:
             errors.append(str(exc))
             can_compare = False
 
-    start_count = _count_markers(remote_text, REVIEW_REQUEST_START)
+    start_count = count_markers(remote_text, REVIEW_REQUEST_START)
     if start_count > 1:
         errors.append(f"remote review request has {start_count} start markers; expected 1")
 

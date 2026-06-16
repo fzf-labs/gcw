@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import json
 import os
@@ -14,25 +18,8 @@ from gcw_executor_gate import (
     executor_gate_reason,
     fetch_issue_labels_github,
     hosted_executor_allowed,
-    step_rank,
 )
-
-_STEP_PHASES: dict[str, tuple[str, ...]] = {
-    "gcw-issue-triage": ("issue-opened",),
-    "gcw-issue-clarify": ("issue-triaged", "issue-clarifying"),
-    "gcw-issue-to-spec": ("ready-for-planning",),
-    "gcw-spec-check": ("planned",),
-    "gcw-implement": ("ready-for-implementation", "changes-requested", "implementing"),
-    "gcw-implement-check": ("implementing",),
-    "gcw-pr-publish": ("ready-for-review",),
-    "gcw-pr-review": ("reviewing",),
-}
-
-_VALIDATE_COMMAND: dict[str, str] = {
-    "gcw-spec-check": "spec-check",
-    "gcw-implement-check": "implement-check",
-    "gcw-pr-review": "review-check",
-}
+from gcw_hosted_policy import prepare_hosted_step, validate_command_for_step
 
 
 def issue_branch(issue_number: str, issue_branch_input: str) -> str:
@@ -53,84 +40,6 @@ def load_projection(issue_dir: Path) -> dict:
     return projection
 
 
-def _find_latest_event(issue_dir: Path, event_name: str) -> dict | None:
-    events_dir = issue_dir / "events"
-    if not events_dir.is_dir():
-        return None
-    latest: dict | None = None
-    latest_seq = -1
-    for path in sorted(events_dir.glob("*.json")):
-        try:
-            event = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-        if event.get("event") != event_name:
-            continue
-        seq = event.get("seq")
-        if isinstance(seq, int) and seq > latest_seq:
-            latest = event
-            latest_seq = seq
-    return latest
-
-
-_REPEATABLE_WHILE_PHASE: dict[str, tuple[str, ...]] = {
-    "gcw-implement": ("implementing", "changes-requested", "ready-for-implementation"),
-    "gcw-issue-clarify": ("issue-clarifying",),
-}
-
-
-def _idempotent_decision(step: str, projection: dict, issue_dir: Path) -> dict[str, str | bool]:
-    last = str(projection.get("last_completed_step", "")).strip()
-    phase = str(projection.get("phase", "")).strip()
-    current_rank = step_rank(step)
-    last_rank = step_rank(last) if last else None
-
-    if step == "gcw-pr-review":
-        pr_review = _find_latest_event(issue_dir, "gcw-pr-review")
-        result = ""
-        if pr_review:
-            result = str(pr_review.get("payload", {}).get("result", "")).strip().lower()
-        if result == "passed":
-            return {
-                "should_run": True,
-                "skip_reason": "",
-                "run_mode": "verify-only",
-                "record_step": False,
-                "validate_command": "review-check",
-            }
-
-    if last == step:
-        repeatable_phases = _REPEATABLE_WHILE_PHASE.get(step, ())
-        if phase not in repeatable_phases:
-            return {
-                "should_run": False,
-                "skip_reason": f"{step} already completed",
-                "run_mode": "skip",
-                "record_step": False,
-                "validate_command": _VALIDATE_COMMAND.get(step, ""),
-            }
-
-    if current_rank is not None and last_rank is not None and last_rank > current_rank:
-        return {
-            "should_run": False,
-            "skip_reason": f"superseded by {last}",
-            "run_mode": "skip",
-            "record_step": False,
-            "validate_command": _VALIDATE_COMMAND.get(step, ""),
-        }
-
-    validate_command = _VALIDATE_COMMAND.get(step, "")
-    if step == "gcw-pr-review":
-        validate_command = "pr-publish"
-    return {
-        "should_run": True,
-        "skip_reason": "",
-        "run_mode": "full",
-        "record_step": True,
-        "validate_command": validate_command,
-    }
-
-
 def prepare(
     step: str,
     issue_dir: Path,
@@ -140,14 +49,10 @@ def prepare(
     issue_labels: list[str] | None = None,
     repo: str = "",
 ) -> dict:
-    expected = _STEP_PHASES.get(step)
-    if expected is None:
-        raise ValueError(f"unsupported hosted step: {step}")
-
     branch = issue_branch(issue_number, issue_branch_input)
     base = {
         "issue_branch": branch,
-        "validate_command": _VALIDATE_COMMAND.get(step, ""),
+        "validate_command": validate_command_for_step(step),
         "run_mode": "full",
         "record_step": True,
     }
@@ -174,7 +79,7 @@ def prepare(
         }
 
     projection = load_projection(issue_dir)
-    idempotent = _idempotent_decision(step, projection, issue_dir)
+    idempotent = prepare_hosted_step(step, projection, issue_dir)
     if not idempotent["should_run"] and idempotent.get("skip_reason"):
         return {
             **base,
@@ -189,20 +94,6 @@ def prepare(
         }
 
     phase = str(projection.get("phase", "")).strip()
-    if phase not in expected:
-        allowed_phases = ", ".join(expected)
-        return {
-            **base,
-            "ok": True,
-            "should_run": False,
-            "skip_reason": f"phase {phase!r} is not in [{allowed_phases}] for {step}",
-            "phase": phase,
-            "run_mode": str(idempotent["run_mode"]),
-            "record_step": bool(idempotent["record_step"]),
-            "validate_command": str(idempotent["validate_command"]),
-            "executor_gate": EXECUTOR_HOSTED,
-        }
-
     return {
         **base,
         "ok": True,

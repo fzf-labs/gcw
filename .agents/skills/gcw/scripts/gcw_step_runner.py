@@ -13,8 +13,8 @@ from gcw_step_adapters import (
     render_milestone_progress_artifacts,
     render_review_request_artifacts,
 )
+from gcw_workflow_contracts import PLANNING_FILES
 from gcw_workflow_lib import (
-    PLANNING_FILES,
     WorkflowError,
     assert_projection_current,
     find_latest_event,

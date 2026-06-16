@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import json
 import os
@@ -11,29 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from gcw_executor_gate import executor_gate_reason, fetch_issue_labels_github
-
-# Trigger label per hosted step (see docs/hosted-agent.md).
-STEP_TRIGGER_LABELS: dict[str, str] = {
-    "gcw-issue-triage": "gcw:run-triage",
-    "gcw-issue-clarify": "gcw:run-clarify",
-    "gcw-issue-to-spec": "gcw:ready-for-planning",
-    "gcw-spec-check": "gcw:run-spec-check",
-    "gcw-implement": "gcw:run-implement",
-    "gcw-implement-check": "gcw:run-implement-check",
-    "gcw-pr-publish": "gcw:run-pr-publish",
-    "gcw-pr-review": "gcw:run-pr-review",
-}
-
-STEP_COMMENT_ALIASES: dict[str, tuple[str, ...]] = {
-    "gcw-issue-triage": ("issue-triage", "triage"),
-    "gcw-issue-clarify": ("issue-clarify", "clarify"),
-    "gcw-issue-to-spec": ("issue-to-spec", "to-spec", "spec"),
-    "gcw-spec-check": ("spec-check",),
-    "gcw-implement": ("implement",),
-    "gcw-implement-check": ("implement-check",),
-    "gcw-pr-publish": ("pr-publish", "publish"),
-    "gcw-pr-review": ("pr-review", "review"),
-}
+from gcw_hosted_policy import comment_requests_step, should_run_event as hosted_should_run_event
 
 
 def load_event(path: str) -> dict[str, Any]:
@@ -62,71 +44,13 @@ def assignee_logins(issue: dict[str, Any]) -> list[str]:
     return logins
 
 
-def comment_mentions_agent(comment_body: str, agent_login: str) -> bool:
-    login = agent_login.strip().lstrip("@")
-    if not login:
-        return False
-    body = comment_body or ""
-    return f"@{login}" in body or "/gcw" in body.lower()
-
-
-def comment_requests_step(comment_body: str, agent_login: str, step: str) -> bool:
-    """Return true for explicit `/gcw <step>` commands, preserving legacy mentions."""
-    login = agent_login.strip().lstrip("@")
-    if not login:
-        return False
-    body = comment_body or ""
-    lower_body = body.lower()
-    mention = f"@{login}".lower() in lower_body
-    aliases = STEP_COMMENT_ALIASES.get(step, (step.removeprefix("gcw-"),))
-    explicit = mention and any(f"/gcw {alias}" in lower_body for alias in aliases)
-    if explicit:
-        return True
-    if mention and "/gcw " in lower_body:
-        return False
-    return comment_mentions_agent(body, agent_login)
-
-
 def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tuple[bool, str]:
-    if event.get("pull_request") is not None:
-        return False, "issue event is a pull request"
-
-    trigger_label = STEP_TRIGGER_LABELS.get(step, "")
-    event_name = str(event.get("event_name", ""))
-    action = str(event.get("action", ""))
     issue = event.get("issue") if isinstance(event.get("issue"), dict) else {}
     labels = label_names(issue)
-    assignees = assignee_logins(issue)
-    agent = agent_login.strip().lstrip("@")
-
     allowed, gate_reason = executor_gate_reason(labels)
     if not allowed:
         return False, gate_reason
-
-    if event_name == "issues" and action == "labeled":
-        label = event.get("label") if isinstance(event.get("label"), dict) else {}
-        label_name = str(label.get("name", "")).strip()
-        if label_name == trigger_label:
-            if agent and agent not in assignees:
-                return False, f"issue not assigned to agent {agent}"
-            return True, f"labeled {trigger_label}"
-        return False, f"ignored label {label_name!r}"
-
-    if event_name == "issues" and action == "assigned":
-        assignee = event.get("assignee") if isinstance(event.get("assignee"), dict) else {}
-        login = str(assignee.get("login", "")).strip()
-        if agent and login == agent and trigger_label in labels:
-            return True, f"assigned to {agent} with {trigger_label}"
-        return False, "assignment does not match agent trigger contract"
-
-    if event_name == "issue_comment" and action == "created":
-        comment = event.get("comment") if isinstance(event.get("comment"), dict) else {}
-        body = str(comment.get("body", ""))
-        if comment_requests_step(body, agent_login, step) and trigger_label in labels:
-            return True, "comment mentions agent with trigger label"
-        return False, "comment does not match agent trigger contract"
-
-    return False, f"unsupported event {event_name}:{action}"
+    return hosted_should_run_event(step, event, agent_login)
 
 
 def apply_executor_gate(

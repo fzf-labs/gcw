@@ -14,6 +14,10 @@ Example::
 
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import json
 import sys

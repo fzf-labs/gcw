@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -10,13 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from gcw_workflow_lib import WorkflowError, load_projection
-
+from gcw_artifact_contracts import body_hash
 from render_gcw_hosted_artifacts import render_progress_comment
-
-
-def body_hash(text: str) -> str:
-    normalized = text.replace("\r\n", "\n").rstrip() + "\n"
-    return f"sha256:{hashlib.sha256(normalized.encode('utf-8')).hexdigest()}"
 
 
 def render_milestone_progress_body(

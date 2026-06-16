@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
 import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
+from gcw_workflow_contracts import NEXT_ALLOWED_STEPS, PLANNING_FILES
 from gcw_workflow_lib import (
-    NEXT_ALLOWED_STEPS,
-    PLANNING_FILES,
     WorkflowError,
     append_event,
     assert_projection_current,

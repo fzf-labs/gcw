@@ -5,20 +5,10 @@ from __future__ import annotations
 
 import subprocess
 
+from gcw_hosted_policy import step_rank
+
 EXECUTOR_HOSTED = "gcw:executor-hosted"
 EXECUTOR_LOCAL = "gcw:executor-local"
-
-MAIN_STEP_ORDER: tuple[str, ...] = (
-    "gcw-issue-intake",
-    "gcw-issue-triage",
-    "gcw-issue-clarify",
-    "gcw-issue-to-spec",
-    "gcw-spec-check",
-    "gcw-implement",
-    "gcw-implement-check",
-    "gcw-pr-publish",
-    "gcw-pr-review",
-)
 
 
 def hosted_executor_allowed(labels: list[str]) -> bool:
@@ -58,10 +48,3 @@ def fetch_issue_labels_github(repo: str, issue_number: str) -> list[str]:
     if result.returncode != 0:
         return []
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
-
-
-def step_rank(step: str) -> int | None:
-    try:
-        return MAIN_STEP_ORDER.index(step)
-    except ValueError:
-        return None
