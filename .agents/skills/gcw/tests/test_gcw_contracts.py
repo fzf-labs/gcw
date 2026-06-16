@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
 from gcw_workflow_contracts import (  # noqa: E402
     HOSTED_STEP_PHASES,
+    HUMAN_REVIEW_REQUIRED_STATES,
     MAIN_STEP_ORDER,
     NEXT_ALLOWED_STEPS,
     PLANNING_FILES,
@@ -54,6 +55,21 @@ class GcwWorkflowContractsTest(unittest.TestCase):
         self.assertIn("review-complete", STATES)
         self.assertIn("review-complete", VALID_EVENT_NAMES)
         self.assertEqual(PLANNING_FILES, ("task_plan.md", "findings.md", "progress.md"))
+
+    def test_human_review_required_states_stop_automatic_gcw_progress(self) -> None:
+        self.assertEqual(
+            HUMAN_REVIEW_REQUIRED_STATES,
+            (
+                "planned",
+                "issue-clarifying",
+                "blocked",
+                "reviewing",
+                "review-complete",
+            ),
+        )
+        for state in HUMAN_REVIEW_REQUIRED_STATES:
+            self.assertIn(state, STATES)
+        self.assertNotIn("ready-for-implementation", HUMAN_REVIEW_REQUIRED_STATES)
 
 
 if __name__ == "__main__":

@@ -59,6 +59,14 @@ NEXT_ALLOWED_STEPS: dict[str, list[str]] = {
     "review-complete": [],
 }
 
+HUMAN_REVIEW_REQUIRED_STATES: tuple[str, ...] = (
+    "planned",
+    "issue-clarifying",
+    "blocked",
+    "reviewing",
+    "review-complete",
+)
+
 PLANNING_FILES: tuple[str, ...] = ("task_plan.md", "findings.md", "progress.md")
 
 STEP_TRIGGER_LABELS: dict[str, str] = {
