@@ -94,12 +94,12 @@ Human review and `review-complete` are not main workflow steps. They happen on G
 | `ready-for-review` | `gcw-pr-publish` |
 | `reviewing` | Run `gcw-pr-review` for automatic review; platform human review remains external |
 | `changes-requested` | Run `gcw-implement` with `feedback_source` metadata preserved |
-| `blocked` | Stop until the blocker is resolved, then resume from `resume_state` / `resume_step` |
+| `blocked` | Stop until the blocker is resolved, then resume from `resume_phase` / `resume_step` |
 | `review-complete` | Stop; the workflow is closed |
 
 `reviewing` only means the review request has entered review. After automatic PR review passes, the state remains `reviewing` until a platform human-review event produces `review-complete` or `changes-requested`. When entering `changes-requested`, distinguish the feedback source in metadata, for example `feedback_source: pr-review` or `feedback_source: human-review`.
 
-`gcw-block` and `gcw-clarify` are not main steps; they are feedback-loop actions. `gcw-block` can move any non-terminal state to `blocked` and must record `resume_state` / `resume_step` in metadata. After the blocker is resolved, resume from that point. `gcw-clarify` can move any stage needing more issue information to `issue-clarifying`.
+`gcw-block` and `gcw-clarify` are not main steps; they are feedback-loop actions. `gcw-block` can move any non-terminal state to `blocked` and must record `resume_phase` / `resume_step` in metadata. After the blocker is resolved, resume from that point. `gcw-clarify` can move any stage needing more issue information to `issue-clarifying`.
 
 Initial implementation and feedback fixes both finish through `gcw-implement` -> `gcw-implement-check` -> `gcw-pr-publish` -> `gcw-pr-review`. Feedback fixes differ only because they start from `changes-requested`, return to `implementing`, and then repeat the same closing chain. `gcw-pr-publish` must be idempotent: both first-time review request creation and later updates go through it.
 
@@ -124,7 +124,7 @@ Any pipeline that hits a hard gate or needs human judgment must stop, hand contr
 4. Do not publish a review request before `gcw-implement-check` reaches `ready-for-review`.
 5. Do not run human review actions locally; human review happens on GitHub/GitLab and is recorded as platform events.
 6. Preserve `feedback_source` when moving from `changes-requested` back into implementation.
-7. Preserve `resume_state` / `resume_step` when a step enters `blocked`.
+7. Preserve `resume_phase` / `resume_step` when a step enters `blocked`.
 8. Stop and report clearly when the workflow enters `issue-clarifying`, `blocked`, or `review-complete`.
 9. At each milestone step completion (from `gcw-issue-triage` onward), publish a **new** Issue `<!-- gcw-progress -->` comment via `publish_progress_comment.py` with `--milestone-event` and `--milestone-payload-file` so the body matches the completing step **before** `record-*` appends the event; never edit an existing progress comment and never add a separate planning-links comment. Prefer `run_gcw_step.py` when available — it enforces publish-then-record ordering. Record `progress_comment_url` and the rendered `progress_comment_body_hash` on the completing event; `workflow.json` `refs.progress_comment_url` always points to the latest comment.
 

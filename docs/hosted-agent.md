@@ -33,7 +33,7 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 ## Trigger label 契约
 
-除 `workflow_dispatch` 外，各步骤可通过 **label + assign** 或 **comment @AGENT_LOGIN** 自动触发（须满足 `workflow.json` phase）：
+除 `workflow_dispatch` 外，issue-based 步骤可通过 **label + assign** 或 **comment @AGENT_LOGIN** 自动触发（须满足 `workflow.json` phase）；`gcw-pr-review` 另外支持 `pull_request` 触发：
 
 | GCW 步骤 | Workflow 文件 | Trigger label |
 | --- | --- | --- |
@@ -50,8 +50,8 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 评论触发推荐使用显式命令：`@AGENT_LOGIN /gcw <step>`。例如：
 
-- `@gcw-bot /gcw triage`
-- `@gcw-bot /gcw clarify`
+- `@gcw-bot /gcw issue-triage`
+- `@gcw-bot /gcw issue-clarify`
 - `@gcw-bot /gcw issue-to-spec`
 - `@gcw-bot /gcw spec-check`
 - `@gcw-bot /gcw implement`
@@ -61,7 +61,7 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 ### Executor labels（hosted 总开关）
 
-Hosted workflow **仅在** Issue 带有 **`gcw:executor-hosted`** 时才会运行（含 `pull_request: synchronize` 与 `gcw:run-*` 触发）。
+Hosted workflow 只有在 executor gate 通过时才会继续执行：目标 Issue 需要带有 **`gcw:executor-hosted`** 且不能带有 **`gcw:executor-local`**。`issues` / `issue_comment` 触发会在 job `if` 中先做这层过滤；`workflow_dispatch` 与 `pull_request` 触发则由脚本再做同一层 gate。
 
 | Label | 行为 |
 | --- | --- |

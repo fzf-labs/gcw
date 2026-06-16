@@ -66,7 +66,7 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 
 人类审查和 `review-complete` 状态不作为本流程的步骤拆解项；它们发生在 GitHub 或 GitLab 上，由 reviewer、merge 策略或平台事件产生。
 
-`gcw-block` 和 `gcw-clarify` 不是主步骤；它们是反馈循环动作。`gcw-block` 可以从任意非终态阶段切到 `blocked`，并在 metadata 中记录 `resume_state` / `resume_step`；阻塞解除后回到这个恢复点。`gcw-clarify` 可以从需要补充 Issue 信息的阶段切到 `issue-clarifying`。
+`gcw-block` 和 `gcw-clarify` 不是主步骤；它们是反馈循环动作。`gcw-block` 可以从任意非终态阶段切到 `blocked`，并在 metadata 中记录 `resume_phase` / `resume_step`；阻塞解除后回到这个恢复点。`gcw-clarify` 可以从需要补充 Issue 信息的阶段切到 `issue-clarifying`。
 
 首次提交与反馈修改都以 `gcw-implement` -> `gcw-implement-check` -> `gcw-pr-publish` -> `gcw-pr-review` 收尾；区别在于反馈修改从 `changes-requested` 回到 `implementing`，再重新走这条收尾链路。`gcw-pr-publish` 幂等：首次创建 review request、之后推送更新都走它。
 
@@ -86,7 +86,7 @@ spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `
 | `ready-for-review` | 分支已经通过实现自查，且最新 `gcw-implement-check` 事件 payload 完整，具备创建或更新 review request 的条件。 | `gcw-pr-publish`（幂等：首次创建，已有则更新） |
 | `reviewing` | PR/MR 已创建或更新，正在经历自动检查或等待人类 reviewer 审查。 | `gcw-pr-review`；平台要求修改 -> `changes-requested`；平台审查结束 -> `review-complete` |
 | `changes-requested` | PR review 或人类 reviewer 要求修改。通过 metadata 区分反馈来源。 | `gcw-implement` |
-| `blocked` | 当前无法继续推进，例如缺权限、缺依赖、外部服务不可用或需要人类决策。 | 阻塞解除后按 metadata 中的 `resume_state` / `resume_step` 回到恢复点 |
+| `blocked` | 当前无法继续推进，例如缺权限、缺依赖、外部服务不可用或需要人类决策。 | 阻塞解除后按 metadata 中的 `resume_phase` / `resume_step` 回到恢复点 |
 | `review-complete` | 人类审查已经结束，结果已记录。这个状态可以代表已合并、已关闭、已接受不合并、拒绝，或明确终止。 | 无 |
 
 `reviewing` 只说明 review request 已经进入审查过程。自动 PR review 通过后仍保持 `reviewing`，直到平台人审事件产生 `review-complete` 或 `changes-requested`。当进入 `changes-requested` 时，应通过 metadata 区分反馈来源，例如 `feedback_source: pr-review` 或 `feedback_source: human-review`。
