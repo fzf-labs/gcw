@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Apply triage metadata from hosted handoff or dispatch inputs."""
 
+# 中文说明：把 hosted agent 产出的 triage handoff JSON 应用回 GitHub Issue。
+# 流程：读取 `.gcw-runtime/handoff/triage_result.json`，整理类型、优先级与标签，
+# 再委托 `manage_triage_metadata.py apply-metadata` 同步远端 issue metadata。
+
 from __future__ import annotations
 
 import argparse

@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/tests"))
 
@@ -37,7 +37,7 @@ class PublishProgressCommentTest(unittest.TestCase):
         workflow = json.loads((COMPLETE_FIXTURE / "workflow.json").read_text(encoding="utf-8"))
         (self.issue_dir / "workflow.json").write_text(json.dumps(workflow, indent=2) + "\n", encoding="utf-8")
 
-    @mock.patch("publish_progress_comment.subprocess.run")
+    @mock.patch("github.subprocess.run")
     def test_publish_creates_github_comment_only(self, run_mock: mock.Mock) -> None:
         run_mock.return_value = mock.Mock(stdout="https://github.com/owner/repo/issues/42#issuecomment-9\n", returncode=0)
         output = publish_progress_comment(argparse.Namespace(issue_dir=self.issue_dir, dry_run=False))

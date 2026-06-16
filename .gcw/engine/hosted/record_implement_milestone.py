@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Record gcw-implement milestone from hosted or handoff inputs."""
 
+# 中文说明：把 hosted `gcw-implement` 的实现进展记录成 GCW workflow 事件。
+# 流程：从参数或 `implement_summary.json` 取 work summary，先发布进度评论，
+# 再调用 `manage_gcw_workflow.py record-implement` 写入事件日志和更新 projection。
+
 from __future__ import annotations
 
 import argparse

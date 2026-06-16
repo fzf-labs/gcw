@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Gate hosted GCW workflows by workflow projection phase."""
 
+# 中文说明：在 hosted job 真正执行前做 phase gate 和幂等性判断。
+# 流程：读取 `.gcw/issues/<id>/workflow.json`，结合 executor 标签和 runtime policy
+# 判断当前 step 是否允许运行、是否只需 verify-only，并输出 branch、validate command 等上下文。
+
 from __future__ import annotations
 
 from _bootstrap import add_repo_root

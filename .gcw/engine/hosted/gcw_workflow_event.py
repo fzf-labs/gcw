@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Resolve GCW workflow inputs from workflow_dispatch and issue events."""
 
+# 中文说明：把 GitHub Actions 触发事件解析成 GCW workflow 可以消费的标准输入。
+# 流程：处理 `workflow_dispatch`、Issue 事件和 PR 事件，解析 issue 编号、分支、
+# dry-run 与触发原因，再结合 executor label gate 决定后续 hosted job 是否继续运行。
+
 from __future__ import annotations
 
 from _bootstrap import add_repo_root
@@ -31,17 +35,6 @@ def label_names(issue: dict[str, Any]) -> list[str]:
             if name:
                 names.append(name)
     return names
-
-
-def assignee_logins(issue: dict[str, Any]) -> list[str]:
-    assignees = issue.get("assignees") or []
-    logins: list[str] = []
-    for assignee in assignees:
-        if isinstance(assignee, dict):
-            login = str(assignee.get("login", "")).strip()
-            if login:
-                logins.append(login)
-    return logins
 
 
 def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tuple[bool, str]:

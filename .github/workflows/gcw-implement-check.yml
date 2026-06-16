@@ -50,7 +50,7 @@ jobs:
         env:
           AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
         run: |
-          python3 .github/scripts/gcw_workflow_event.py \
+          python3 .gcw/engine/hosted/gcw_workflow_event.py \
             --step gcw-implement-check \
             --event-name "${{ github.event_name }}" \
             --event-path "$GITHUB_EVENT_PATH" \
@@ -75,7 +75,7 @@ jobs:
         if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
-          python3 .github/scripts/prepare_gcw_hosted_step.py \
+          python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
             --step gcw-implement-check \
             --issue-number "${{ steps.event.outputs.issue_number }}" \
             --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
@@ -100,7 +100,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 .github/scripts/prepare_issue_handoff_context.py \
+          python3 .gcw/engine/hosted/prepare_issue_handoff_context.py \
             --repo "${{ github.repository }}" \
             --issue "${{ steps.event.outputs.issue_number }}" \
             --step gcw-implement-check \
@@ -133,7 +133,7 @@ jobs:
         run: |
           payload=".gcw/issues/${{ steps.event.outputs.issue_number }}/implement-check-payload.json"
           test -f "$payload" || { echo "missing $payload" >&2; exit 1; }
-          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+          python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py commit-push \
             --paths "$payload" \
             --message "chore(gcw): add implement-check payload for issue #${{ steps.event.outputs.issue_number }}" \
             --branch "${{ steps.prepare.outputs.issue_branch }}"
@@ -156,7 +156,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
-          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+          python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py commit-push \
             --paths "$issue_dir/events" "$issue_dir/workflow.json" \
             --message "gcw(${{ steps.event.outputs.issue_number }}): record implement check" \
             --branch "${{ steps.prepare.outputs.issue_branch }}"

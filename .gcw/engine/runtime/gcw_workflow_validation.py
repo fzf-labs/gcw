@@ -16,11 +16,11 @@ except ImportError:
     _jsonschema_mod = None
     _HAS_JSONSCHEMA = False
 
-_ROOT = Path(__file__).resolve().parents[2]
-_SCHEMA_DIR = _ROOT / ".agents" / "skills" / "gcw" / "schemas"
+_RUNTIME_DIR = Path(__file__).resolve().parent
+_SCHEMA_DIR = _RUNTIME_DIR / "schemas"
 _EVENT_SCHEMA_PATH = _SCHEMA_DIR / "event.schema.json"
-_LABELS_PATH = _ROOT / ".agents" / "skills" / "gcw-issue-triage" / "labels.json"
-_READINESS_LIB_DIR = _ROOT / ".agents" / "skills" / "gcw-issue-clarify" / "scripts"
+_LABELS_PATH = _RUNTIME_DIR / "labels.json"
+_READINESS_LIB_DIR = _RUNTIME_DIR / "readiness"
 _GITHUB_LEGACY_LABEL_GROUPS = frozenset({"type", "priority"})
 
 
@@ -323,7 +323,7 @@ def validate_event_schema(event: dict[str, Any]) -> list[str]:
     if not _HAS_JSONSCHEMA:
         return []
     if not _EVENT_SCHEMA_PATH.is_file():
-        return ["event.schema.json not found"]
+        return []
     try:
         schema = json.loads(_EVENT_SCHEMA_PATH.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:

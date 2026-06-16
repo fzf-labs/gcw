@@ -6,8 +6,9 @@ from typing import Any, Protocol
 
 from gcw_workflow_lib import WorkflowError
 
-from publish_progress_comment import body_hash, publish_milestone_progress_comment, publish_progress_comment
-from render_gcw_hosted_artifacts import render_progress_comment, render_review_request
+from gcw_artifact_contracts import body_hash
+from gcw_artifacts import render_progress_comment, render_review_request
+from progress import publish_milestone_progress_comment, publish_progress_comment
 
 
 class PlatformAdapter(Protocol):
@@ -35,7 +36,7 @@ def render_milestone_progress_artifacts(
     milestone_event: str,
     milestone_payload: dict[str, Any],
 ) -> dict[str, Any]:
-    from publish_progress_comment import render_milestone_progress_body
+    from progress import render_milestone_progress_body
 
     body = render_milestone_progress_body(issue_dir, milestone_event, milestone_payload)
     return {

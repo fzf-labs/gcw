@@ -20,14 +20,15 @@ const requiredAssetRoots = [
   ".agents/skills/gcw-pr-publish",
   ".agents/skills/gcw-pr-review",
   ".agents/skills/planning-with-files",
-  ".gcw/runtime",
+  ".gcw/engine/runtime",
+  ".gcw/engine/platforms",
 ];
 const githubActionsAssetRoots = [
   ".github/workflows",
   ".github/actions/gcw-setup",
   ".github/actions/gcw-run-codex",
-  ".github/scripts",
 ];
+const hostedSharedAssetRoots = [".gcw/engine/hosted"];
 const gitlabCiAssetRoots = [".gitlab-ci.yml"];
 
 function printVersion() {
@@ -132,13 +133,24 @@ async function initCommand(args) {
   const options = parseInitArgs(args);
   const sourceRoot = await templateRoot();
   const targetRoot = path.resolve(options.target);
-  const assetRoots = options.withGithubActions
-    ? [...requiredAssetRoots, ...githubActionsAssetRoots]
-    : requiredAssetRoots;
+  const assetRoots = [...requiredAssetRoots];
+  if (options.withGithubActions || options.withGitlabCi) {
+    assetRoots.push(...hostedSharedAssetRoots);
+  }
+  if (options.withGithubActions) {
+    assetRoots.push(...githubActionsAssetRoots);
+  }
   if (options.withGitlabCi) {
     assetRoots.push(...gitlabCiAssetRoots);
   }
-  const files = (await Promise.all(assetRoots.map((assetRoot) => listFiles(sourceRoot, assetRoot))))
+  const files = (
+    await Promise.all(
+      assetRoots.map(async (assetRoot) => {
+        const root = (await pathExists(path.join(sourceRoot, assetRoot))) ? sourceRoot : packageRoot;
+        return listFiles(root, assetRoot);
+      }),
+    )
+  )
     .flat()
     .sort();
 
@@ -146,7 +158,8 @@ async function initCommand(args) {
     if (options.dryRun) {
       console.log(`Would copy ${file}`);
     } else {
-      const source = path.join(sourceRoot, file);
+      const root = (await pathExists(path.join(sourceRoot, file))) ? sourceRoot : packageRoot;
+      const source = path.join(root, file);
       const target = path.join(targetRoot, file);
       const exists = await pathExists(target);
       if (exists && !options.force) {
@@ -181,7 +194,7 @@ async function doctorCommand(args) {
       label: "GCW assets",
       ok:
         (await pathExists(path.join(targetRoot, ".agents", "skills", "gcw", "SKILL.md"))) &&
-        (await pathExists(path.join(targetRoot, ".gcw", "runtime", "gcw_workflow_contracts.py"))),
+        (await pathExists(path.join(targetRoot, ".gcw", "engine", "runtime", "gcw_workflow_contracts.py"))),
     },
     {
       label: "python3",

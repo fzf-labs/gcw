@@ -19,7 +19,7 @@ from gcw_test_helpers import (
 
 
 ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
 VALIDATOR = ROOT / ".agents/skills/gcw/scripts/validate_gcw_evidence.py"
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 

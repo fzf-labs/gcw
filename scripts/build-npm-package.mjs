@@ -17,12 +17,13 @@ const assetRoots = [
   ".agents/skills/gcw-pr-publish",
   ".agents/skills/gcw-pr-review",
   ".agents/skills/planning-with-files",
-  ".gcw/runtime",
+  ".gcw/engine/runtime",
+  ".gcw/engine/platforms",
+  ".gcw/engine/hosted",
   ".gitlab-ci.yml",
   ".github/workflows",
   ".github/actions/gcw-setup",
   ".github/actions/gcw-run-codex",
-  ".github/scripts",
 ];
 
 function shouldSkip(entryName) {

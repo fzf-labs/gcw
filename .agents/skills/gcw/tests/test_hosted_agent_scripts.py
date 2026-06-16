@@ -8,8 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[4]
-SCRIPTS = ROOT / ".github" / "scripts"
-sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
+SCRIPTS = ROOT / ".gcw" / "engine" / "hosted"
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
 sys.path.insert(0, str(SCRIPTS))
 
 from finalize_gcw_hosted_step import commit_push, has_changes  # noqa: E402

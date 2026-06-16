@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from gcw_step_adapters import (
+from base import (
     DryRunAdapter,
     PlatformAdapter,
     render_milestone_progress_artifacts,
@@ -20,7 +20,7 @@ from gcw_workflow_lib import (
     find_latest_event,
     load_projection,
 )
-from manage_gcw_workflow import (
+from gcw_workflow_commands import (
     record_implement_check,
     record_issue_clarify,
     record_issue_triage,
@@ -29,7 +29,7 @@ from manage_gcw_workflow import (
     record_pr_review,
     record_spec_check,
 )
-from validate_gcw_evidence import (
+from gcw_evidence import (
     implement_check_errors,
     pr_publish_errors,
     workflow_errors,

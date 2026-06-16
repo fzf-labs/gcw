@@ -49,7 +49,7 @@ jobs:
         env:
           AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
         run: |
-          python3 .github/scripts/gcw_workflow_event.py \
+          python3 .gcw/engine/hosted/gcw_workflow_event.py \
             --step gcw-pr-publish \
             --event-name "${{ github.event_name }}" \
             --event-path "$GITHUB_EVENT_PATH" \
@@ -73,7 +73,7 @@ jobs:
         if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
-          python3 .github/scripts/prepare_gcw_hosted_step.py \
+          python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
             --step gcw-pr-publish \
             --issue-number "${{ steps.event.outputs.issue_number }}" \
             --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
@@ -107,7 +107,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           title="$(python3 -c 'import json; from pathlib import Path; p=Path(".gcw/issues/${{ steps.event.outputs.issue_number }}/implement-check-payload.json"); d=json.loads(p.read_text()); print(d.get("review_request",{}).get("title","gcw: review request"))')"
-          python3 .github/scripts/finalize_gcw_hosted_step.py upsert-pr \
+          python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py upsert-pr \
             --repo "${{ github.repository }}" \
             --branch "${{ steps.prepare.outputs.issue_branch }}" \
             --title "$title" \
@@ -136,7 +136,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
-          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+          python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py commit-push \
             --paths "$issue_dir/events" "$issue_dir/workflow.json" \
             --message "gcw(${{ steps.event.outputs.issue_number }}): record PR publish" \
             --branch "${{ steps.prepare.outputs.issue_branch }}"

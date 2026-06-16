@@ -10,7 +10,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+ROOT = Path(__file__).resolve().parents[4]
+SCRIPTS = ROOT / ".agents" / "skills" / "gcw" / "scripts"
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "platforms"))
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
 sys.path.insert(0, str(SCRIPTS))
 
 from verify_gcw_remote_evidence import (  # noqa: E402
@@ -21,7 +24,6 @@ from verify_gcw_remote_evidence import (  # noqa: E402
 )
 
 
-ROOT = Path(__file__).resolve().parents[4]
 VERIFY = ROOT / ".agents/skills/gcw/scripts/verify_gcw_remote_evidence.py"
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"

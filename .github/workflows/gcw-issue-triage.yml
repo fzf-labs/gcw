@@ -80,7 +80,7 @@ jobs:
         env:
           AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
         run: |
-          python3 .github/scripts/gcw_workflow_event.py \
+          python3 .gcw/engine/hosted/gcw_workflow_event.py \
             --step gcw-issue-triage \
             --event-name "${{ github.event_name }}" \
             --event-path "$GITHUB_EVENT_PATH" \
@@ -105,7 +105,7 @@ jobs:
         if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
-          python3 .github/scripts/prepare_gcw_hosted_step.py \
+          python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
             --step gcw-issue-triage \
             --issue-number "${{ steps.event.outputs.issue_number }}" \
             --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
@@ -148,7 +148,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 .github/scripts/prepare_issue_handoff_context.py \
+          python3 .gcw/engine/hosted/prepare_issue_handoff_context.py \
             --repo "${{ github.repository }}" \
             --issue "${{ needs.preflight.outputs.issue_number }}" \
             --step gcw-issue-triage \
@@ -172,7 +172,7 @@ jobs:
 
       - name: Validate triage result
         run: |
-          python3 .github/scripts/validate_handoff_json.py \
+          python3 .gcw/engine/hosted/validate_handoff_json.py \
             --name triage_result.json --path .gcw-runtime/handoff/triage_result.json
 
       - uses: actions/upload-artifact@v4
@@ -216,9 +216,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 .github/scripts/validate_handoff_json.py \
+          python3 .gcw/engine/hosted/validate_handoff_json.py \
             --name triage_result.json --path .gcw-runtime/handoff/triage_result.json
-          python3 .github/scripts/apply_triage_from_handoff.py \
+          python3 .gcw/engine/hosted/apply_triage_from_handoff.py \
             --repo "${{ github.repository }}" \
             --issue "${{ needs.preflight.outputs.issue_number }}"
 
@@ -250,7 +250,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           issue_dir=".gcw/issues/${{ needs.preflight.outputs.issue_number }}"
-          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+          python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py commit-push \
             --paths "$issue_dir/events" "$issue_dir/workflow.json" \
             --message "gcw(${{ needs.preflight.outputs.issue_number }}): record issue triage" \
             --branch "${{ needs.preflight.outputs.issue_branch }}"

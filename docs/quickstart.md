@@ -20,7 +20,7 @@ gcw init
 gcw doctor
 ```
 
-需要 GitHub hosted workflow assets 时，初始化命令改为 `gcw init --with-github-actions`。初始化后再按 IDE 文档启用目标仓库的 `.agents/skills/`。
+需要 hosted workflow assets 时，按平台使用 `gcw init --with-github-actions` 或 `gcw init --with-gitlab-ci`。这会额外安装 `.gcw/engine/hosted` 与 `.gcw/engine/platforms`，供托管 runner 调用共享 GCW workflow core。初始化后再按 IDE 文档启用目标仓库的 `.agents/skills/`。
 
 **关于 Action**：`gcw-issue-intake` 没有对应 Action workflow；其余步骤支持 **Hosted agent execution**（runner 内 `openai/codex-action` + 事件触发）。见 [Hosted Agent](hosted-agent.md)。
 

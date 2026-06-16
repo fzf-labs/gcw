@@ -53,9 +53,9 @@ test("gcw init --dry-run reports required assets without writing them", async ()
     const { stdout } = await runCli(["init", "--target", target, "--dry-run"]);
 
     assert.match(stdout, /Would copy \.agents\/skills\/gcw\/SKILL\.md/);
-    assert.match(stdout, /Would copy \.gcw\/runtime\/gcw_workflow_contracts\.py/);
+    assert.match(stdout, /Would copy \.gcw\/engine\/runtime\/gcw_workflow_contracts\.py/);
     assert.equal(await exists(path.join(target, ".agents", "skills", "gcw", "SKILL.md")), false);
-    assert.equal(await exists(path.join(target, ".gcw", "runtime", "gcw_workflow_contracts.py")), false);
+    assert.equal(await exists(path.join(target, ".gcw", "engine", "runtime", "gcw_workflow_contracts.py")), false);
   } finally {
     await cleanup(target);
   }
@@ -68,7 +68,8 @@ test("gcw init copies required repo-local assets", async () => {
 
     assert.match(stdout, /Copied \.agents\/skills\/gcw\/SKILL\.md/);
     assert.equal(await exists(path.join(target, ".agents", "skills", "gcw", "SKILL.md")), true);
-    assert.equal(await exists(path.join(target, ".gcw", "runtime", "gcw_workflow_contracts.py")), true);
+    assert.equal(await exists(path.join(target, ".gcw", "engine", "runtime", "gcw_workflow_contracts.py")), true);
+    assert.equal(await exists(path.join(target, ".gcw", "engine", "platforms", "github.py")), true);
     assert.equal(await exists(path.join(target, ".gcw", "issues")), false);
   } finally {
     await cleanup(target);
@@ -103,8 +104,10 @@ test("gcw init installs GitHub Actions assets only when requested", async () => 
 
     const { stdout } = await runCli(["init", "--target", hostedTarget, "--with-github-actions"]);
     assert.match(stdout, /Copied \.github\/workflows\/gcw-spec-check\.yml/);
+    assert.match(stdout, /Copied \.gcw\/engine\/hosted\/prepare_gcw_hosted_step\.py/);
     assert.equal(await exists(path.join(hostedTarget, ".github", "workflows", "gcw-spec-check.yml")), true);
     assert.equal(await exists(path.join(hostedTarget, ".github", "actions", "gcw-setup", "action.yml")), true);
+    assert.equal(await exists(path.join(hostedTarget, ".gcw", "engine", "hosted", "prepare_gcw_hosted_step.py")), true);
   } finally {
     await cleanup(defaultTarget);
     await cleanup(hostedTarget);
@@ -120,7 +123,9 @@ test("gcw init installs GitLab CI template only when requested", async () => {
 
     const { stdout } = await runCli(["init", "--target", gitlabTarget, "--with-gitlab-ci"]);
     assert.match(stdout, /Copied \.gitlab-ci\.yml/);
+    assert.match(stdout, /Copied \.gcw\/engine\/hosted\/prepare_gcw_hosted_step\.py/);
     assert.equal(await exists(path.join(gitlabTarget, ".gitlab-ci.yml")), true);
+    assert.equal(await exists(path.join(gitlabTarget, ".gcw", "engine", "hosted", "prepare_gcw_hosted_step.py")), true);
   } finally {
     await cleanup(defaultTarget);
     await cleanup(gitlabTarget);
@@ -148,10 +153,14 @@ test("npm build creates package templates without runtime issue state", async ()
 
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".agents", "skills", "gcw", "SKILL.md")), true);
   assert.equal(
-    await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "runtime", "gcw_workflow_contracts.py")),
+    await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "engine", "runtime", "gcw_workflow_contracts.py")),
     true,
   );
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "issues")), false);
-  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "runtime", "__pycache__")), false);
+  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "engine", "runtime", "__pycache__")), false);
+  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "engine", "hosted", "prepare_gcw_hosted_step.py")), true);
+  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "engine", "platforms", "github.py")), true);
+  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "scripts")), false);
+  assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".github", "scripts")), false);
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gitlab-ci.yml")), true);
 });

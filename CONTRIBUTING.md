@@ -68,7 +68,10 @@ python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
 
 - Issue 工作分支：`gcw/issue-<n>`（例如 Issue #9 → `gcw/issue-9`）
 - Spec、事件日志与 `workflow.json` 放在 **issue 分支** 的 `.gcw/issues/<n>/`
-- 共享 GCW Python runtime 放在 `.gcw/runtime/`
+- 共享 GCW workflow core 放在 `.gcw/engine/runtime/`
+- GitHub Actions / GitLab CI 的 hosted runner glue 放在 `.gcw/engine/hosted/`
+- GitHub / GitLab 远端平台 adapter 放在 `.gcw/engine/platforms/`
+- `.agents/skills/gcw/scripts/` 只保留 thin CLI entrypoint，深业务逻辑应放入 `.gcw/engine/runtime/`
 - 不要 force push issue 分支，除非维护者明确要求
 - 实现与规划提交分开：规划提交仅含 spec / events；实现提交含产品代码与文档
 

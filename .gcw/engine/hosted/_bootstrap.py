@@ -1,3 +1,7 @@
+# 中文说明：为 `.gcw/engine/hosted` 下的可执行脚本定位仓库内 `.gcw/engine/runtime`。
+# 流程：从当前文件向上查找仓库根目录，确认 runtime 合约文件存在后，把
+# `.gcw/engine/runtime` 加入 `sys.path`，让 hosted helper 能导入共享状态机与契约模块。
+
 from __future__ import annotations
 
 import sys

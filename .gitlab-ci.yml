@@ -45,7 +45,7 @@ variables:
     - test -d "$GCW_ISSUE_DIR" || { echo "missing $GCW_ISSUE_DIR" >&2; exit 1; }
     - mkdir -p .gcw-runtime
     - |
-      python3 .github/scripts/prepare_gcw_hosted_step.py \
+      python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
         --step "$GCW_STEP" \
         --issue-number "$GCW_ISSUE_NUMBER" \
         --issue-dir "$GCW_ISSUE_DIR" \
@@ -167,7 +167,7 @@ gcw:implement:
     GCW_STEP: gcw-implement
   script:
     - |
-      python3 .github/scripts/record_implement_milestone.py \
+      python3 .gcw/engine/hosted/record_implement_milestone.py \
         --issue-dir "$GCW_ISSUE_DIR" \
         --work-summary "${GCW_WORK_SUMMARY:-GitLab CI implementation advanced in hosted runner.}"
 

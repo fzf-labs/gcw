@@ -7,11 +7,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / ".gcw" / "runtime"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / ".gcw" / "engine" / "platforms"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / ".gcw" / "engine" / "runtime"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from gcw_step_adapters import RecordingAdapter
-from gcw_step_runner import GcwStepRunner, SUPPORTED_STEPS
+from base import RecordingAdapter
+from gcw_steps import GcwStepRunner, SUPPORTED_STEPS
 from gcw_test_helpers import write_readiness_gate_file, write_remote_sync_file
 
 

@@ -24,8 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from gcw_step_adapters import DryRunAdapter, GitHubAdapter
-from gcw_step_runner import SUPPORTED_STEPS, GcwStepRunner, StepResult
+from base import DryRunAdapter, GitHubAdapter
+from gcw_steps import SUPPORTED_STEPS, GcwStepRunner, StepResult
 from gcw_workflow_lib import WorkflowError
 
 

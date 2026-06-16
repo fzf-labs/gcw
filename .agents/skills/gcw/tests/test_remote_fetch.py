@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "platforms"))
 
 from remote_fetch import RemoteFetchError, detect_platform, fetch_github, fetch_gitlab, fetch_url
 

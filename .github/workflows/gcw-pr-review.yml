@@ -73,7 +73,7 @@ jobs:
         env:
           AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
         run: |
-          python3 .github/scripts/gcw_workflow_event.py \
+          python3 .gcw/engine/hosted/gcw_workflow_event.py \
             --step gcw-pr-review \
             --event-name "${{ github.event_name }}" \
             --event-path "$GITHUB_EVENT_PATH" \
@@ -112,7 +112,7 @@ jobs:
             branch="${{ github.head_ref }}"
             issue_number="${branch#gcw/issue-}"
           fi
-          python3 .github/scripts/prepare_gcw_hosted_step.py \
+          python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
             --step gcw-pr-review \
             --issue-number "$issue_number" \
             --issue-dir ".gcw/issues/$issue_number" \
@@ -183,8 +183,8 @@ jobs:
           result="${{ inputs.result }}"
           reason="${{ inputs.reason }}"
           if [ -f .gcw-runtime/handoff/pr_review_summary.json ]; then
-            result="$(python3 .github/scripts/validate_handoff_json.py --name pr_review_summary.json --path .gcw-runtime/handoff/pr_review_summary.json --print-field result)"
-            reason="$(python3 .github/scripts/validate_handoff_json.py --name pr_review_summary.json --path .gcw-runtime/handoff/pr_review_summary.json --print-field reason || true)"
+            result="$(python3 .gcw/engine/hosted/validate_handoff_json.py --name pr_review_summary.json --path .gcw-runtime/handoff/pr_review_summary.json --print-field result)"
+            reason="$(python3 .gcw/engine/hosted/validate_handoff_json.py --name pr_review_summary.json --path .gcw-runtime/handoff/pr_review_summary.json --print-field reason || true)"
           fi
           python3 - <<PY > /tmp/pr_review_options.json
           import json
@@ -209,7 +209,7 @@ jobs:
           issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           issue_dir=".gcw/issues/$issue_number"
-          python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
+          python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py commit-push \
             --paths "$issue_dir/events" "$issue_dir/workflow.json" \
             --message "gcw($issue_number): record PR review" \
             --branch "${{ steps.prepare.outputs.issue_branch }}"

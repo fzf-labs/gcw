@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Prepare stable handoff files for hosted GCW codex steps."""
 
+# 中文说明：为 hosted agent 准备稳定的 issue 上下文与 handoff 约束文件。
+# 流程：从 GitHub 拉取 issue、评论和当前 workflow projection，写出
+# `.gcw-runtime/handoff/issue_context.json` 与评论快照，供 Codex action 按指定 skill 执行。
+
 from __future__ import annotations
 
 import argparse

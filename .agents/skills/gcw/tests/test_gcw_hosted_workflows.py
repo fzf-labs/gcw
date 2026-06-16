@@ -13,9 +13,9 @@ import json
 
 ROOT = Path(__file__).resolve().parents[4]
 WORKFLOWS = ROOT / ".github" / "workflows"
-SCRIPTS = ROOT / ".github" / "scripts"
+SCRIPTS = ROOT / ".gcw" / "engine" / "hosted"
 GITLAB_CI = ROOT / ".gitlab-ci.yml"
-sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
@@ -159,6 +159,13 @@ class HostedWorkflowYamlTest(unittest.TestCase):
             for command in expected["commands"]:
                 self.assertIn(command, text, msg=f"{name}: {command}")
 
+    def test_workflows_use_shared_gcw_hosted_directory(self) -> None:
+        for name in EXPECTED_WORKFLOWS:
+            text = workflow_text(name)
+            self.assertIn("python3 .gcw/engine/hosted/", text, msg=name)
+            self.assertNotIn(".github/scripts", text, msg=name)
+            self.assertNotIn(".gcw/scripts", text, msg=name)
+
     def test_shared_setup_action_is_used(self) -> None:
         for name in EXPECTED_WORKFLOWS:
             self.assertIn("./.github/actions/gcw-setup", workflow_text(name), msg=name)
@@ -237,6 +244,9 @@ class GitLabCiTemplateTest(unittest.TestCase):
 
     def test_gitlab_ci_template_delegates_to_existing_gcw_scripts(self) -> None:
         text = self.template_text()
+        self.assertIn("python3 .gcw/engine/hosted/", text)
+        self.assertNotIn(".github/scripts", text)
+        self.assertNotIn(".gcw/scripts", text)
         for command in (
             "glab",
             "prepare_gcw_hosted_step.py",

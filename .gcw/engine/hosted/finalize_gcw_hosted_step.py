@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Finalize hosted GCW steps: commit/push artifacts and upsert review requests."""
 
+# 中文说明：负责 hosted GCW 步骤的收尾动作，包括提交事件产物、推送分支和创建/更新 PR。
+# 流程：workflow 在 step runner 或 agent 产出文件后调用本脚本；脚本按子命令执行
+# `commit-push`、`commit-push-all` 或 `upsert-pr`，并把结果写回 GitHub Actions output。
+
 from __future__ import annotations
 
 import argparse
@@ -9,6 +13,12 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+from _bootstrap import add_repo_root
+
+add_repo_root()
+
+from github import upsert_pr as upsert_github_pr
 
 
 def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -57,54 +67,8 @@ def commit_push_all(message: str, branch: str, exclude_prefixes: list[str]) -> s
     return result.stdout.strip()
 
 
-def find_open_pr(repo: str, branch: str) -> str:
-    result = run(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--repo",
-            repo,
-            "--head",
-            branch,
-            "--json",
-            "url",
-            "--jq",
-            ".[0].url // empty",
-        ],
-        check=True,
-    )
-    return result.stdout.strip()
-
-
 def upsert_pr(repo: str, branch: str, title: str, body_file: Path, base: str) -> str:
-    existing = find_open_pr(repo, branch)
-    if existing:
-        run(["gh", "pr", "edit", existing, "--repo", repo, "--title", title, "--body-file", str(body_file)])
-        return existing
-
-    result = run(
-        [
-            "gh",
-            "pr",
-            "create",
-            "--repo",
-            repo,
-            "--head",
-            branch,
-            "--base",
-            base,
-            "--title",
-            title,
-            "--body-file",
-            str(body_file),
-        ],
-        check=True,
-    )
-    url = result.stdout.strip()
-    if url:
-        return url
-    return find_open_pr(repo, branch)
+    return upsert_github_pr(repo, branch, title, body_file, base)
 
 
 def write_github_output(path: str | None, result: dict[str, str]) -> None:

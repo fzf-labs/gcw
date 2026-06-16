@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Validate and expose codex handoff JSON artifacts for hosted GCW steps."""
 
+# 中文说明：校验 hosted agent 交接文件是否符合各步骤的最低 JSON 契约。
+# 流程：按文件名检查必需字段，失败时让 workflow 及早停止；成功时可打印完整 JSON，
+# 或通过 `--print-field` 暴露单个字段给后续 CI shell 步骤使用。
+
 from __future__ import annotations
 
 import argparse

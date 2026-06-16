@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Build gcw-issue-clarify options from hosted handoff or readiness gate."""
 
+# 中文说明：为 hosted `gcw-issue-clarify` 步骤生成本地 step runner 需要的 options。
+# 流程：先重新运行 readiness gate，再合并 agent handoff 中的问题或摘要，
+# 输出 clarify options JSON，供 `run_gcw_step.py --step gcw-issue-clarify` 使用。
+
 from __future__ import annotations
 
 import argparse
