@@ -6,9 +6,9 @@ from pathlib import Path
 
 def add_repo_root() -> None:
     for candidate in Path(__file__).resolve().parents:
-        if (candidate / "gcw_workflow_contracts.py").is_file() and (candidate / "gcw_artifact_contracts.py").is_file():
-            root = candidate
-            root_text = str(root)
+        runtime = candidate / ".gcw" / "runtime"
+        if (runtime / "gcw_workflow_contracts.py").is_file() and (runtime / "gcw_artifact_contracts.py").is_file():
+            root_text = str(runtime)
             if root_text not in sys.path:
                 sys.path.insert(0, root_text)
             return

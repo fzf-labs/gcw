@@ -19,6 +19,7 @@ from gcw_test_helpers import (
 
 
 ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 
 

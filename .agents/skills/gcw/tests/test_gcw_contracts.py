@@ -5,6 +5,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
 from gcw_workflow_contracts import (  # noqa: E402

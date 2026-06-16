@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gcw_test_helpers import clarify_record_cli_args, planning_shas, progress_comment_url, triage_record_cli_args
 
 ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
 RENDER = ROOT / ".agents/skills/gcw/scripts/render_gcw_hosted_artifacts.py"
 MANAGER = ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"

@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / ".gcw" / "runtime"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from gcw_step_adapters import RecordingAdapter

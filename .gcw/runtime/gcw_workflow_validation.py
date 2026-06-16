@@ -16,7 +16,7 @@ except ImportError:
     _jsonschema_mod = None
     _HAS_JSONSCHEMA = False
 
-_ROOT = Path(__file__).resolve().parent
+_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_DIR = _ROOT / ".agents" / "skills" / "gcw" / "schemas"
 _EVENT_SCHEMA_PATH = _SCHEMA_DIR / "event.schema.json"
 _LABELS_PATH = _ROOT / ".agents" / "skills" / "gcw-issue-triage" / "labels.json"

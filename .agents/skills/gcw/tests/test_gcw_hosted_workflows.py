@@ -14,6 +14,7 @@ import json
 ROOT = Path(__file__).resolve().parents[4]
 WORKFLOWS = ROOT / ".github" / "workflows"
 SCRIPTS = ROOT / ".github" / "scripts"
+sys.path.insert(0, str(ROOT / ".gcw" / "runtime"))
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
