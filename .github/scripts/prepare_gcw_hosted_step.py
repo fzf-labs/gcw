@@ -29,6 +29,10 @@ def issue_branch(issue_number: str, issue_branch_input: str) -> str:
     return f"gcw/issue-{issue_number.strip()}"
 
 
+def parse_issue_labels(value: str) -> list[str]:
+    return [label.strip() for label in value.split(",") if label.strip()]
+
+
 def load_projection(issue_dir: Path) -> dict:
     workflow_path = issue_dir / "workflow.json"
     if not workflow_path.is_file():
@@ -126,6 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--issue-number", required=True)
     parser.add_argument("--issue-dir", required=True, type=Path)
     parser.add_argument("--issue-branch", default="")
+    parser.add_argument("--issue-labels", default="", help="Comma-separated issue labels supplied by non-GitHub CI.")
     parser.add_argument("--repo", default="")
     parser.add_argument("--github-output", default="")
     return parser
@@ -140,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
             args.issue_dir,
             args.issue_number,
             args.issue_branch,
+            issue_labels=parse_issue_labels(args.issue_labels),
             repo=repo,
         )
     except ValueError as exc:

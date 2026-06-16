@@ -1,6 +1,6 @@
 # GCW Hosted Agent
 
-本文说明 GitHub Actions 上 **Hosted agent execution** 的配置、触发契约与故障排查。步骤表与状态机见 [GCW 工作流](workflow.md)。
+本文说明 GitHub Actions / GitLab CI 上 **Hosted agent execution** 的配置、触发契约与故障排查。步骤表与状态机见 [GCW 工作流](workflow.md)。
 
 ## 架构
 
@@ -30,6 +30,24 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 | `AGENT_LOGIN` | Variable | 事件触发推荐 | Issue comment `@mention` 与 assignee 匹配 |
 
 另需 **Settings → Actions → General → Workflow permissions** 允许 `contents: write`（mutating 步骤 commit/push）。
+
+### GitLab CI 配置
+
+仓库模板包含根级 `.gitlab-ci.yml`，用于在 GitLab 项目中手动运行 GCW hosted jobs。GitLab CI 路径复用同一套 `.gcw/issues/<issue-id>/events/`、`workflow.json`、progress comment 和 validation scripts；平台操作通过 `glab` 与 GitLab API 完成。
+
+维护者需在 GitLab 项目中配置：
+
+| 名称 | 类型 | 必需 | 用途 |
+| --- | --- | --- | --- |
+| `GLAB_TOKEN` | CI/CD Variable | 是 | `glab` 认证，用于读取/写入 Issue notes、labels、branch 和 MR evidence |
+| `GCW_ISSUE_NUMBER` | Pipeline variable | 是 | GitLab Issue IID |
+| `GCW_ISSUE_BRANCH` | Pipeline variable | 否 | Issue branch，默认 `gcw/issue-${GCW_ISSUE_NUMBER}` |
+| `GCW_DRY_RUN` | Pipeline variable | 否 | `true` 时只做验证，不写远端 |
+| `GCW_EXECUTOR` | Pipeline variable | 否 | 默认 `gcw:executor-hosted`；设为 `gcw:executor-local` 时跳过 |
+
+`GLAB_TOKEN` 建议使用 project access token 或机器人 personal access token，并授予最小需要的 repository / issue / merge request 读写权限。若项目启用了 protected branch，需允许该 token push issue branch。
+
+GitLab CI 当前以手动 job 为主：在 pipeline 中设置 `GCW_ISSUE_NUMBER` 后，选择对应 job（例如 `gcw:spec-check`、`gcw:implement-check`）运行。Job 会先 checkout `GCW_ISSUE_BRANCH`，再调用 `prepare_gcw_hosted_step.py` 做 phase gate，最后委托现有 Python 脚本执行实际 GCW step。
 
 ## Trigger label 契约
 
@@ -97,6 +115,15 @@ Issue/comment 自动触发会在 job `if` 中先检查 `gcw:executor-hosted` 并
 - `dry_run`: `false`
 
 事件触发：在 phase 为 `ready-for-planning` 的 Issue 上打 `gcw:ready-for-planning` 并 assign agent。
+
+GitLab CI 手动触发示例：
+
+- `GCW_ISSUE_NUMBER`: `12`
+- `GCW_ISSUE_BRANCH`: `gcw/issue-12`
+- `GCW_DRY_RUN`: `false`
+- 运行 job：`gcw:issue-to-spec`
+
+注意：`planned` 状态必须先由人工审核 spec 文件；审核通过后再运行 `gcw:spec-check` 进入 `ready-for-implementation`。
 
 ## Remote evidence verification
 

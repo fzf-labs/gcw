@@ -1,0 +1,40 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-16T13:08:31Z",
+  "event": "gcw-issue-triage",
+  "event_id": "gcw-21-001-gcw-issue-triage",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "classification": {
+      "area": "area:workflow",
+      "priority": "priority:p2",
+      "type": "enhancement"
+    },
+    "labels_applied": [
+      "triaged",
+      "area:workflow"
+    ],
+    "progress_comment_body_hash": "sha256:1edda559cf7949db50dd639d0fef612f317431da646ca98f2141a477997c4e02",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/21#issuecomment-4719078828",
+    "remote_sync": {
+      "issue_type": "Feature",
+      "labels": [
+        "triaged",
+        "area:workflow"
+      ],
+      "platform": "github",
+      "priority": "Medium"
+    }
+  },
+  "refs": {
+    "branch": "gcw/issue-21",
+    "issue": "21"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 1
+}

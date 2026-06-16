@@ -1,0 +1,216 @@
+stages:
+  - gcw
+
+variables:
+  GCW_DRY_RUN:
+    value: "false"
+    description: "Validate without remote writes when set to true."
+  GCW_EXECUTOR:
+    value: "gcw:executor-hosted"
+    description: "Set to gcw:executor-hosted to allow GitLab CI execution; gcw:executor-local skips jobs."
+  GCW_ISSUE_BRANCH:
+    value: ""
+    description: "Issue branch. Defaults to gcw/issue-${GCW_ISSUE_NUMBER}."
+  GCW_ISSUE_NUMBER:
+    value: ""
+    description: "GitLab issue IID to process."
+
+.gcw:rules:
+  rules:
+    - if: '$GCW_EXECUTOR == "gcw:executor-local"'
+      when: never
+    - if: '$GCW_EXECUTOR == "gcw:executor-hosted" && $GCW_ISSUE_NUMBER != ""'
+      when: manual
+    - when: never
+
+.gcw:base:
+  image: python:3.12-bookworm
+  stage: gcw
+  extends: .gcw:rules
+  before_script:
+    - python --version
+    - apt-get update
+    - apt-get install -y --no-install-recommends curl git jq ca-certificates
+    - |
+      if ! command -v glab >/dev/null 2>&1; then
+        curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest/downloads/glab_1.55.0_Linux_x86_64.deb -o /tmp/glab.deb
+        dpkg -i /tmp/glab.deb
+      fi
+    - test -n "$GLAB_TOKEN" || { echo "GLAB_TOKEN is required for GitLab GCW jobs" >&2; exit 1; }
+    - glab auth status || true
+    - export GCW_RESOLVED_BRANCH="${GCW_ISSUE_BRANCH:-gcw/issue-${GCW_ISSUE_NUMBER}}"
+    - git fetch origin "$GCW_RESOLVED_BRANCH"
+    - git checkout "$GCW_RESOLVED_BRANCH"
+    - export GCW_ISSUE_DIR=".gcw/issues/${GCW_ISSUE_NUMBER}"
+    - test -d "$GCW_ISSUE_DIR" || { echo "missing $GCW_ISSUE_DIR" >&2; exit 1; }
+    - mkdir -p .gcw-runtime
+    - |
+      python3 .github/scripts/prepare_gcw_hosted_step.py \
+        --step "$GCW_STEP" \
+        --issue-number "$GCW_ISSUE_NUMBER" \
+        --issue-dir "$GCW_ISSUE_DIR" \
+        --issue-branch "$GCW_RESOLVED_BRANCH" \
+        --issue-labels "$GCW_EXECUTOR" \
+        --github-output .gcw-runtime/gitlab-prepare.env
+    - cat .gcw-runtime/gitlab-prepare.env
+    - grep -q "should_run=true" .gcw-runtime/gitlab-prepare.env || { echo "GCW step skipped by phase gate"; exit 0; }
+
+.gcw:push-state:
+  after_script:
+    - |
+      if [ "$CI_JOB_STATUS" = "success" ] && [ "$GCW_DRY_RUN" != "true" ]; then
+        issue_dir=".gcw/issues/${GCW_ISSUE_NUMBER}"
+        issue_branch="${GCW_ISSUE_BRANCH:-gcw/issue-${GCW_ISSUE_NUMBER}}"
+        git config user.name "${GITLAB_USER_NAME:-gcw-gitlab-ci}"
+        git config user.email "${GITLAB_USER_EMAIL:-gcw-gitlab-ci@example.invalid}"
+        git add "$issue_dir/events" "$issue_dir/workflow.json" || true
+        git diff --cached --quiet || git commit -m "gcw(${GCW_ISSUE_NUMBER}): record ${GCW_STEP}"
+        git push origin "HEAD:${issue_branch}"
+      fi
+
+gcw:issue-triage:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-issue-triage
+  script:
+    - python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync --platform gitlab --repo "$CI_PROJECT_PATH"
+    - |
+      python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py apply-metadata \
+        --platform gitlab \
+        --repo "$CI_PROJECT_PATH" \
+        --issue "$GCW_ISSUE_NUMBER" \
+        --type "${GCW_CLASSIFICATION_TYPE:-enhancement}" \
+        --priority "${GCW_CLASSIFICATION_PRIORITY:-priority:p2}" \
+        --labels "${GCW_LABELS_APPLIED:-triaged,area:workflow}" \
+        > "$GCW_ISSUE_DIR/remote/triage-sync.json"
+    - |
+      python3 - "$GCW_ISSUE_DIR" <<'PY'
+      import json
+      import os
+      import sys
+      from pathlib import Path
+      issue_dir = Path(sys.argv[1])
+      options = {
+          "classification_type": os.environ.get("GCW_CLASSIFICATION_TYPE", "enhancement"),
+          "classification_area": os.environ.get("GCW_CLASSIFICATION_AREA", "area:workflow"),
+          "classification_priority": os.environ.get("GCW_CLASSIFICATION_PRIORITY", "priority:p2"),
+          "labels_applied": [label.strip() for label in os.environ.get("GCW_LABELS_APPLIED", "triaged,area:workflow").split(",") if label.strip()],
+          "remote_sync_file": str(issue_dir / "remote" / "triage-sync.json"),
+      }
+      (issue_dir / "gitlab-triage-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
+      PY
+    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage --issue-dir "$GCW_ISSUE_DIR" --options-file "$GCW_ISSUE_DIR/gitlab-triage-options.json"
+
+gcw:issue-clarify:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-issue-clarify
+  script:
+    - |
+      python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
+        --profile enhancement \
+        --platform gitlab \
+        --repo "$CI_PROJECT_PATH" \
+        --issue "$GCW_ISSUE_NUMBER" \
+        --output "$GCW_ISSUE_DIR/gitlab-clarify-gate.json" \
+        --question
+    - |
+      python3 - "$GCW_ISSUE_DIR" <<'PY'
+      import json
+      import sys
+      from pathlib import Path
+      issue_dir = Path(sys.argv[1])
+      options = {"gate_file": str(issue_dir / "gitlab-clarify-gate.json")}
+      gate = json.loads((issue_dir / "gitlab-clarify-gate.json").read_text(encoding="utf-8"))
+      if gate.get("ok"):
+          options["summary"] = "Issue is structurally ready for planning."
+      else:
+          options["question"] = "Please update the issue so GCW can write the spec."
+      (issue_dir / "gitlab-clarify-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
+      PY
+    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-clarify --issue-dir "$GCW_ISSUE_DIR" --options-file "$GCW_ISSUE_DIR/gitlab-clarify-options.json"
+
+gcw:issue-to-spec:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-issue-to-spec
+  script:
+    - for name in task_plan.md findings.md progress.md; do test -f "$GCW_ISSUE_DIR/$name" || { echo "missing $GCW_ISSUE_DIR/$name" >&2; exit 1; }; done
+    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-to-spec --issue-dir "$GCW_ISSUE_DIR"
+
+gcw:spec-check:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-spec-check
+  script:
+    - python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow --issue-dir "$GCW_ISSUE_DIR"
+    - |
+      python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-spec-check \
+        --issue-dir "$GCW_ISSUE_DIR" \
+        --options-file /dev/stdin <<'EOF'
+      {"result": "passed"}
+      EOF
+
+gcw:implement:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-implement
+  script:
+    - |
+      python3 .github/scripts/record_implement_milestone.py \
+        --issue-dir "$GCW_ISSUE_DIR" \
+        --work-summary "${GCW_WORK_SUMMARY:-GitLab CI implementation advanced in hosted runner.}"
+
+gcw:implement-check:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-implement-check
+  script:
+    - python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow --issue-dir "$GCW_ISSUE_DIR"
+    - |
+      python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-implement-check \
+        --issue-dir "$GCW_ISSUE_DIR" \
+        --options-file "$GCW_ISSUE_DIR/implement-check-options.json"
+
+gcw:pr-publish:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-pr-publish
+  script:
+    - test -n "$GCW_REVIEW_REQUEST_URL" || { echo "GCW_REVIEW_REQUEST_URL is required" >&2; exit 1; }
+    - python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow --issue-dir "$GCW_ISSUE_DIR"
+    - |
+      python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-publish \
+        --issue-dir "$GCW_ISSUE_DIR" \
+        --options-file /dev/stdin <<EOF
+      {"review_request_url": "${GCW_REVIEW_REQUEST_URL}", "effect_kind": "gitlab_mr_upsert", "target": "${CI_PROJECT_PATH}!${GCW_MERGE_REQUEST_IID:-unknown}"}
+      EOF
+
+gcw:pr-review:
+  extends:
+    - .gcw:base
+    - .gcw:push-state
+  variables:
+    GCW_STEP: gcw-pr-review
+  script:
+    - python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow --issue-dir "$GCW_ISSUE_DIR"
+    - |
+      python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-review \
+        --issue-dir "$GCW_ISSUE_DIR" \
+        --options-file /dev/stdin <<'EOF'
+      {"result": "passed", "feedback_source": "pr-review"}
+      EOF

@@ -1,0 +1,52 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-16T13:10:16Z",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-21-002-gcw-issue-clarify",
+  "parent": {
+    "expected_last_seq": 1
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "issue-clarify-readiness/v1"
+    },
+    "progress_comment_body_hash": "sha256:39f95bce307d57132856f6c228de2283a9abee26ced90b7a78339fd062b8f069",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/21#issuecomment-4719095791",
+    "ready": true,
+    "summary": "Issue #21 has a clear hosted GitLab CI support outcome, acceptance criteria, and no active blockers."
+  },
+  "refs": {
+    "branch": "gcw/issue-21",
+    "issue": "21"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 2
+}
