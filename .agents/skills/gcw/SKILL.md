@@ -5,7 +5,7 @@ description: Orchestrate the Git Collaboration Workflow from an existing GitHub 
 
 # GCW
 
-Top-level orchestrator for the Git Collaboration Workflow. Use this skill only to identify the current workflow state, choose the next `gcw-*` step skill, and run it. Each step skill owns its own inputs, procedure, state transition, and stop conditions.
+Top-level orchestrator for the Git Collaboration Workflow. Use this skill only to identify the current workflow state, choose the next `gcw-*` step skill, and run it. Continue through automatically runnable states until the workflow reaches a human-review state. Each step skill owns its own inputs, procedure, state transition, and stop conditions.
 
 ## Contract
 
@@ -88,14 +88,26 @@ Human review and `review-complete` are not main workflow steps. They happen on G
 | `issue-triaged` | `gcw-issue-clarify` |
 | `issue-clarifying` | Stop until the missing answer is available, then run `gcw-issue-clarify` |
 | `ready-for-planning` | `gcw-issue-to-spec` |
-| `planned` | `gcw-spec-check` |
+| `planned` | Stop for human spec review; after approval run `gcw-spec-check` |
 | `ready-for-implementation` | `gcw-implement` |
 | `implementing` | `gcw-implement` or `gcw-implement-check`, depending on whether implementation work is still needed |
 | `ready-for-review` | `gcw-pr-publish` |
-| `reviewing` | Run `gcw-pr-review` for automatic review; platform human review remains external |
+| `reviewing` | Stop for platform review; `gcw-pr-review` may summarize automatic review evidence, but platform human review remains external |
 | `changes-requested` | Run `gcw-implement` with `feedback_source` metadata preserved |
 | `blocked` | Stop until the blocker is resolved, then resume from `resume_phase` / `resume_step` |
 | `review-complete` | Stop; the workflow is closed |
+
+## Automatic Continuation
+
+When the user invokes `/gcw` without asking for a single specific step, keep routing and running the next allowed step until one of these human-review states is reached:
+
+- `planned` — spec files have been generated and must be reviewed by a human before `gcw-spec-check`.
+- `issue-clarifying` — missing product or requirement information must be supplied by a human.
+- `blocked` — an external, permission, environment, or workflow blocker must be resolved by a human.
+- `reviewing` — the PR/MR has entered platform review; human review and merge decisions happen on GitHub/GitLab.
+- `review-complete` — terminal state; no further GCW step should run.
+
+Also stop if state sources conflict, remote metadata cannot be trusted, or the next step requires a business, product, or architecture decision that is not already present in the Issue or spec files.
 
 `reviewing` only means the review request has entered review. After automatic PR review passes, the state remains `reviewing` until a platform human-review event produces `review-complete` or `changes-requested`. When entering `changes-requested`, distinguish the feedback source in metadata, for example `feedback_source: pr-review` or `feedback_source: human-review`.
 
@@ -125,9 +137,9 @@ Any pipeline that hits a hard gate or needs human judgment must stop, hand contr
 5. Do not run human review actions locally; human review happens on GitHub/GitLab and is recorded as platform events.
 6. Preserve `feedback_source` when moving from `changes-requested` back into implementation.
 7. Preserve `resume_phase` / `resume_step` when a step enters `blocked`.
-8. Stop and report clearly when the workflow enters `issue-clarifying`, `blocked`, or `review-complete`.
+8. Stop and report clearly when the workflow enters `planned`, `issue-clarifying`, `blocked`, `reviewing`, or `review-complete`.
 9. At each milestone step completion (from `gcw-issue-triage` onward), publish a **new** Issue `<!-- gcw-progress -->` comment via `publish_progress_comment.py` with `--milestone-event` and `--milestone-payload-file` so the body matches the completing step **before** `record-*` appends the event; never edit an existing progress comment and never add a separate planning-links comment. Prefer `run_gcw_step.py` when available — it enforces publish-then-record ordering. Record `progress_comment_url` and the rendered `progress_comment_body_hash` on the completing event; `workflow.json` `refs.progress_comment_url` always points to the latest comment.
 
 ## Reporting
 
-After each step, report only: step executed, state before/after, key artifact or blocker, and next step.
+When a `/gcw` run stops, report only: steps executed, state before/after, key artifact or blocker, and next step or required human action.
