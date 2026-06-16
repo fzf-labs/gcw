@@ -24,6 +24,17 @@ STEP_TRIGGER_LABELS: dict[str, str] = {
     "gcw-pr-review": "gcw:run-pr-review",
 }
 
+STEP_COMMENT_ALIASES: dict[str, tuple[str, ...]] = {
+    "gcw-issue-triage": ("issue-triage", "triage"),
+    "gcw-issue-clarify": ("issue-clarify", "clarify"),
+    "gcw-issue-to-spec": ("issue-to-spec", "to-spec", "spec"),
+    "gcw-spec-check": ("spec-check",),
+    "gcw-implement": ("implement",),
+    "gcw-implement-check": ("implement-check",),
+    "gcw-pr-publish": ("pr-publish", "publish"),
+    "gcw-pr-review": ("pr-review", "review"),
+}
+
 
 def load_event(path: str) -> dict[str, Any]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -57,6 +68,23 @@ def comment_mentions_agent(comment_body: str, agent_login: str) -> bool:
         return False
     body = comment_body or ""
     return f"@{login}" in body or "/gcw" in body.lower()
+
+
+def comment_requests_step(comment_body: str, agent_login: str, step: str) -> bool:
+    """Return true for explicit `/gcw <step>` commands, preserving legacy mentions."""
+    login = agent_login.strip().lstrip("@")
+    if not login:
+        return False
+    body = comment_body or ""
+    lower_body = body.lower()
+    mention = f"@{login}".lower() in lower_body
+    aliases = STEP_COMMENT_ALIASES.get(step, (step.removeprefix("gcw-"),))
+    explicit = mention and any(f"/gcw {alias}" in lower_body for alias in aliases)
+    if explicit:
+        return True
+    if mention and "/gcw " in lower_body:
+        return False
+    return comment_mentions_agent(body, agent_login)
 
 
 def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tuple[bool, str]:
@@ -94,7 +122,7 @@ def should_run_event(step: str, event: dict[str, Any], agent_login: str) -> tupl
     if event_name == "issue_comment" and action == "created":
         comment = event.get("comment") if isinstance(event.get("comment"), dict) else {}
         body = str(comment.get("body", ""))
-        if comment_mentions_agent(body, agent_login) and trigger_label in labels:
+        if comment_requests_step(body, agent_login, step) and trigger_label in labels:
             return True, "comment mentions agent with trigger label"
         return False, "comment does not match agent trigger contract"
 

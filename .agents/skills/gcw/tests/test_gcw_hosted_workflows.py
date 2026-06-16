@@ -108,6 +108,8 @@ HOSTED_AGENT_WORKFLOWS = {
     "gcw-implement-check.yml",
 }
 
+CODEX_WORKFLOWS = HOSTED_AGENT_WORKFLOWS | {"gcw-pr-review.yml"}
+
 
 def workflow_text(name: str) -> str:
     return (WORKFLOWS / name).read_text(encoding="utf-8")
@@ -163,6 +165,35 @@ class HostedWorkflowYamlTest(unittest.TestCase):
         for name in HOSTED_AGENT_WORKFLOWS:
             self.assertIn("gcw-run-codex", workflow_text(name), msg=name)
 
+    def test_issue_event_workflows_gate_executor_labels_in_job_if(self) -> None:
+        for name in EXPECTED_WORKFLOWS:
+            text = workflow_text(name)
+            self.assertIn("contains(github.event.issue.labels.*.name, 'gcw:executor-hosted')", text, msg=name)
+            self.assertIn("!contains(github.event.issue.labels.*.name, 'gcw:executor-local')", text, msg=name)
+
+    def test_codex_workflows_upload_handoff_artifacts(self) -> None:
+        for name in CODEX_WORKFLOWS:
+            text = workflow_text(name)
+            self.assertIn("actions/upload-artifact@", text, msg=name)
+            self.assertIn(".gcw-runtime/handoff", text, msg=name)
+
+    def test_pr_review_uses_preflight_job_before_review_work(self) -> None:
+        data = workflow_data("gcw-pr-review.yml")
+        jobs = data["jobs"]
+        self.assertIn("preflight", jobs)
+        self.assertIn("pr-review", jobs)
+        self.assertEqual(jobs["pr-review"]["needs"], "preflight")
+        self.assertIn("needs.preflight.outputs.should_trigger == 'true'", jobs["pr-review"]["if"])
+
+    def test_triage_workflow_splits_preflight_classify_finalize(self) -> None:
+        data = workflow_data("gcw-issue-triage.yml")
+        jobs = data["jobs"]
+        self.assertIn("preflight", jobs)
+        self.assertIn("classify", jobs)
+        self.assertIn("finalize", jobs)
+        self.assertEqual(jobs["classify"]["needs"], "preflight")
+        self.assertEqual(jobs["finalize"]["needs"], ["preflight", "classify"])
+
 
 class PrepareHostedStepTest(unittest.TestCase):
     def test_prepare_allows_implement_from_implementing(self) -> None:
@@ -207,16 +238,24 @@ class PrepareHostedStepTest(unittest.TestCase):
         self.assertIn(EXECUTOR_LOCAL, result["skip_reason"])
 
     def test_prepare_allows_implement_with_executor_hosted(self) -> None:
-        issue_dir = ROOT / ".gcw/issues/17"
-        result = prepare(
-            "gcw-implement",
-            issue_dir,
-            "17",
-            "",
-            issue_labels=[EXECUTOR_HOSTED],
-        )
-        self.assertTrue(result["should_run"])
-        self.assertEqual(result["executor_gate"], EXECUTOR_HOSTED)
+        fixture_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
+        projection = json.loads((fixture_dir / "workflow.json").read_text(encoding="utf-8"))
+        projection["projection"]["phase"] = "ready-for-implementation"
+        projection["projection"]["last_completed_step"] = "gcw-spec-check"
+        projection["projection"]["next_allowed_steps"] = ["gcw-implement"]
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / "issue"
+            issue_dir.mkdir(parents=True, exist_ok=True)
+            (issue_dir / "workflow.json").write_text(json.dumps(projection, indent=2) + "\n", encoding="utf-8")
+            result = prepare(
+                "gcw-implement",
+                issue_dir,
+                "17",
+                "",
+                issue_labels=[EXECUTOR_HOSTED],
+            )
+            self.assertTrue(result["should_run"])
+            self.assertEqual(result["executor_gate"], EXECUTOR_HOSTED)
 
     def test_prepare_pr_review_verify_only_when_already_passed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_root:

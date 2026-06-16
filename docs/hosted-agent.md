@@ -15,6 +15,8 @@ Issue/comment 事件 或 workflow_dispatch
   -> run_gcw_step.py / manage_gcw_workflow.py（记 GCW 事件 + progress 评论）
 ```
 
+`gcw-issue-triage.yml` 作为分层试点拆成 `preflight -> classify -> finalize`：`preflight` 只解析触发与 phase，`classify` 只运行 Codex 并上传 handoff artifact，`finalize` 下载 artifact 后执行 GitHub 写入与 GCW 事件记录。
+
 Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交与 PR 由 workflow 的 finalize 步骤完成。
 
 ## 仓库配置
@@ -44,6 +46,21 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 | `gcw-pr-publish` | `gcw-pr-publish.yml` | `gcw:run-pr-publish` |
 | `gcw-pr-review` | `gcw-pr-review.yml` | `gcw:run-pr-review` |
 
+### Comment command 契约
+
+评论触发推荐使用显式命令：`@AGENT_LOGIN /gcw <step>`。例如：
+
+- `@gcw-bot /gcw triage`
+- `@gcw-bot /gcw clarify`
+- `@gcw-bot /gcw to-spec`
+- `@gcw-bot /gcw spec-check`
+- `@gcw-bot /gcw implement`
+- `@gcw-bot /gcw implement-check`
+- `@gcw-bot /gcw pr-publish`
+- `@gcw-bot /gcw pr-review`
+
+为兼容现有自动化，短期内仍接受旧式 `@AGENT_LOGIN` 评论触发；脚本层保留裸 `/gcw` 兜底，但 issue comment 的 job `if` 仍要求 `@AGENT_LOGIN`。新集成应优先使用显式命令，避免普通 mention 误触发。
+
 ### Executor labels（hosted 总开关）
 
 Hosted workflow **仅在** Issue 带有 **`gcw:executor-hosted`** 时才会运行（含 `pull_request: synchronize` 与 `gcw:run-*` 触发）。
@@ -55,6 +72,8 @@ Hosted workflow **仅在** Issue 带有 **`gcw:executor-hosted`** 时才会运�
 | （均无） | 默认视为 local，不自动跑 Action |
 
 `gcw:run-*` 只决定**跑哪一步**；必须与 `gcw:executor-hosted` 同时存在才生效。本地 agent 启动 GCW 时应在 triage 打上 `gcw:executor-local`。
+
+Issue/comment 自动触发会在 job `if` 中先检查 `gcw:executor-hosted` 并排除 `gcw:executor-local`，因此缺少 hosted executor 标签时不会 checkout issue branch。`workflow_dispatch` 与 `pull_request` 事件仍由脚本读取远端 Issue labels 做兜底判断。
 
 ### Local vs hosted 职责
 

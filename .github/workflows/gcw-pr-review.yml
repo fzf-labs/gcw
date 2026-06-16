@@ -39,12 +39,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pr-review:
+  preflight:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && startsWith(github.head_ref, 'gcw/issue-')) ||
       (
         github.event.issue.pull_request == null &&
+        contains(github.event.issue.labels.*.name, 'gcw:executor-hosted') &&
+        !contains(github.event.issue.labels.*.name, 'gcw:executor-local') &&
         (
           (github.event_name == 'issue_comment' && vars.AGENT_LOGIN != '' && contains(github.event.comment.body, format('@{0}', vars.AGENT_LOGIN)) && contains(github.event.issue.labels.*.name, 'gcw:run-pr-review')) ||
           (github.event.action == 'labeled' && github.event.label.name == 'gcw:run-pr-review' && (vars.AGENT_LOGIN == '' || contains(github.event.issue.assignees.*.login, vars.AGENT_LOGIN))) ||
@@ -54,9 +56,17 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    outputs:
+      should_trigger: ${{ steps.event.outputs.should_trigger }}
+      trigger_reason: ${{ steps.event.outputs.trigger_reason }}
+      issue_number: ${{ steps.event.outputs.issue_number }}
+      issue_branch: ${{ steps.event.outputs.issue_branch }}
+      dry_run: ${{ steps.event.outputs.dry_run }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Resolve workflow inputs
         id: event
@@ -77,18 +87,27 @@ jobs:
         if: steps.event.outputs.should_trigger != 'true'
         run: echo "${{ steps.event.outputs.trigger_reason }}"
 
+  pr-review:
+    needs: preflight
+    if: >-
+      needs.preflight.outputs.should_trigger == 'true'
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Checkout issue branch
-        if: steps.event.outputs.should_trigger == 'true'
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ steps.event.outputs.issue_branch != '' && steps.event.outputs.issue_branch || format('gcw/issue-{0}', steps.event.outputs.issue_number) }}
+          ref: ${{ needs.preflight.outputs.issue_branch != '' && needs.preflight.outputs.issue_branch || format('gcw/issue-{0}', needs.preflight.outputs.issue_number) }}
           fetch-depth: 0
 
       - name: Prepare hosted step
-        if: steps.event.outputs.should_trigger == 'true'
         id: prepare
         run: |
-          issue_number="${{ steps.event.outputs.issue_number }}"
+          issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ] && [ "${{ github.event_name }}" = "pull_request" ]; then
             branch="${{ github.head_ref }}"
             issue_number="${branch#gcw/issue-}"
@@ -97,50 +116,47 @@ jobs:
             --step gcw-pr-review \
             --issue-number "$issue_number" \
             --issue-dir ".gcw/issues/$issue_number" \
-            --issue-branch "${{ steps.event.outputs.issue_branch }}" \
+            --issue-branch "${{ needs.preflight.outputs.issue_branch }}" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Report phase skip
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run != 'true'
+        if: steps.prepare.outputs.should_run != 'true'
         run: echo "${{ steps.prepare.outputs.skip_reason }}"
 
       - name: Run repository unit tests
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true'
+        if: steps.prepare.outputs.should_run == 'true'
         run: python3 -m unittest discover -s .agents/skills/gcw/tests
 
       - name: Validate workflow evidence
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true'
+        if: steps.prepare.outputs.should_run == 'true'
         run: |
-          issue_number="${{ steps.event.outputs.issue_number }}"
+          issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
             --issue-dir ".gcw/issues/$issue_number"
 
       - name: Validate pr-publish evidence
         if: >-
-          steps.event.outputs.should_trigger == 'true' &&
           steps.prepare.outputs.should_run == 'true' &&
           steps.prepare.outputs.validate_command == 'pr-publish'
         run: |
-          issue_number="${{ steps.event.outputs.issue_number }}"
+          issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py pr-publish \
             --issue-dir ".gcw/issues/$issue_number"
 
       - name: Validate review-check evidence
         if: >-
-          steps.event.outputs.should_trigger == 'true' &&
           steps.prepare.outputs.should_run == 'true' &&
           steps.prepare.outputs.validate_command == 'review-check'
         run: |
-          issue_number="${{ steps.event.outputs.issue_number }}"
+          issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py review-check \
             --issue-dir ".gcw/issues/$issue_number"
 
       - name: Optional AI review summary
         if: >-
-          steps.event.outputs.should_trigger == 'true' &&
           steps.prepare.outputs.should_run == 'true' &&
           inputs.ai_review == true
         uses: ./.github/actions/gcw-run-codex
@@ -154,16 +170,15 @@ jobs:
 
       - name: Run GCW pr-review step
         if: >-
-          steps.event.outputs.should_trigger == 'true' &&
           steps.prepare.outputs.should_run == 'true' &&
           steps.prepare.outputs.run_mode == 'full' &&
-          steps.event.outputs.dry_run != 'true'
+          needs.preflight.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GCW_ACTOR_KIND: github-actions
           GCW_ACTOR_ID: github-actions
         run: |
-          issue_number="${{ steps.event.outputs.issue_number }}"
+          issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           result="${{ inputs.result }}"
           reason="${{ inputs.reason }}"
@@ -185,14 +200,13 @@ jobs:
 
       - name: Push GCW workflow state
         if: >-
-          steps.event.outputs.should_trigger == 'true' &&
           steps.prepare.outputs.should_run == 'true' &&
           steps.prepare.outputs.record_step == 'true' &&
-          steps.event.outputs.dry_run != 'true'
+          needs.preflight.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          issue_number="${{ steps.event.outputs.issue_number }}"
+          issue_number="${{ needs.preflight.outputs.issue_number }}"
           if [ -z "$issue_number" ]; then issue_number="${{ github.head_ref }}"; issue_number="${issue_number#gcw/issue-}"; fi
           issue_dir=".gcw/issues/$issue_number"
           python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
@@ -201,8 +215,17 @@ jobs:
             --branch "${{ steps.prepare.outputs.issue_branch }}"
 
       - name: Dry-run review-check evidence
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run == 'true'
+        if: steps.prepare.outputs.should_run == 'true' && needs.preflight.outputs.dry_run == 'true'
         continue-on-error: true
         run: |
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py review-check \
-            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}"
+            --issue-dir ".gcw/issues/${{ needs.preflight.outputs.issue_number }}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gcw-pr-review-${{ github.run_id }}
+          path: |
+            .gcw-runtime/handoff
+            /tmp/pr_review_options.json
+          if-no-files-found: ignore

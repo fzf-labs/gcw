@@ -44,11 +44,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  triage:
+  preflight:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
         github.event.issue.pull_request == null &&
+        contains(github.event.issue.labels.*.name, 'gcw:executor-hosted') &&
+        !contains(github.event.issue.labels.*.name, 'gcw:executor-local') &&
         (
           (github.event_name == 'issue_comment' && vars.AGENT_LOGIN != '' && contains(github.event.comment.body, format('@{0}', vars.AGENT_LOGIN)) && contains(github.event.issue.labels.*.name, 'gcw:run-triage')) ||
           (github.event.action == 'labeled' && github.event.label.name == 'gcw:run-triage' && (vars.AGENT_LOGIN == '' || contains(github.event.issue.assignees.*.login, vars.AGENT_LOGIN))) ||
@@ -58,9 +60,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    outputs:
+      should_trigger: ${{ steps.event.outputs.should_trigger }}
+      trigger_reason: ${{ steps.event.outputs.trigger_reason }}
+      issue_number: ${{ steps.event.outputs.issue_number }}
+      issue_branch: ${{ steps.prepare.outputs.issue_branch || steps.event.outputs.issue_branch }}
+      dry_run: ${{ steps.event.outputs.dry_run }}
+      should_run: ${{ steps.prepare.outputs.should_run }}
+      skip_reason: ${{ steps.prepare.outputs.skip_reason }}
+      phase: ${{ steps.prepare.outputs.phase }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Resolve workflow inputs
         id: event
@@ -103,8 +116,28 @@ jobs:
         if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run != 'true'
         run: echo "${{ steps.prepare.outputs.skip_reason }}"
 
+  classify:
+    needs: preflight
+    if: >-
+      needs.preflight.outputs.should_trigger == 'true' &&
+      needs.preflight.outputs.should_run == 'true' &&
+      needs.preflight.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ needs.preflight.outputs.issue_branch }}
+          fetch-depth: 0
+
       - name: Sync triage label definitions
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -112,25 +145,18 @@ jobs:
             --platform github --repo "${{ github.repository }}"
 
       - name: Prepare issue handoff context
-        if: >-
-          steps.event.outputs.should_trigger == 'true' &&
-          steps.prepare.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 .github/scripts/prepare_issue_handoff_context.py \
             --repo "${{ github.repository }}" \
-            --issue "${{ steps.event.outputs.issue_number }}" \
+            --issue "${{ needs.preflight.outputs.issue_number }}" \
             --step gcw-issue-triage \
-            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
-            --issue-branch "${{ steps.prepare.outputs.issue_branch }}" \
+            --issue-dir ".gcw/issues/${{ needs.preflight.outputs.issue_number }}" \
+            --issue-branch "${{ needs.preflight.outputs.issue_branch }}" \
             --output-dir ".gcw-runtime/handoff"
 
       - name: Classify issue with Codex
-        if: >-
-          steps.event.outputs.should_trigger == 'true' &&
-          steps.prepare.outputs.should_run == 'true' &&
-          steps.event.outputs.dry_run != 'true'
         uses: ./.github/actions/gcw-run-codex
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -144,8 +170,48 @@ jobs:
             optional classification_area.
             Do not run git/gh or modify other files.
 
+      - name: Validate triage result
+        run: |
+          python3 .github/scripts/validate_handoff_json.py \
+            --name triage_result.json --path .gcw-runtime/handoff/triage_result.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gcw-issue-triage-${{ github.run_id }}
+          path: |
+            .gcw-runtime/handoff/issue_context.json
+            .gcw-runtime/handoff/issue_comments.txt
+            .gcw-runtime/handoff/triage_result.json
+          if-no-files-found: ignore
+
+  finalize:
+    needs: [preflight, classify]
+    if: >-
+      needs.preflight.outputs.should_trigger == 'true' &&
+      needs.preflight.outputs.should_run == 'true' &&
+      needs.preflight.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ needs.preflight.outputs.issue_branch }}
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gcw-issue-triage-${{ github.run_id }}
+          path: .gcw-runtime/handoff
+
       - name: Apply triage metadata
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
         id: remote_sync
         env:
           GH_TOKEN: ${{ github.token }}
@@ -154,10 +220,9 @@ jobs:
             --name triage_result.json --path .gcw-runtime/handoff/triage_result.json
           python3 .github/scripts/apply_triage_from_handoff.py \
             --repo "${{ github.repository }}" \
-            --issue "${{ steps.event.outputs.issue_number }}"
+            --issue "${{ needs.preflight.outputs.issue_number }}"
 
       - name: Run GCW issue triage step
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -177,22 +242,49 @@ jobs:
           print(json.dumps(options))
           PY
           python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage \
-            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
+            --issue-dir ".gcw/issues/${{ needs.preflight.outputs.issue_number }}" \
             --options-file /tmp/triage_options.json
 
       - name: Push GCW workflow state
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          issue_dir=".gcw/issues/${{ steps.event.outputs.issue_number }}"
+          issue_dir=".gcw/issues/${{ needs.preflight.outputs.issue_number }}"
           python3 .github/scripts/finalize_gcw_hosted_step.py commit-push \
             --paths "$issue_dir/events" "$issue_dir/workflow.json" \
-            --message "gcw(${{ steps.event.outputs.issue_number }}): record issue triage" \
-            --branch "${{ steps.prepare.outputs.issue_branch }}"
+            --message "gcw(${{ needs.preflight.outputs.issue_number }}): record issue triage" \
+            --branch "${{ needs.preflight.outputs.issue_branch }}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gcw-issue-triage-finalize-${{ github.run_id }}
+          path: |
+            .gcw-runtime/handoff
+            /tmp/triage_options.json
+            /tmp/triage_remote_sync.json
+          if-no-files-found: ignore
+
+  dry-run:
+    needs: preflight
+    if: >-
+      needs.preflight.outputs.should_trigger == 'true' &&
+      needs.preflight.outputs.should_run == 'true' &&
+      needs.preflight.outputs.dry_run == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout issue branch
+        uses: ./.github/actions/gcw-setup
+        with:
+          ref: ${{ needs.preflight.outputs.issue_branch }}
+          fetch-depth: 0
 
       - name: Dry-run workflow validation
-        if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run == 'true' && steps.event.outputs.dry_run == 'true'
         run: |
           python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
-            --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}"
+            --issue-dir ".gcw/issues/${{ needs.preflight.outputs.issue_number }}"
