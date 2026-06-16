@@ -1,0 +1,11 @@
+{
+  "summary": "Package GCW for npm global installation and initialize repo-local workflow assets.",
+  "classification_type": "enhancement",
+  "classification_area": "area:workflow",
+  "classification_priority": "priority:p2",
+  "labels_applied": [
+    "triaged",
+    "area:workflow"
+  ],
+  "remote_sync_file": ".gcw/issues/19/triage_remote_sync.json"
+}

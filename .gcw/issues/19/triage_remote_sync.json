@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "remote_sync": {
+    "platform": "github",
+    "issue_type": "Feature",
+    "priority": "Medium",
+    "labels": [
+      "triaged",
+      "area:workflow"
+    ]
+  },
+  "labels_added": [
+    "triaged",
+    "area:workflow"
+  ],
+  "labels_removed": []
+}

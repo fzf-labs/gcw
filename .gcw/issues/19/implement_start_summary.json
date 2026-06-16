@@ -1,0 +1,3 @@
+{
+  "work_summary": "Start implementing the npm global installer: add the Node CLI package surface, repo-local asset initialization, doctor checks, tests, and documentation."
+}

@@ -11,6 +11,17 @@ Quickstart 侧重「跟着做一遍」；步骤表、状态机与 Action 流水�
 - IDE 中已启用 GCW skills（`/gcw` 或各 `gcw-*` step skill）
 - 了解：spec files 写在 issue 分支的 `.gcw/issues/<issue-id>/`，通过 Issue 评论链接，而不是写入 Issue 正文
 
+如果是在其他项目中首次使用 GCW，可以先安装 CLI 并初始化 repo-local assets：
+
+```bash
+npm install -g @fzf-labs/gcw
+cd <target-repo>
+gcw init
+gcw doctor
+```
+
+需要 GitHub hosted workflow assets 时，初始化命令改为 `gcw init --with-github-actions`。初始化后再按 IDE 文档启用目标仓库的 `.agents/skills/`。
+
 **关于 Action**：`gcw-issue-intake` 没有对应 Action workflow；其余步骤支持 **Hosted agent execution**（runner 内 `openai/codex-action` + 事件触发）。见 [Hosted Agent](hosted-agent.md)。
 
 ## 示例 Issue 一览
