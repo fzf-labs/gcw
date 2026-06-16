@@ -39,7 +39,7 @@ gcw init
 
 - [x] 添加 CLI 测试覆盖 `--version`、`init --dry-run`、临时目录真实初始化、默认跳过已有文件、`--force` 覆盖行为。
 - [x] 添加 package content 检查，确保 npm tarball 包含 templates 且不包含 `.gcw/issues/`。
-- [ ] 继续运行现有 GCW Python 测试，避免破坏 workflow scripts。
+- [x] 继续运行现有 GCW Python 测试，避免破坏 workflow scripts。
 - [x] 更新 `README.md`、`CONTRIBUTING.md`、`docs/quickstart.md`，说明 npm 安装与 `gcw init` 用法。
 
 ## Acceptance Criteria

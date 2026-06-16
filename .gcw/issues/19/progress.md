@@ -35,12 +35,12 @@
 - `npm pack --dry-run`: passed.
 - `ReadLints` on changed JS and Markdown files: no linter errors.
 - `python3 -m unittest discover -s .agents/skills/gcw/tests`: failed while worktree was dirty because `test_has_changes_false_on_clean_tree` expects `README.md` to be unchanged. Re-run after committing implementation changes.
+- `python3 -m unittest discover -s .agents/skills/gcw/tests`: passed after implementation commit on a clean worktree.
 
 ## Next Actions
 
-1. Commit and push the implementation changes.
-2. Re-run Python GCW tests on a clean worktree.
-3. Run `gcw-implement-check` after validation passes.
+1. Commit and push the final validation progress update.
+2. Run `gcw-implement-check`.
 
 ## Open Questions
 
