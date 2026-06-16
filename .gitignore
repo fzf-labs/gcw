@@ -5,3 +5,6 @@ __pycache__/
 
 # GCW runtime handoff/test artifacts
 .gcw-runtime*/
+
+# npm package build output
+dist/

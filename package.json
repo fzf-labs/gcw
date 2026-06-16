@@ -1,0 +1,26 @@
+{
+  "name": "@fzf-labs/gcw",
+  "version": "0.1.0",
+  "description": "Git Collaboration Workflow CLI installer",
+  "type": "module",
+  "bin": {
+    "gcw": "./bin/gcw.js"
+  },
+  "files": [
+    "bin",
+    "dist/templates/repo",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build-npm-package.mjs",
+    "prepack": "npm run build",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "UNLICENSED"
+}

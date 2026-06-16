@@ -4,6 +4,25 @@
 
 GCW 不替代 GitHub / GitLab 上的 Issue 与 PR 机制，而是在其上增加明确的步骤、状态与门禁，让 AI 编码工具与托管流水线能按同一套契约接力推进，直到人类完成最终审查。
 
+## 安装到其他项目
+
+可以通过 npm 全局安装 GCW CLI，然后在目标仓库初始化 repo-local assets：
+
+```bash
+npm install -g @fzf-labs/gcw
+cd <target-repo>
+gcw init
+gcw doctor
+```
+
+`gcw init` 默认复制本地 agent 所需的 `.agents/skills/gcw*`、`.agents/skills/planning-with-files` 与 `.gcw/runtime`。如果目标仓库也要安装 GitHub hosted workflow assets，使用：
+
+```bash
+gcw init --with-github-actions
+```
+
+默认不会覆盖已有文件；需要明确覆盖时加 `--force`。发布包前可用 `npm pack --dry-run` 检查实际包含的 template assets。
+
 ## 适用场景
 
 - 已有 Issue，需要 agent 接入、分类、规划后再实现

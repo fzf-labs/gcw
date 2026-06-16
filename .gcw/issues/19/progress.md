@@ -10,6 +10,10 @@
 - Completed `gcw-issue-triage`; classification is `enhancement` / `area:workflow` / `priority:p2`.
 - Completed `gcw-issue-clarify`; readiness gate passed and workflow entered `ready-for-planning`.
 - Generated initial planning files under `.gcw/issues/19/`.
+- Completed `gcw-issue-to-spec`; planning files were pushed to `gcw/issue-19`.
+- Completed `gcw-spec-check`; workflow entered `ready-for-implementation`.
+- Recorded `gcw-implement`; workflow entered `implementing`.
+- Added npm package metadata, global `gcw` CLI, `init`, `doctor`, template build script, Node tests, and docs updates.
 
 ## Planning Checkpoint
 
@@ -24,12 +28,19 @@
 - `evaluate_issue_readiness.py --profile enhancement --platform github --repo fzf-labs/gcw --issue 19`: passed.
 - `run_gcw_step.py --step gcw-issue-triage`: passed.
 - `run_gcw_step.py --step gcw-issue-clarify`: passed.
+- `run_gcw_step.py --step gcw-issue-to-spec`: passed.
+- `run_gcw_step.py --step gcw-spec-check`: passed.
+- `npm test`: passed.
+- `npm run build`: passed.
+- `npm pack --dry-run`: passed.
+- `ReadLints` on changed JS and Markdown files: no linter errors.
+- `python3 -m unittest discover -s .agents/skills/gcw/tests`: failed while worktree was dirty because `test_has_changes_false_on_clean_tree` expects `README.md` to be unchanged. Re-run after committing implementation changes.
 
 ## Next Actions
 
-1. Run `gcw-issue-to-spec` to record and publish the planning milestone.
-2. Run `gcw-spec-check` after planning artifacts are pushed.
-3. If spec gate passes, begin implementation with tests first.
+1. Commit and push the implementation changes.
+2. Re-run Python GCW tests on a clean worktree.
+3. Run `gcw-implement-check` after validation passes.
 
 ## Open Questions
 

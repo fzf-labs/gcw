@@ -5,12 +5,30 @@
 ## 前置条件
 
 - **Git** 与 **Python 3**（运行 GCW 脚本与测试）
+- **Node.js 18+** 与 **npm**（构建和测试 `@fzf-labs/gcw` CLI）
 - **GitHub CLI**（`gh`）已安装并登录：`gh auth login`
 - IDE 中启用 GCW skills（仓库内路径：`.agents/skills/gcw/` 及各 `gcw-*` step skill）
 
 ## Skill 安装
 
-GCW skills 随仓库提供，无需单独发布包。在 Cursor / 支持 Agent Skills 的环境中，将本仓库的 `.agents/skills/` 加入 skill 搜索路径，或按你使用的 IDE 文档把该目录链到本地 skills 目录。
+在本仓库开发 GCW 时，skills 直接使用仓库内路径：`.agents/skills/`。
+
+在其他项目使用 GCW 时，可以先安装 CLI，再初始化 repo-local assets：
+
+```bash
+npm install -g @fzf-labs/gcw
+cd <target-repo>
+gcw init
+gcw doctor
+```
+
+如需安装 GitHub hosted workflow assets：
+
+```bash
+gcw init --with-github-actions
+```
+
+初始化后，在 Cursor / 支持 Agent Skills 的环境中，将目标仓库的 `.agents/skills/` 加入 skill 搜索路径，或按你使用的 IDE 文档把该目录链到本地 skills 目录。
 
 常用入口：
 
@@ -24,6 +42,15 @@ Skill 与脚本以仓库内文件为准；修改 skill 后请运行下方测试�
 在仓库根目录执行：
 
 ```bash
+# npm CLI 测试
+npm test
+
+# 构建 npm package templates
+npm run build
+
+# 检查 npm tarball 内容
+npm pack --dry-run
+
 # GCW 单元测试
 python3 -m unittest discover -s .agents/skills/gcw/tests
 
@@ -45,6 +72,15 @@ python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
 - 实现与规划提交分开：规划提交仅含 spec / events；实现提交含产品代码与文档
 
 主流程见 [README.md](README.md) 与 [docs/workflow.md](docs/workflow.md)。
+
+## npm 包发布（维护者）
+
+`@fzf-labs/gcw` 使用 npm scoped package。发布前请确认：
+
+- npm 账号拥有 `@fzf-labs` scope 的发布权限
+- `npm test`、`npm run build`、`npm pack --dry-run` 均通过
+- tarball 中包含 `bin/gcw.js` 与 `dist/templates/repo/`，且不包含 `.gcw/issues/`
+- 仓库 license 策略已经确定；当前 package manifest 标记为 `UNLICENSED`
 
 ## 提 Issue
 

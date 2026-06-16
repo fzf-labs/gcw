@@ -18,29 +18,29 @@ gcw init
 
 ### Phase 1 — npm CLI package foundation
 
-- [ ] 新增 npm package manifest，包名为 `@fzf-labs/gcw`，并通过 `bin` 暴露全局 `gcw` 命令。
-- [ ] 新增 Node shebang CLI 入口，支持 `--version`、`init`、`doctor`。
-- [ ] 新增 package build/pack 脚本，确保发布包只包含 CLI 与 template assets。
+- [x] 新增 npm package manifest，包名为 `@fzf-labs/gcw`，并通过 `bin` 暴露全局 `gcw` 命令。
+- [x] 新增 Node shebang CLI 入口，支持 `--version`、`init`、`doctor`。
+- [x] 新增 package build/pack 脚本，确保发布包只包含 CLI 与 template assets。
 
 ### Phase 2 — repo-local template installation
 
-- [ ] 构建发布模板目录，包含必需的 `.agents/skills/gcw*`、`.agents/skills/planning-with-files` 与 `.gcw/runtime`。
-- [ ] 实现 `gcw init`，默认复制必需 assets 到当前仓库。
-- [ ] 支持 `--target <path>`、`--dry-run`、`--force`，默认不覆盖已有文件。
-- [ ] 支持 `--with-github-actions` 复制 `.github/workflows/gcw-*.yml`、`.github/actions/gcw-*` 与 `.github/scripts/`。
+- [x] 构建发布模板目录，包含必需的 `.agents/skills/gcw*`、`.agents/skills/planning-with-files` 与 `.gcw/runtime`。
+- [x] 实现 `gcw init`，默认复制必需 assets 到当前仓库。
+- [x] 支持 `--target <path>`、`--dry-run`、`--force`，默认不覆盖已有文件。
+- [x] 支持 `--with-github-actions` 复制 `.github/workflows/gcw-*.yml`、`.github/actions/gcw-*` 与 `.github/scripts/`。
 
 ### Phase 3 — environment checks
 
-- [ ] 实现 `gcw doctor`，检查当前目录是否是 Git repo、GCW assets 是否已初始化、`python3` 是否可用。
-- [ ] 在检测到 GitHub/GitLab 使用场景时提示 `gh` / `glab` 可用性。
-- [ ] 输出清晰的人类可读结果，并使用非零 exit code 表示硬失败。
+- [x] 实现 `gcw doctor`，检查当前目录是否是 Git repo、GCW assets 是否已初始化、`python3` 是否可用。
+- [x] 在检测到 GitHub/GitLab 使用场景时提示 `gh` / `glab` 可用性。
+- [x] 输出清晰的人类可读结果，并使用非零 exit code 表示硬失败。
 
 ### Phase 4 — tests and documentation
 
-- [ ] 添加 CLI 测试覆盖 `--version`、`init --dry-run`、临时目录真实初始化、默认跳过已有文件、`--force` 覆盖行为。
-- [ ] 添加 package content 检查，确保 npm tarball 包含 templates 且不包含 `.gcw/issues/`。
+- [x] 添加 CLI 测试覆盖 `--version`、`init --dry-run`、临时目录真实初始化、默认跳过已有文件、`--force` 覆盖行为。
+- [x] 添加 package content 检查，确保 npm tarball 包含 templates 且不包含 `.gcw/issues/`。
 - [ ] 继续运行现有 GCW Python 测试，避免破坏 workflow scripts。
-- [ ] 更新 `README.md`、`CONTRIBUTING.md`、`docs/quickstart.md`，说明 npm 安装与 `gcw init` 用法。
+- [x] 更新 `README.md`、`CONTRIBUTING.md`、`docs/quickstart.md`，说明 npm 安装与 `gcw init` 用法。
 
 ## Acceptance Criteria
 

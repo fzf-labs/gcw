@@ -1,0 +1,23 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-16T10:53:14Z",
+  "event": "gcw-implement",
+  "event_id": "gcw-19-005-gcw-implement",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+    "progress_comment_body_hash": "sha256:1a62f8e5f6718dce8ab5190ce5ee6bb8fb7f73691d21b72443d394ee41c641b8",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/19#issuecomment-4717959342",
+    "work_summary": "Start implementing the npm global installer: add the Node CLI package surface, repo-local asset initialization, doctor checks, tests, and documentation."
+  },
+  "refs": {
+    "branch": "gcw/issue-19",
+    "issue": "19"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 5
+}

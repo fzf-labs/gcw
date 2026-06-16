@@ -73,6 +73,12 @@ npm run build
 npm pack --dry-run
 ```
 
+## Implementation Notes (updated)
+
+- npm package 已标记为 `UNLICENSED`，因为仓库当前没有 `LICENSE` 文件。正式公开发布前需要维护者确认 license 策略。
+- `dist/` 是 build 产物，已加入 `.gitignore`；`prepack` 会在发布前重新生成 `dist/templates/repo`。
+- `gcw doctor` 把 `python3`、Git repo、GCW assets 作为硬检查；`gh` / `glab` 作为平台 CLI 可用性提示，不作为硬失败。
+
 ## Open Questions
 
-- None blocking for initial implementation.
+- 是否要在后续 issue 中确定仓库 license 并添加 `LICENSE` 文件。
