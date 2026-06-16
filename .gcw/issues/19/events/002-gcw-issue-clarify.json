@@ -1,0 +1,52 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-16T10:49:36Z",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-19-002-gcw-issue-clarify",
+  "parent": {
+    "expected_last_seq": 1
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "issue-clarify-readiness/v1"
+    },
+    "progress_comment_body_hash": "sha256:b62c54a6e4d0274af03be74f00e576623faa42737cfa19f3c36fc0c87031227c",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/19#issuecomment-4717925503",
+    "ready": true,
+    "summary": "Issue #19 includes a concrete build target, acceptance criteria, and no unresolved blocker."
+  },
+  "refs": {
+    "branch": "gcw/issue-19",
+    "issue": "19"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 2
+}
