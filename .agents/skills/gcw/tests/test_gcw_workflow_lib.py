@@ -386,12 +386,12 @@ class GcwWorkflowLibTest(unittest.TestCase):
             "gcw-issue-triage",
             {
                 "classification": {"area": "area:tests"},
-                "labels_applied": ["triaged", "area:tests"],
+                "labels_applied": ["triaged", "area:tests", "gcw:executor-local"],
                 "remote_sync": {
                     "platform": "github",
                     "issue_type": "Feature",
                     "priority": "Medium",
-                    "labels": ["triaged", "area:tests"],
+                    "labels": ["triaged", "area:tests", "gcw:executor-local"],
                 },
                 "progress_comment_url": progress_comment_url(0),
             },

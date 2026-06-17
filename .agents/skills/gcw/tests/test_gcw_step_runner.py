@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from base import RecordingAdapter
 from gcw_steps import GcwStepRunner, SUPPORTED_STEPS
-from gcw_test_helpers import write_readiness_gate_file, write_remote_sync_file
+from gcw_test_helpers import DEFAULT_TRIAGE_LABELS, write_readiness_gate_file, write_remote_sync_file
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -146,7 +146,7 @@ class GcwStepRunnerTest(unittest.TestCase):
             options={
                 "classification_type": "enhancement",
                 "classification_priority": "priority:p2",
-                "labels_applied": ["triaged", "area:tests"],
+                "labels_applied": DEFAULT_TRIAGE_LABELS,
             },
         )
         self.assertFalse(result.ok)
@@ -178,7 +178,7 @@ class GcwStepRunnerTest(unittest.TestCase):
         from gcw_workflow_lib import write_projection
 
         write_projection(self.issue_dir)
-        remote_sync_file = write_remote_sync_file(self.issue_dir / "remote-sync.json", ["triaged", "area:tests"])
+        remote_sync_file = write_remote_sync_file(self.issue_dir / "remote-sync.json", DEFAULT_TRIAGE_LABELS)
         runner = GcwStepRunner(adapter=RecordingAdapter())
         result = runner.run(
             "gcw-issue-triage",
@@ -188,7 +188,7 @@ class GcwStepRunnerTest(unittest.TestCase):
                 "classification_type": "enhancement",
                 "classification_area": "area:tests",
                 "classification_priority": "priority:p2",
-                "labels_applied": ["triaged", "area:tests"],
+                "labels_applied": DEFAULT_TRIAGE_LABELS,
                 "remote_sync_file": str(remote_sync_file),
             },
         )
@@ -228,12 +228,12 @@ class GcwStepRunnerTest(unittest.TestCase):
             "parent": {"expected_last_seq": 0},
             "payload": {
                 "classification": {"type": "enhancement", "area": "area:tests", "priority": "priority:p2"},
-                "labels_applied": ["triaged", "area:tests"],
+                "labels_applied": DEFAULT_TRIAGE_LABELS,
                 "remote_sync": {
                     "platform": "github",
                     "issue_type": "Feature",
                     "priority": "Medium",
-                    "labels": ["triaged", "area:tests"],
+                    "labels": DEFAULT_TRIAGE_LABELS,
                 },
                 "progress_comment_url": "https://github.com/test/repo/issues/1#issuecomment-1",
             },

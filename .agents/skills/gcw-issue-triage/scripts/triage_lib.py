@@ -11,6 +11,9 @@ MAPPINGS_FILE = SKILL_DIR / "triage_mappings.json"
 GROUPS_WITH_SINGLE_VALUE = {"type", "area", "priority", "readiness", "triage", "executor"}
 GITHUB_LEGACY_LABEL_GROUPS = {"type", "priority"}
 GITHUB_API_VERSION = "2026-03-10"
+EXECUTOR_HOSTED = "gcw:executor-hosted"
+EXECUTOR_LOCAL = "gcw:executor-local"
+EXECUTOR_LABELS = frozenset({EXECUTOR_HOSTED, EXECUTOR_LOCAL})
 
 
 def load_labels() -> dict[str, dict[str, Any]]:
@@ -76,6 +79,19 @@ def legacy_github_labels(labels: dict[str, dict[str, Any]]) -> list[str]:
     for group in GITHUB_LEGACY_LABEL_GROUPS:
         names.extend(grouped.get(group, []))
     return names
+
+
+def ensure_executor_label(labels: list[str], executor: str = "local") -> list[str]:
+    normalized = list(labels)
+    if any(label in EXECUTOR_LABELS for label in normalized):
+        return normalized
+    if executor == "none":
+        return normalized
+    if executor == "local":
+        return [*normalized, EXECUTOR_LOCAL]
+    if executor == "hosted":
+        return [*normalized, EXECUTOR_HOSTED]
+    raise ValueError(f"unknown executor mode: {executor}")
 
 
 def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:

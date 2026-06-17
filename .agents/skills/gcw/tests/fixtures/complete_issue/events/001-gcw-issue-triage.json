@@ -17,7 +17,8 @@
     },
     "labels_applied": [
       "triaged",
-      "area:tests"
+      "area:tests",
+      "gcw:executor-local"
     ],
     "progress_comment_body_hash": "sha256:8153ea5bea8a09078df056f3bf97ba2f0fee452ba230da47e372404eb4b6d019",
     "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
@@ -25,7 +26,8 @@
       "issue_type": "Feature",
       "labels": [
         "triaged",
-        "area:tests"
+        "area:tests",
+        "gcw:executor-local"
       ],
       "platform": "github",
       "priority": "Medium"

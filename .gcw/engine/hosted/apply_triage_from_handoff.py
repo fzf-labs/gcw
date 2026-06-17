@@ -58,6 +58,8 @@ def main(argv: list[str] | None = None) -> int:
                 priority,
                 "--labels",
                 labels,
+                "--executor",
+                "none",
             ],
             check=True,
             stdout=handle,

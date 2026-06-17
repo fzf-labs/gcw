@@ -156,12 +156,12 @@ class GcwSchemaTest(unittest.TestCase):
                 "parent": {"expected_last_seq": 0},
                 "payload": {
                     "classification": {"area": "area:tests"},
-                    "labels_applied": ["triaged", "area:tests"],
+                    "labels_applied": ["triaged", "area:tests", "gcw:executor-local"],
                     "remote_sync": {
                         "platform": "github",
                         "issue_type": "Feature",
                         "priority": "Medium",
-                        "labels": ["triaged", "area:tests"],
+                        "labels": ["triaged", "area:tests", "gcw:executor-local"],
                     },
                     "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-1",
                 },

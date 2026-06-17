@@ -49,6 +49,8 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 GitLab CI 当前以手动 job 为主：在 pipeline 中设置 `GCW_ISSUE_NUMBER` 后，选择对应 job（例如 `gcw:spec-check`、`gcw:implement-check`）运行。Job 会先 checkout `GCW_ISSUE_BRANCH`，再调用 `prepare_gcw_hosted_step.py` 做 phase gate，最后委托现有 Python 脚本执行实际 GCW step。
 
+GitLab hosted path 的 executor gate 来自 pipeline variable `GCW_EXECUTOR`，不是从 Issue labels 反查。若本地 agent 已在 Issue 上标记 `gcw:executor-local`，但维护者仍以默认 `GCW_EXECUTOR=gcw:executor-hosted` 手动运行 GitLab job，CI 仍会按 hosted 路径执行；需要跳过时请把 pipeline variable 设为 `gcw:executor-local`。
+
 ## Trigger label 契约
 
 除 `workflow_dispatch` 外，issue-based 步骤可通过 **label + assign** 或 **comment @AGENT_LOGIN** 自动触发（须满足 `workflow.json` phase）；`gcw-pr-review` 另外支持 `pull_request` 触发：
@@ -87,7 +89,9 @@ Hosted workflow 只有在 executor gate 通过时才会继续执行：目标 Iss
 | `gcw:executor-local` | 所有 hosted workflow 跳过 |
 | （均无） | 默认视为 local，不自动跑 Action |
 
-`gcw:run-*` 只决定**跑哪一步**；必须与 `gcw:executor-hosted` 同时存在才生效。本地 agent 启动 GCW 时应在 triage 打上 `gcw:executor-local`。
+`gcw:run-*` 只决定**跑哪一步**；必须与 `gcw:executor-hosted` 同时存在才生效。本地 agent 启动 GCW 时，`gcw-issue-triage` 默认会把 `gcw:executor-local` 写入 Issue 和 triage event。
+
+如需从本地切换到 hosted，先用平台 label 操作或 `manage_triage_metadata.py apply/apply-metadata` 将 `gcw:executor-local` 替换为 `gcw:executor-hosted`，再添加对应 `gcw:run-*` trigger label 或使用 comment / dispatch 触发。Hosted triage 自身不会默认写入 `gcw:executor-local`。
 
 Issue/comment 自动触发会在 job `if` 中先检查 `gcw:executor-hosted` 并排除 `gcw:executor-local`，因此缺少 hosted executor 标签时不会 checkout issue branch。`workflow_dispatch` 与 `pull_request` 事件仍由脚本读取远端 Issue labels 做兜底判断。
 

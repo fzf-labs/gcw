@@ -13,6 +13,7 @@ from triage_lib import (
     GITHUB_API_VERSION,
     apply_github_labels,
     apply_gitlab_labels,
+    ensure_executor_label,
     expected_remote_sync,
     github_issue_type,
     github_priority_field_id,
@@ -195,6 +196,7 @@ def cmd_apply_metadata(args: argparse.Namespace) -> int:
     all_labels = load_labels()
     labels = labels_for_platform(all_labels, args.platform)
     workflow_labels = [part.strip() for part in args.labels.split(",") if part.strip()]
+    workflow_labels = ensure_executor_label(workflow_labels, getattr(args, "executor", "local"))
     unknown = [name for name in workflow_labels if name not in labels]
     if unknown:
         raise SystemExit(f"unknown workflow labels: {', '.join(unknown)}")
@@ -301,6 +303,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--labels",
         required=True,
         help="Comma-separated workflow labels (area/readiness/triage/optional only on GitHub)",
+    )
+    metadata.add_argument(
+        "--executor",
+        default="local",
+        choices=("local", "hosted", "none"),
+        help="Default executor label to add when --labels does not already include one.",
     )
 
     subparsers.choices["migrate-triage-labels"].add_argument("--issue", required=True)

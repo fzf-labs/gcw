@@ -115,6 +115,8 @@ python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
 
 也可在 GitHub Actions 中手动触发 **GCW Labels Sync** workflow（`workflow_dispatch`），见 `.github/workflows/gcw-labels-sync.yml`。
 
+本地 agent 执行 `gcw-issue-triage` 时，triage metadata 默认会为 Issue 标记 `gcw:executor-local`，表示该 Issue 由本地执行器接管，hosted workflow 应跳过。需要切换到 GitHub Actions / GitLab CI 执行时，维护者应先把 `gcw:executor-local` 替换为 `gcw:executor-hosted`（GitHub）或设置 GitLab pipeline variable `GCW_EXECUTOR=gcw:executor-hosted`。
+
 ## Hosted Agent（GitHub Actions / GitLab CI）
 
 GitHub Actions 路径需要配置 `OPENAI_API_KEY`（Secret）、`OPENAI_API_ENDPOINT` 与 `AGENT_LOGIN`（Variables）后，通过 trigger label（如 `gcw:ready-for-planning`）触发托管 agent。GitLab CI 路径使用 `.gitlab-ci.yml` 与 `GLAB_TOKEN`，通过 pipeline variables 选择 Issue 与 job。详见 [docs/hosted-agent.md](docs/hosted-agent.md)。

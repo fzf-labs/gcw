@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
 sys.path.insert(0, str(SCRIPTS))
 
 from finalize_gcw_hosted_step import commit_push, has_changes  # noqa: E402
+from apply_triage_from_handoff import main as apply_triage_main  # noqa: E402
 from gcw_executor_gate import EXECUTOR_HOSTED, EXECUTOR_LOCAL  # noqa: E402
 from gcw_workflow_event import comment_requests_step, resolve, should_run_event  # noqa: E402
 from prepare_issue_handoff_context import issue_branch, prepare as prepare_handoff  # noqa: E402
@@ -112,6 +113,45 @@ class ValidateHandoffJsonTest(unittest.TestCase):
             )
             data = validate("triage_result.json", path)
             self.assertEqual(data["classification_type"], "enhancement")
+
+
+class ApplyTriageFromHandoffTest(unittest.TestCase):
+    def test_handoff_apply_opts_out_of_local_executor_default(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            handoff = Path(temp_dir) / "triage_result.json"
+            output = Path(temp_dir) / "triage-sync.json"
+            handoff.write_text(
+                json.dumps(
+                    {
+                        "classification_type": "enhancement",
+                        "classification_priority": "priority:p2",
+                        "classification_area": "area:workflow",
+                        "labels_applied": ["triaged"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch("apply_triage_from_handoff.subprocess.run") as run:
+                self.assertEqual(
+                    apply_triage_main(
+                        [
+                            "--handoff",
+                            str(handoff),
+                            "--repo",
+                            "owner/repo",
+                            "--issue",
+                            "42",
+                            "--output",
+                            str(output),
+                        ]
+                    ),
+                    0,
+                )
+
+        command = run.call_args.args[0]
+        self.assertIn("--executor", command)
+        self.assertEqual(command[command.index("--executor") + 1], "none")
 
 
 class PrepareHandoffTest(unittest.TestCase):

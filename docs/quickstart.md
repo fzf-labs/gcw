@@ -85,7 +85,7 @@ Intake 读取 Issue、创建 issue 分支并持久化第一条事件；不创建
 | | |
 | --- | --- |
 | **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-triage` |
-| **观察** | Issue 上出现 triage 标签/字段（如 `triaged`、`area:*`、Issue Type、Priority）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-triage.json` |
+| **观察** | Issue 上出现 triage 标签/字段（如 `triaged`、`area:*`、本地执行时的 `gcw:executor-local`、Issue Type、Priority）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-triage.json` |
 | **状态** | `issue-triaged` |
 
 Triage 只负责分类与远端 metadata 同步，不判断需求是否清楚。

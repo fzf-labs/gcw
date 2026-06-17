@@ -18,6 +18,7 @@ def planning_shas(issue_dir: Path) -> dict[str, str]:
 
 
 PROGRESS_COMMENT_BASE = "https://github.com/owner/repo/issues/42#issuecomment"
+DEFAULT_TRIAGE_LABELS = ["triaged", "area:tests", "gcw:executor-local"]
 
 
 def progress_comment_url(seq: int) -> str:
@@ -65,7 +66,7 @@ def triage_event_payload(
     labels: list[str] | None = None,
     **extra: object,
 ) -> dict:
-    labels = labels or ["triaged", "area:tests"]
+    labels = labels or list(DEFAULT_TRIAGE_LABELS)
     payload: dict = {
         "classification": {
             "type": "enhancement",
@@ -135,7 +136,7 @@ def triage_record_cli_args(
     seq: int = 0,
     labels: list[str] | None = None,
 ) -> list[str]:
-    labels = labels or ["triaged", "area:tests"]
+    labels = labels or list(DEFAULT_TRIAGE_LABELS)
     remote_sync_file = write_remote_sync_file(issue_dir / "remote-sync.json", labels)
     return [
         "record-issue-triage",

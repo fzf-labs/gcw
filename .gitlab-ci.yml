@@ -84,6 +84,7 @@ gcw:issue-triage:
         --type "${GCW_CLASSIFICATION_TYPE:-enhancement}" \
         --priority "${GCW_CLASSIFICATION_PRIORITY:-priority:p2}" \
         --labels "${GCW_LABELS_APPLIED:-triaged,area:workflow}" \
+        --executor none \
         > "$GCW_ISSUE_DIR/remote/triage-sync.json"
     - |
       python3 - "$GCW_ISSUE_DIR" <<'PY'
