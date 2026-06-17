@@ -1,0 +1,28 @@
+{
+  "checks": [
+    {
+      "id": "has_what_to_build",
+      "ok": true,
+      "source": "structural"
+    },
+    {
+      "id": "has_acceptance_criteria",
+      "ok": true,
+      "source": "structural"
+    },
+    {
+      "id": "blocker_resolved",
+      "ok": true,
+      "source": "structural"
+    },
+    {
+      "id": "body_not_placeholder",
+      "ok": true,
+      "source": "structural"
+    }
+  ],
+  "errors": [],
+  "ok": true,
+  "profile": "enhancement",
+  "rubric_version": "issue-clarify-readiness/v1"
+}
