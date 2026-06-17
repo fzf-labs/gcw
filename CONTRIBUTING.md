@@ -119,7 +119,7 @@ python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
 
 ## Hosted Agent（GitHub Actions / GitLab CI）
 
-GitHub Actions 路径需要配置 `OPENAI_API_KEY`（Secret）、`OPENAI_API_ENDPOINT` 与 `AGENT_LOGIN`（Variables）后，通过 trigger label（如 `gcw:ready-for-planning`）触发托管 agent。GitLab CI 路径使用 `.gitlab-ci.yml` 与 `GLAB_TOKEN`，通过 pipeline variables 选择 Issue 与 job。详见 [docs/hosted-agent.md](docs/hosted-agent.md)。
+GitHub Actions 路径需要配置 `OPENAI_API_KEY`（Secret）、`OPENAI_API_ENDPOINT` 与 `AGENT_LOGIN`（Variables）后，通过 trigger label（如 `gcw:ready-for-planning`）触发托管 agent；可选用 `CODEX_MODEL` 和 `CODEX_EFFORT` 固定 Codex 模型与 reasoning effort。GitLab CI 路径使用 `.gitlab-ci.yml` 与 `GLAB_TOKEN`，通过 pipeline variables 选择 Issue 与 job。详见 [docs/hosted-agent.md](docs/hosted-agent.md)。
 
 ## 文档语言
 

@@ -13,6 +13,7 @@ import json
 
 ROOT = Path(__file__).resolve().parents[4]
 WORKFLOWS = ROOT / ".github" / "workflows"
+CODEX_ACTION = ROOT / ".github" / "actions" / "gcw-run-codex" / "action.yml"
 SCRIPTS = ROOT / ".gcw" / "engine" / "hosted"
 GITLAB_CI = ROOT / ".gitlab-ci.yml"
 sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
@@ -173,6 +174,11 @@ class HostedWorkflowYamlTest(unittest.TestCase):
     def test_hosted_agent_workflows_include_codex_action(self) -> None:
         for name in HOSTED_AGENT_WORKFLOWS:
             self.assertIn("gcw-run-codex", workflow_text(name), msg=name)
+
+    def test_codex_wrapper_passes_model_and_effort_variables(self) -> None:
+        text = CODEX_ACTION.read_text(encoding="utf-8")
+        self.assertIn("model: ${{ vars.CODEX_MODEL }}", text)
+        self.assertIn("effort: ${{ vars.CODEX_EFFORT }}", text)
 
     def test_issue_event_workflows_gate_executor_labels_in_job_if(self) -> None:
         for name in EXPECTED_WORKFLOWS:

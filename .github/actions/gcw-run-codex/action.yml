@@ -44,3 +44,5 @@ runs:
         openai-api-key: ${{ inputs.openai-api-key }}
         responses-api-endpoint: ${{ steps.codex_endpoint.outputs.url }}
         prompt: ${{ inputs.prompt }}
+        model: ${{ vars.CODEX_MODEL }}
+        effort: ${{ vars.CODEX_EFFORT }}

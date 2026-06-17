@@ -27,6 +27,8 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | Secret | hosted-agent 步骤是 | `openai/codex-action@v1` 认证 |
 | `OPENAI_API_ENDPOINT` | Variable | hosted-agent 步骤是 | API base URL（脚本自动补 `/responses` 后缀） |
+| `CODEX_MODEL` | Variable | 否 | 传给 `openai/codex-action@v1` 的 `model`；为空时使用 Codex 默认模型 |
+| `CODEX_EFFORT` | Variable | 否 | 传给 `openai/codex-action@v1` 的 `effort`；为空时使用 Codex 默认 reasoning effort |
 | `AGENT_LOGIN` | Variable | 事件触发推荐 | Issue comment `@mention` 与 assignee 匹配 |
 
 另需 **Settings → Actions → General → Workflow permissions** 允许 `contents: write`（mutating 步骤 commit/push）。
