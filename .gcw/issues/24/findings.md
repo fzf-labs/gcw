@@ -13,6 +13,8 @@
 - `run_gcw_step.py` already executes milestone steps end-to-end for `gcw-issue-triage`, `gcw-issue-clarify`, `gcw-issue-to-spec`, `gcw-spec-check`, `gcw-implement-check`, `gcw-pr-publish`, and `gcw-pr-review`.
 - `manage_gcw_workflow.py` already supports workflow initialization, direct event recording, and projection rebuilds, which makes it a natural backend for a terminal-first Node wrapper.
 - The current `gcw` top-level skill routes automatically until a human handoff state (`planned`, `issue-clarifying`, `blocked`, `reviewing`, `review-complete`), which should guide `gcw run`.
+- A practical terminal-first `gcw` can keep Node thin by delegating state discovery and milestone recording to Python while only adding repository detection, issue bootstrapping, and default payload wiring.
+- The CLI can safely continue through terminal-friendly implementation gates such as `gcw-implement-check` and `gcw-pr-publish`, while still stopping at the documented GCW human handoff states.
 
 ## Technical Decisions
 | Decision | Rationale |
@@ -20,6 +22,8 @@
 | Keep Node CLI orchestration thin and delegate workflow semantics to Python runtime commands | This avoids drift between IDE skill behavior and terminal behavior. |
 | Treat `status` and `next` as state-discovery commands built on event log + projection validation | These commands are primarily read paths and should reflect the same authoritative state used by GCW routing. |
 | Model `run` as repeated legal step execution until a GCW stop state is reached | This mirrors the existing `/gcw` automatic continuation contract. |
+| Seed planning files and minimal implement-check payloads from local templates when the terminal-first path needs them | This lets the CLI walk the main GCW path in an initialized repo without depending on IDE skill orchestration. |
+| Keep the terminal-first path bounded by documented human handoff states | This avoids over-automating review, clarification, and implementation decisions that belong to humans or hosted agents.
 
 ## Issues Encountered
 | Issue | Resolution |

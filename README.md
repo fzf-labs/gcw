@@ -24,6 +24,31 @@ gcw init --with-gitlab-ci
 
 默认不会覆盖已有文件；需要明确覆盖时加 `--force`。发布包前可用 `npm pack --dry-run` 检查实际包含的 template assets。
 
+初始化后可以直接使用正式 CLI 入口：
+
+```bash
+gcw status <issue-number>
+gcw next <issue-number>
+gcw step <gcw-step-name> <issue-number>
+gcw run <issue-number>
+```
+
+- `gcw status`：从 `.gcw/issues/<issue-id>/events/` 与 `workflow.json` 读取当前 phase、最后完成步骤和下一步。
+- `gcw next`：显示当前 phase 下的首个允许步骤。
+- `gcw step`：只执行一个显式步骤；会先校验当前 phase，不允许的步骤返回非零错误。
+- `gcw run`：从已有 Issue 或已初始化的 GCW state 出发，按当前状态机自动推进，直到停在 GCW 约定的人类 handoff state。
+
+当前 terminal-first `gcw run` 会自动停在这些状态：
+
+- `planned`
+- `issue-clarifying`
+- `blocked`
+- `reviewing`
+- `review-complete`
+
+这和 `/gcw` 的主流程契约保持一致。对于需要人类判断、人工 review、或进一步实现产物的阶段，CLI 会停下来并报告下一步，而不是静默越过 gate。
+在 `implementing` 阶段，`gcw run` 会继续尝试 `gcw-implement-check` 与 `gcw-pr-publish`；只有进入 `reviewing` 等人工 handoff state 才会停下。
+
 ## 适用场景
 
 - 已有 Issue，需要 agent 接入、分类、规划后再实现
