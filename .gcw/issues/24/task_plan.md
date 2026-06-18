@@ -35,8 +35,8 @@ Phase 5
 ### Phase 5: Verification & Delivery
 - [x] Run relevant npm and GCW tests
 - [x] Verify the new CLI commands behave correctly in an initialized repo
-- [ ] Prepare implementation summary and follow-up risks
-- **Status:** in_progress
+- [x] Prepare implementation summary and follow-up risks
+- **Status:** complete
 
 ## Key Questions
 1. How should the Node CLI invoke GCW runtime behavior without duplicating phase-routing rules?
@@ -57,6 +57,7 @@ Phase 5
 |-------|---------|------------|
 | `verify_remote_triage.py` required an existing `gcw-issue-triage` event before verification | 1 | Continued with the repository’s actual step-runner flow and noted the mismatch between skill prose and implementation in findings.md. |
 | CLI tests for step execution tried to publish progress comments to the fixture repository `owner/repo` | 1 | Added a fake `gh` test environment so the Node CLI still drives the real Python runtime while remote side effects stay local and deterministic. |
+| `gcw-pr-publish` passed malformed `gh pr list --json` arguments during a real local publish attempt | 1 | Tightened the fake `gh` harness to catch the bug and fixed the CLI to pass `url,title` as one JSON field list. |
 
 ## Notes
 - Implementation should keep the CLI usable in repos initialized by `gcw init`.

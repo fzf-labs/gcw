@@ -50,16 +50,20 @@
   - `CONTRIBUTING.md`
 
 ### Phase 5: Verification & Delivery
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
   - Ran focused CLI tests and the full npm test suite.
   - Confirmed `gcw run` stops at GCW human handoff states in the terminal-first path.
   - Fixed the `implementing` auto-continuation gap so terminal-first GCW can continue through `gcw-implement-check` and `gcw-pr-publish` before stopping in `reviewing`.
   - Fixed a real GitHub publish-path bug where `gcw-pr-publish` passed `gh pr list --json` fields incorrectly and crashed before entering `reviewing`.
+  - Reran `gcw run 24`, recorded `gcw-implement-check` and `gcw-pr-publish`, and published PR #25 so the workflow now stops in `reviewing`.
 - Files created/modified:
   - `.gcw/issues/24/task_plan.md`
   - `.gcw/issues/24/findings.md`
   - `.gcw/issues/24/progress.md`
+  - `.gcw/issues/24/events/006-gcw-implement-check.json`
+  - `.gcw/issues/24/events/007-gcw-pr-publish.json`
+  - `.gcw/issues/24/workflow.json`
 
 ## Test Results
 | Test | Input | Expected | Actual | Status |
@@ -72,6 +76,7 @@
 | CLI step command | `node bin/gcw.js step gcw-spec-check 42` | Runs one allowed step and advances to ready-for-implementation | Printed `Executed: gcw-spec-check` and moved to `ready-for-implementation` | PASS |
 | CLI run command | `node bin/gcw.js run 24` | Routes until the planned handoff state | Printed `Executed steps: gcw-issue-intake, gcw-issue-triage, gcw-issue-clarify, gcw-issue-to-spec` and stopped at `planned` | PASS |
 | CLI run continuation | `node bin/gcw.js run 42` | Continues from `implementing` through publish and stops in `reviewing` | Printed `Executed steps: gcw-implement-check, gcw-pr-publish` and stopped at `reviewing` | PASS |
+| Issue #24 review publish | `node bin/gcw.js run 24` | Records implement-check, creates or updates the PR, and stops in `reviewing` | Created PR `#25`, recorded `gcw-pr-publish`, and stopped in `reviewing` | PASS |
 | npm test | `npm test` | All npm CLI tests pass | All 14 tests passed | PASS |
 
 ## Error Log
@@ -84,8 +89,8 @@
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 5, with Issue #24 implementation and docs updated. |
-| Where am I going? | Finish delivery notes, then close out the GCW implementation/check flow. |
+| Where am I? | Workflow state `reviewing`, with PR #25 published from `gcw/issue-24`. |
+| Where am I going? | Wait for hosted or human review feedback from the published PR. |
 | What's the goal? | Add formal GCW CLI orchestration commands to the npm CLI without depending on IDE skill routing. |
-| What have I learned? | The repository already contains reusable Python workflow contracts and step runners that should back the new CLI commands, and the terminal-first path can stop cleanly at human handoff states. |
-| What have I done? | Added `gcw run`, `gcw step`, `gcw status`, and `gcw next`, wired them to Python runtime helpers, added tests, and updated docs. |
+| What have I learned? | The repository already contains reusable Python workflow contracts and step runners that should back the new CLI commands, and the terminal-first path can continue through implementation-safe gates while still stopping cleanly at human handoff states. |
+| What have I done? | Added `gcw run`, `gcw step`, `gcw status`, and `gcw next`, wired them to Python runtime helpers, added tests, updated docs, and published PR #25 through the GCW CLI flow. |
