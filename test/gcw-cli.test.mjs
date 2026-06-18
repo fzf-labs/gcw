@@ -156,6 +156,10 @@ if (args[0] === "api") {
 }
 
 if (args[0] === "pr" && args[1] === "list") {
+  if ((args.length - 2) % 2 !== 0) {
+    process.stderr.write("unsupported fake gh invocation: " + args.join(" ") + "\\n");
+    process.exit(1);
+  }
   printJson(state.prs || []);
   process.exit(0);
 }

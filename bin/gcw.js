@@ -839,7 +839,7 @@ function upsertGithubPullRequest(targetRoot, projection, issueDir) {
   writeFileSync(bodyFile, reviewRequestBody, "utf8");
   const prList = runJsonCommand(
     "gh",
-    ["pr", "list", "--repo", projection.repository, "--head", projection.branch, "--json", "url", "title"],
+    ["pr", "list", "--repo", projection.repository, "--head", projection.branch, "--json", "url,title"],
     { cwd: targetRoot },
   );
   const reviewRequest = JSON.parse(

@@ -55,6 +55,7 @@
   - Ran focused CLI tests and the full npm test suite.
   - Confirmed `gcw run` stops at GCW human handoff states in the terminal-first path.
   - Fixed the `implementing` auto-continuation gap so terminal-first GCW can continue through `gcw-implement-check` and `gcw-pr-publish` before stopping in `reviewing`.
+  - Fixed a real GitHub publish-path bug where `gcw-pr-publish` passed `gh pr list --json` fields incorrectly and crashed before entering `reviewing`.
 - Files created/modified:
   - `.gcw/issues/24/task_plan.md`
   - `.gcw/issues/24/findings.md`
@@ -78,6 +79,7 @@
 |-----------|-------|---------|------------|
 | 2026-06-18 | `verify_remote_triage.py` returned `no gcw-issue-triage event found` before the first triage record existed | 1 | Treated the step runner as the source of truth for sequencing and documented the mismatch. |
 | 2026-06-18 | `gcw step` tried to publish progress comments to the fixture repository and hit a real GitHub lookup | 1 | Added a fake `gh` environment in CLI tests so terminal-first orchestration stays deterministic offline. |
+| 2026-06-18 | `gcw-pr-publish` failed locally because `gh pr list --json` fields were passed as separate arguments | 1 | Tightened the fake `gh` test harness to catch malformed `pr list` invocations, then fixed the CLI to pass `url,title` as a single `--json` value. |
 
 ## 5-Question Reboot Check
 | Question | Answer |
