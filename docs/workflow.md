@@ -42,6 +42,23 @@ GitHub Actions 托管入口支持两种互补模式（详见 [Hosted Agent](host
   -> 等待 GitHub/GitLab 上的人类审查和结束结果
 ```
 
+<!-- gcw-contract:states:start -->
+| State | Meaning | Typical next step |
+| --- | --- | --- |
+| issue-opened | Issue 已被 GCW 接入，但还没有完成分类。 | gcw-issue-triage |
+| issue-triaged | Issue 已完成分类和远端 metadata 同步，但还没完成可执行性判断。 | gcw-issue-clarify |
+| issue-clarifying | Issue 信息不足或边界不清，需要通过评论继续讨论。 | gcw-issue-clarify |
+| ready-for-planning | Issue 已经讨论清楚，可以开始从 Issue 生成 spec files。 | gcw-issue-to-spec |
+| planned | spec files 已提交并推送，Issue 评论已经链接到远程文件。 | gcw-spec-check |
+| ready-for-implementation | 实现前检查通过，可以开始开发。 | gcw-implement |
+| implementing | agent 正在实现功能、修复问题、补测试，或处理 PR review / 人审反馈。 | gcw-implement, gcw-implement-check, gcw-block, gcw-clarify |
+| ready-for-review | 分支已经通过实现自查，且最新 `gcw-implement-check` 事件 payload 完整，具备创建或更新 review request 的条件。 | gcw-pr-publish |
+| reviewing | PR/MR 已创建或更新，正在经历自动检查或等待人类 reviewer 审查。 | gcw-pr-review |
+| changes-requested | PR review 或人类 reviewer 要求修改。 | gcw-implement |
+| blocked | 当前无法继续推进，例如缺权限、缺依赖、外部服务不可用或需要人类决策。 | 无 |
+| review-complete | 人类审查已经结束，结果已记录。 | 无 |
+<!-- gcw-contract:states:end -->
+
 spec files 不是直接上传到 Issue。它们会提交到 Issue 分支中的 `.gcw/issues/<issue-id>/`，推送到远程分支，然后通过标准 `<!-- gcw-progress -->` Issue 评论链接到这些文件；不要额外发布非结构化的 planning-links 评论。当前 spec files 包含 `task_plan.md`、`findings.md` 和 `progress.md`。
 
 **进度评论策略**：从 `gcw-issue-triage` 起，每个主步骤在关键节点完成时 **新发一条** `<!-- gcw-progress -->` 评论（禁止编辑旧评论）；`refs.progress_comment_url` 指向最新评论。发布使用 `publish_progress_comment.py`；事件记录同时保存 `progress_comment_body_hash`，远程校验比对的是最新评论正文与当前 `phase` 的渲染结果及 body hash。

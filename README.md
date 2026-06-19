@@ -79,6 +79,20 @@ gcw run <issue-number>
   -> 等待 GitHub / GitLab 上的人类审查和结束结果
 ```
 
+<!-- gcw-contract:main-step-order:start -->
+| # | Step |
+| --- | --- |
+| 1 | gcw-issue-intake |
+| 2 | gcw-issue-triage |
+| 3 | gcw-issue-clarify |
+| 4 | gcw-issue-to-spec |
+| 5 | gcw-spec-check |
+| 6 | gcw-implement |
+| 7 | gcw-implement-check |
+| 8 | gcw-pr-publish |
+| 9 | gcw-pr-review |
+<!-- gcw-contract:main-step-order:end -->
+
 spec files 提交在 Issue 分支的 `.gcw/issues/<issue-id>/`，通过 Issue 评论链接到远程文件，而不是直接写入 Issue 正文。
 
 ## 文档

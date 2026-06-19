@@ -1,13 +1,14 @@
 {
   "name": "@fzf-labs/gcw",
   "version": "0.1.0",
-  "description": "Git Collaboration Workflow CLI installer",
+  "description": "Git Collaboration Workflow CLI orchestrator",
   "type": "module",
   "bin": {
     "gcw": "./bin/gcw.js"
   },
   "files": [
     "bin",
+    "lib/cli",
     "dist/templates/repo",
     "README.md"
   ],

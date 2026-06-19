@@ -191,12 +191,149 @@ process.exit(1);
   };
 }
 
+async function createFakeGlabEnv(options = {}) {
+  const binDir = await tempDir();
+  const statePath = path.join(binDir, "glab-state.json");
+  const repo = options.repo ?? "group/project";
+  const issue = String(options.issue ?? "42");
+  const title = options.title ?? "Add formal GCW CLI commands";
+  const body =
+    options.body ??
+    `## What to build
+
+Add formal terminal-first GCW commands.
+
+## Acceptance criteria
+
+- [ ] route the workflow
+
+## Blocked by
+
+None - can start immediately
+`;
+  const labels = options.labels ?? [];
+  const issueUrl = options.issueUrl ?? `https://gitlab.com/${repo}/-/issues/${issue}`;
+
+  await writeFile(
+    statePath,
+    `${JSON.stringify({ repo, issue, title, body, labels, issueUrl, comments: 0, mrs: [] }, null, 2)}\n`,
+    "utf8",
+  );
+
+  const glabScript = path.join(binDir, "glab");
+  await writeFile(
+    glabScript,
+    `#!/usr/bin/env node
+const fs = require("node:fs");
+
+const statePath = ${JSON.stringify(statePath)};
+const args = process.argv.slice(2);
+const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+
+function save(next) {
+  fs.writeFileSync(statePath, JSON.stringify(next, null, 2) + "\\n", "utf8");
+}
+
+function argValue(flag) {
+  const index = args.indexOf(flag);
+  return index === -1 ? "" : (args[index + 1] || "");
+}
+
+function printJson(value) {
+  process.stdout.write(JSON.stringify(value));
+}
+
+if (args[0] === "--version") {
+  process.stdout.write("glab fake\\n");
+  process.exit(0);
+}
+
+if (args[0] === "issue" && args[1] === "view") {
+  const output = argValue("--output");
+  if (output === "json") {
+    printJson({
+      title: state.title,
+      description: state.body,
+      labels: (state.labels || []).map((name) => ({ name })),
+      web_url: state.issueUrl,
+      iid: Number(state.issue),
+    });
+    process.exit(0);
+  }
+  process.stdout.write(state.body);
+  process.exit(0);
+}
+
+if (args[0] === "issue" && args[1] === "note") {
+  const next = { ...state, comments: Number(state.comments || 0) + 1 };
+  save(next);
+  process.stdout.write(\`https://gitlab.com/\${state.repo}/-/issues/\${state.issue}#note_\${next.comments}\\n\`);
+  process.exit(0);
+}
+
+if (args[0] === "mr" && args[1] === "list") {
+  printJson(state.mrs || []);
+  process.exit(0);
+}
+
+if (args[0] === "mr" && args[1] === "create") {
+  const sourceBranch = argValue("--source-branch") || argValue("-s") || "";
+  const title = argValue("--title");
+  const description = argValue("--description");
+  const targetBranch = argValue("--target-branch") || argValue("-b") || "main";
+  const url = \`https://gitlab.com/\${state.repo}/-/merge_requests/\${(state.mrs || []).length + 1}\`;
+  const next = { ...state, mrs: [...(state.mrs || []), { url, title, sourceBranch, targetBranch, description }] };
+  save(next);
+  process.stdout.write(url + "\\n");
+  process.exit(0);
+}
+
+if (args[0] === "mr" && args[1] === "update") {
+  const id = args[2] || "";
+  const title = argValue("--title");
+  const description = argValue("--description");
+  const sourceBranch = argValue("--source-branch") || argValue("-s") || "";
+  const targetBranch = argValue("--target-branch") || argValue("-b") || "main";
+  const mrs = state.mrs || [];
+  const existing = mrs.find((mr) => mr.url === id || mr.sourceBranch === id || mr.sourceBranch === sourceBranch);
+  if (existing) {
+    existing.title = title || existing.title;
+    existing.description = description || existing.description;
+    existing.sourceBranch = sourceBranch || existing.sourceBranch;
+    existing.targetBranch = targetBranch || existing.targetBranch;
+  }
+  save({ ...state, mrs });
+  process.exit(0);
+}
+
+process.stderr.write("unsupported fake glab invocation: " + args.join(" ") + "\\n");
+process.exit(1);
+`,
+    "utf8",
+  );
+  await chmod(glabScript, 0o755);
+
+  return {
+    ...process.env,
+    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+  };
+}
+
 test("gcw --version prints the package version", async () => {
   const pkg = await readPackage();
 
   const { stdout } = await runCli(["--version"]);
 
   assert.equal(stdout.trim(), pkg.version);
+});
+
+test("gcw help prints the formal command surface", async () => {
+  const { stdout: helpStdout } = await runCli(["help"]);
+  const { stdout: flagStdout } = await runCli(["--help"]);
+
+  assert.match(helpStdout, /gcw <init\|doctor\|run\|step\|status\|next\|help\|--version>/);
+  assert.match(helpStdout, /workflow orchestrator/i);
+  assert.equal(flagStdout, helpStdout);
 });
 
 test("gcw init --dry-run reports required assets without writing them", async () => {
@@ -455,6 +592,106 @@ test("gcw run continues from implementing to the reviewing handoff state", async
   }
 });
 
+test("gcw run publishes a GitLab merge request when the issue is on GitLab", async () => {
+  const target = await tempDir();
+  try {
+    await execFileAsync("git", ["init"], { cwd: target });
+    await execFileAsync("git", ["config", "user.email", "gcw@example.com"], { cwd: target });
+    await execFileAsync("git", ["config", "user.name", "GCW Test"], { cwd: target });
+    await execFileAsync("git", ["remote", "add", "origin", "git@gitlab.com:group/project.git"], { cwd: target });
+    const issueDir = path.join(target, ".gcw", "issues", "42");
+    await cp(path.join(repoRoot, ".agents", "skills", "gcw", "tests", "fixtures", "complete_issue"), issueDir, { recursive: true });
+    const intakePath = path.join(issueDir, "events", "000-gcw-issue-intake.json");
+    const intake = JSON.parse(await readFile(intakePath, "utf8"));
+    intake.payload.platform = "gitlab";
+    intake.payload.repository = "group/project";
+    await writeFile(intakePath, `${JSON.stringify(intake, null, 2)}\n`, "utf8");
+    const triagePath = path.join(issueDir, "events", "001-gcw-issue-triage.json");
+    const triage = JSON.parse(await readFile(triagePath, "utf8"));
+    triage.payload.remote_sync.platform = "gitlab";
+    await writeFile(triagePath, `${JSON.stringify(triage, null, 2)}\n`, "utf8");
+    await rm(path.join(issueDir, "events", "006-gcw-implement-check.json"));
+    await execFileAsync(
+      "python3",
+      [path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"), "rebuild-projection", "--issue-dir", issueDir],
+      { cwd: target },
+    );
+
+    const env = await createFakeGlabEnv({
+      repo: "group/project",
+      issue: "42",
+      issueUrl: "https://gitlab.com/group/project/-/issues/42",
+    });
+
+    const { stdout } = await runCli(["run", "42"], { cwd: target, env });
+
+    assert.match(stdout, /Issue: 42/);
+    assert.match(stdout, /Executed steps: gcw-implement-check, gcw-pr-publish/);
+    assert.match(stdout, /Phase: reviewing/);
+    assert.match(stdout, /Stop reason: Waiting for hosted or human review after review request publication\./);
+  } finally {
+    await cleanup(target);
+  }
+});
+
+test("gcw run auto-continues from changes-requested through implementing and publishing", async () => {
+  const target = await tempDir();
+  try {
+    await execFileAsync("git", ["init"], { cwd: target });
+    await execFileAsync("git", ["config", "user.email", "gcw@example.com"], { cwd: target });
+    await execFileAsync("git", ["config", "user.name", "GCW Test"], { cwd: target });
+    const issueDir = await copyCompleteIssueFixture(target);
+    await writeFile(path.join(target, "worktree-change.txt"), "changed\n", "utf8");
+    await execFileAsync(
+      "python3",
+      [
+        path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"),
+        "record-pr-publish",
+        "--issue-dir",
+        issueDir,
+        "--review-request-url",
+        "https://github.com/owner/repo/pull/7",
+        "--body-hash",
+        "sha256:" + "b".repeat(64),
+        "--target",
+        "owner/repo#7",
+        "--progress-comment-url",
+        "https://github.com/owner/repo/issues/42#issuecomment-7",
+      ],
+      { cwd: target },
+    );
+    await execFileAsync(
+      "python3",
+      [
+        path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"),
+        "record-pr-review",
+        "--issue-dir",
+        issueDir,
+        "--result",
+        "changes-requested",
+        "--feedback-source",
+        "human-review",
+        "--reason",
+        "Needs follow-up",
+        "--progress-comment-url",
+        "https://github.com/owner/repo/issues/42#issuecomment-8",
+      ],
+      { cwd: target },
+    );
+
+    const env = await createFakeGhEnv({ repo: "owner/repo", issue: "42" });
+
+    const { stdout } = await runCli(["run", "42"], { cwd: target, env });
+
+    assert.match(stdout, /Issue: 42/);
+    assert.match(stdout, /Executed steps: gcw-implement, gcw-implement-check, gcw-pr-publish/);
+    assert.match(stdout, /Phase: reviewing/);
+    assert.match(stdout, /Stop reason: Waiting for hosted or human review after review request publication\./);
+  } finally {
+    await cleanup(target);
+  }
+});
+
 test("npm build creates package templates without runtime issue state", async () => {
   await execFileAsync("npm", ["run", "build"], { cwd: repoRoot });
 
@@ -470,4 +707,14 @@ test("npm build creates package templates without runtime issue state", async ()
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gcw", "scripts")), false);
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".github", "scripts")), false);
   assert.equal(await exists(path.join(repoRoot, "dist", "templates", "repo", ".gitlab-ci.yml")), true);
+});
+
+test("npm pack includes the CLI helper modules", async () => {
+  const { stdout } = await execFileAsync("npm", ["pack", "--json", "--dry-run"], { cwd: repoRoot });
+  const jsonStart = stdout.lastIndexOf("\n[");
+  const packResult = JSON.parse((jsonStart === -1 ? stdout : stdout.slice(jsonStart + 1)).trim())[0];
+  const files = new Set((packResult.files || []).map((file) => file.path));
+
+  assert.ok(files.has("bin/gcw.js"));
+  assert.ok(files.has("lib/cli/main.js"));
 });
