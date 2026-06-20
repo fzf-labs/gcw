@@ -1,0 +1,52 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-17T16:25:02Z",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-24-002-gcw-issue-clarify",
+  "parent": {
+    "expected_last_seq": 1
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "issue-clarify-readiness/v1"
+    },
+    "progress_comment_body_hash": "sha256:6c69674588c45ffea71029aa562a61587433b9444cc381dfbc5548458c3f7c05",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/24#issuecomment-4732814939",
+    "ready": true,
+    "summary": "Issue #24 has a clear CLI orchestration outcome, concrete acceptance criteria, and no active blockers."
+  },
+  "refs": {
+    "branch": "gcw/issue-24",
+    "issue": "24"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 2
+}

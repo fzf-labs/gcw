@@ -19,6 +19,20 @@ Issue/comment 事件 或 workflow_dispatch
 
 Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交与 PR 由 workflow 的 finalize 步骤完成。
 
+<!-- gcw-contract:step-matrix:start -->
+| GCW step | Workflow file | Trigger label |
+| --- | --- | --- |
+| gcw-issue-intake | none |  |
+| gcw-issue-triage | gcw-issue-triage.yml | gcw:run-triage |
+| gcw-issue-clarify | gcw-issue-clarify.yml | gcw:run-clarify |
+| gcw-issue-to-spec | gcw-issue-to-spec.yml | gcw:ready-for-planning |
+| gcw-spec-check | gcw-spec-check.yml | gcw:run-spec-check |
+| gcw-implement | gcw-implement.yml | gcw:run-implement |
+| gcw-implement-check | gcw-implement-check.yml | gcw:run-implement-check |
+| gcw-pr-publish | gcw-pr-publish.yml | gcw:run-pr-publish |
+| gcw-pr-review | gcw-pr-review.yml | gcw:run-pr-review |
+<!-- gcw-contract:step-matrix:end -->
+
 ## 仓库配置
 
 维护者需在 GitHub 仓库中配置：

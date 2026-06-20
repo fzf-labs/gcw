@@ -22,6 +22,20 @@ gcw doctor
 
 需要 hosted workflow assets 时，按平台使用 `gcw init --with-github-actions` 或 `gcw init --with-gitlab-ci`。这会额外安装 `.gcw/engine/hosted` 与 `.gcw/engine/platforms`，供托管 runner 调用共享 GCW workflow core。初始化后再按 IDE 文档启用目标仓库的 `.agents/skills/`。
 
+如果你想完全走终端入口，而不是从 IDE skill 开始，可以先熟悉这四个正式命令：
+
+```bash
+gcw status 3
+gcw next 3
+gcw step gcw-spec-check 3
+gcw run 3
+```
+
+- `gcw status <issue-number>`：检查当前 workflow state。
+- `gcw next <issue-number>`：看当前 phase 最先允许的步骤。
+- `gcw step <step-name> <issue-number>`：只执行一步。
+- `gcw run <issue-number>`：自动推进直到 `planned`、`issue-clarifying`、`blocked`、`reviewing` 或 `review-complete`。
+
 **关于 Action**：`gcw-issue-intake` 没有对应 Action workflow；其余步骤支持 **Hosted agent execution**（runner 内 `openai/codex-action` + 事件触发）。见 [Hosted Agent](hosted-agent.md)。
 
 ## 示例 Issue 一览
@@ -74,7 +88,7 @@ gcw doctor
 
 | | |
 | --- | --- |
-| **执行** | 在 Cursor 等 IDE 中：`/gcw 3`，或运行 `gcw-issue-intake` skill |
+| **执行** | 在 Cursor 等 IDE 中：`/gcw 3`，或终端执行 `gcw run 3`，或运行 `gcw-issue-intake` skill |
 | **观察** | 创建/切换 `gcw/issue-3`；出现 `.gcw/issues/3/events/000-gcw-issue-intake.json` 与 `workflow.json`；尚无 spec files |
 | **状态** | `issue-opened` |
 
@@ -84,7 +98,7 @@ Intake 读取 Issue、创建 issue 分支并持久化第一条事件；不创建
 
 | | |
 | --- | --- |
-| **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-triage` |
+| **执行** | 继续 `/gcw 3`，或让 `gcw run 3` 自动继续，或显式执行 `gcw step gcw-issue-triage 3` |
 | **观察** | Issue 上出现 triage 标签/字段（如 `triaged`、`area:*`、本地执行时的 `gcw:executor-local`、Issue Type、Priority）；首条 `<!-- gcw-progress -->` 评论；`events/001-gcw-issue-triage.json` |
 | **状态** | `issue-triaged` |
 
@@ -94,7 +108,7 @@ Triage 只负责分类与远端 metadata 同步，不判断需求是否清楚。
 
 | | |
 | --- | --- |
-| **执行** | 继续 `/gcw 3`，路由到 `gcw-issue-clarify` |
+| **执行** | 继续 `/gcw 3`，或让 `gcw run 3` 自动继续，或显式执行 `gcw step gcw-issue-clarify 3` |
 | **观察** | 新发 `<!-- gcw-progress -->` 评论；`events/002-gcw-issue-clarify.json` 包含 readiness gate |
 | **状态** | `ready-for-planning` 或 `issue-clarifying` |
 
@@ -104,7 +118,7 @@ Clarify 运行 structural readiness gate。信息不足时停在 `issue-clarifyi
 
 | | |
 | --- | --- |
-| **执行** | `gcw-issue-to-spec`：创建 `gcw/issue-3` 分支，生成 spec files，推送并在 Issue 评论中链接 |
+| **执行** | `gcw run 3` 会在 ready-for-planning 时继续推进到这里；也可显式执行 `gcw step gcw-issue-to-spec 3` |
 | **观察** | 分支上有 `.gcw/issues/3/task_plan.md` 等；[进度评论](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4697976894) 显示 `GCW Status: planned` |
 | **状态** | `planned` |
 
@@ -127,6 +141,7 @@ Clarify 运行 structural readiness gate。信息不足时停在 `issue-clarifyi
 | **状态** | `implementing` |
 
 Issue #3 的交付物是 [README.md](https://github.com/fzf-labs/gcw/blob/gcw/issue-3/README.md)。
+如果实现已经收口，继续执行 `gcw run 3` 会自动推进到 `gcw-implement-check` 和 `gcw-pr-publish`，直到停在 `reviewing`。
 
 ## 步骤 7：`gcw-implement-check`
 

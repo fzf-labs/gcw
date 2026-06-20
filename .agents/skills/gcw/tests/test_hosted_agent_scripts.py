@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -186,7 +187,9 @@ class PrepareHandoffTest(unittest.TestCase):
 
 
 class FinalizeHostedStepTest(unittest.TestCase):
-    def test_has_changes_false_on_clean_tree(self) -> None:
+    @patch("finalize_gcw_hosted_step.run")
+    def test_has_changes_false_on_clean_tree(self, run) -> None:
+        run.return_value = subprocess.CompletedProcess(["git", "status"], 0, stdout="", stderr="")
         self.assertFalse(has_changes(["package.json"]))
 
 

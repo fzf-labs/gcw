@@ -115,6 +115,16 @@ Also stop if state sources conflict, remote metadata cannot be trusted, or the n
 
 Initial implementation and feedback fixes both finish through `gcw-implement` -> `gcw-implement-check` -> `gcw-pr-publish` -> `gcw-pr-review`. Feedback fixes differ only because they start from `changes-requested`, return to `implementing`, and then repeat the same closing chain. `gcw-pr-publish` must be idempotent: both first-time review request creation and later updates go through it.
 
+<!-- gcw-contract:human-handoff:start -->
+| State | Reason |
+| --- | --- |
+| planned | Waiting for human spec review before gcw-spec-check. |
+| issue-clarifying | Waiting for issue clarification before GCW can continue. |
+| blocked | Workflow is blocked and needs human intervention. |
+| reviewing | Waiting for hosted or human review after review request publication. |
+| review-complete | Workflow is complete. |
+<!-- gcw-contract:human-handoff:end -->
+
 ## Action Pipelines
 
 Main steps are the smallest workflow units. Except for `gcw-issue-intake`, main steps that need an Action should have a same-named workflow file. An Action pipeline may group consecutive main steps into one automation entrypoint; this only changes orchestration granularity and does not change main-step state semantics.

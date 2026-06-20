@@ -1,0 +1,12 @@
+{
+  "classification_type": "enhancement",
+  "classification_area": "area:workflow",
+  "classification_priority": "priority:p2",
+  "labels_applied": [
+    "triaged",
+    "area:workflow",
+    "gcw:executor-local"
+  ],
+  "remote_sync_file": ".gcw/issues/24/remote/triage-sync.json",
+  "summary": "Issue #24 adds formal GCW CLI orchestration commands for terminal-first workflow routing and state inspection."
+}

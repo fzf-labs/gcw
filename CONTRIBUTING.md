@@ -35,6 +35,14 @@ gcw init --with-gitlab-ci
 
 - 编排：`/gcw <issue-number>`
 - 单步：各 `gcw-issue-intake`、`gcw-issue-triage`、`gcw-issue-clarify` 等 skill
+- 正式 CLI：`gcw run <issue-number>`、`gcw step <step-name> <issue-number>`、`gcw status <issue-number>`、`gcw next <issue-number>`
+
+CLI 与 skill 的分工建议：
+
+- 想从终端直接推进主流程：用 `gcw run`
+- 想检查当前 state：用 `gcw status` / `gcw next`
+- 想只执行一步：用 `gcw step`
+- 想在 IDE 里结合更强的实现语境继续推进：用 `/gcw` 或具体 `gcw-*` step skill
 
 Skill 与脚本以仓库内文件为准；修改 skill 后请运行下方测试命令。
 

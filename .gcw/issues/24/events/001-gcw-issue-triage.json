@@ -1,0 +1,43 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-17T16:24:50Z",
+  "event": "gcw-issue-triage",
+  "event_id": "gcw-24-001-gcw-issue-triage",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "classification": {
+      "area": "area:workflow",
+      "priority": "priority:p2",
+      "type": "enhancement"
+    },
+    "labels_applied": [
+      "triaged",
+      "area:workflow",
+      "gcw:executor-local"
+    ],
+    "progress_comment_body_hash": "sha256:8740190e94ec303c487fec9fe431120b7b21fe94b5e71945bf1ea9f8d14cc2fc",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/24#issuecomment-4732812953",
+    "remote_sync": {
+      "issue_type": "Feature",
+      "labels": [
+        "triaged",
+        "area:workflow",
+        "gcw:executor-local"
+      ],
+      "platform": "github",
+      "priority": "Medium"
+    },
+    "summary": "Issue #24 adds formal GCW CLI orchestration commands for terminal-first workflow routing and state inspection."
+  },
+  "refs": {
+    "branch": "gcw/issue-24",
+    "issue": "24"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 1
+}
