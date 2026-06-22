@@ -159,6 +159,13 @@ def _validation_lines(validations: list[Any]) -> list[str]:
     return lines
 
 
+def _validation_lines_or_fallback(validations: list[Any], fallback: str) -> list[str]:
+    lines = _validation_lines(validations)
+    if lines:
+        return lines
+    return [fallback]
+
+
 def _append_section(lines: list[str], title: str, body_lines: list[str]) -> None:
     if not body_lines:
         return
@@ -451,12 +458,12 @@ def render_review_request(args: argparse.Namespace) -> str:
             "",
         ]
     )
-    if validations:
-        for validation in validations:
-            if isinstance(validation, dict):
-                lines.append(f"- {validation.get('command', '')}: {validation.get('result', '')}")
-    else:
-        lines.append("- Not recorded.")
+    lines.extend(
+        _validation_lines_or_fallback(
+            validations if isinstance(validations, list) else [],
+            "- Validation evidence not recorded; review was generated from the gate and published artifacts.",
+        )
+    )
     if readiness.get("scope"):
         lines.extend(["", "## Scope", "", str(readiness["scope"]).strip()])
     lines.extend(["", "## Planning", ""])

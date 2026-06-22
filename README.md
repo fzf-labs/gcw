@@ -100,3 +100,7 @@ spec files 提交在 Issue 分支的 `.gcw/issues/<issue-id>/`，通过 Issue �
 - [Contributing](CONTRIBUTING.md) — 环境、测试、分支约定与提 Issue / PR
 - [GCW Quickstart](docs/quickstart.md) — 用 Issue #3 跟着走一遍端到端流程
 - [GCW 工作流](docs/workflow.md) — 步骤、状态、Action 流水线与门禁的完整说明
+
+## 维护者提示
+
+- `.github/workflows/gcw-labels-sync.yml` 用于同步 GCW triage label 约定，维护者在更新标签契约后可以手动运行它。

@@ -219,6 +219,22 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         self.assertIn("Low risk; fixture only.", result.stdout)
         self.assertIn(progress_comment_url(5), result.stdout)
 
+    def test_render_review_request_body_uses_explicit_validation_fallback_when_missing(self) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/47"
+        shutil.copytree(COMPLETE_FIXTURE, issue_dir)
+        event_path = issue_dir / "events/006-gcw-implement-check.json"
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+        event["payload"]["gate"].pop("validation", None)
+        event_path.write_text(json.dumps(event, indent=2), encoding="utf-8")
+        self.run_manager("rebuild-projection", "--issue-dir", str(issue_dir))
+
+        result = self.run_render("review-request", "--issue-dir", str(issue_dir))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("## Validation", result.stdout)
+        self.assertNotIn("- Not recorded.", result.stdout)
+        self.assertIn("Validation evidence not recorded; review was generated from the gate and published artifacts.", result.stdout)
+
     def test_render_progress_comment_includes_active_feedback_when_present(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)

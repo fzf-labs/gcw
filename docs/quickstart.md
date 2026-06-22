@@ -169,6 +169,8 @@ Issue #3 的交付物是 [README.md](https://github.com/fzf-labs/gcw/blob/gcw/is
 
 自动检查通过后仍为 `reviewing`，继续等待人类 reviewer。
 
+在 GitHub hosted workflow 中，这一步会先跑仓库单测和 evidence validation，再进入 review 记录与可选 AI review 汇总。
+
 ## Review 反馈闭环
 
 Issue #3 在自动 review 后进入 `changes-requested`。[对应评论](https://github.com/fzf-labs/gcw/issues/3#issuecomment-4698106204) 片段：
