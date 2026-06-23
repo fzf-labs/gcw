@@ -30,6 +30,16 @@ async function readPackage() {
   return JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
 }
 
+function parseNpmPackResult(stdout) {
+  const jsonStart = stdout.lastIndexOf("\n[");
+  const raw = (jsonStart === -1 ? stdout : stdout.slice(jsonStart + 1)).trim();
+  const packResult = JSON.parse(raw);
+  if (!Array.isArray(packResult) || !packResult[0] || typeof packResult[0] !== "object") {
+    throw new Error("unexpected npm pack JSON output");
+  }
+  return packResult[0];
+}
+
 async function exists(filePath) {
   try {
     await access(filePath);
@@ -319,6 +329,37 @@ process.exit(1);
   };
 }
 
+async function packPackage() {
+  const packDir = await tempDir();
+  const { stdout } = await execFileAsync("npm", ["pack", "--json", "--pack-destination", packDir], {
+    cwd: repoRoot,
+    env: { ...process.env, npm_config_audit: "false", npm_config_fund: "false" },
+  });
+  const packResult = parseNpmPackResult(stdout);
+  const tarballPath = path.join(packDir, packResult.filename);
+  return { packDir, tarballPath };
+}
+
+async function installPackagedCli(tarballPath) {
+  const globalPrefix = await tempDir();
+  await execFileAsync(
+    "npm",
+    ["install", "--global", "--prefix", globalPrefix, "--ignore-scripts", "--no-audit", "--no-fund", tarballPath],
+    {
+      cwd: repoRoot,
+      env: { ...process.env, npm_config_audit: "false", npm_config_fund: "false" },
+    },
+  );
+  return { globalPrefix, gcwBin: path.join(globalPrefix, "bin", "gcw") };
+}
+
+async function runPackagedCli(gcwBin, args, options = {}) {
+  return execFileAsync(process.execPath, [gcwBin, ...args], {
+    cwd: options.cwd ?? repoRoot,
+    env: { ...process.env, ...(options.env ?? {}) },
+  });
+}
+
 test("gcw --version prints the package version", async () => {
   const pkg = await readPackage();
 
@@ -418,6 +459,46 @@ test("gcw init installs GitLab CI template only when requested", async () => {
   } finally {
     await cleanup(defaultTarget);
     await cleanup(gitlabTarget);
+  }
+});
+
+test("npm packed gcw init and doctor work in a brand-new downstream git repo", async () => {
+  const downstream = await tempDir();
+  let packDir = "";
+  let globalPrefix = "";
+  try {
+    await execFileAsync("git", ["init"], { cwd: downstream });
+
+    const packed = await packPackage();
+    packDir = packed.packDir;
+    const installed = await installPackagedCli(packed.tarballPath);
+    globalPrefix = installed.globalPrefix;
+
+    const { stdout: initStdout } = await runPackagedCli(installed.gcwBin, ["init"], { cwd: downstream });
+    assert.match(initStdout, /Copied \.agents\/skills\/gcw\/SKILL\.md/);
+    assert.match(initStdout, /Copied \.agents\/skills\/planning-with-files\/templates\/task_plan\.md/);
+    assert.match(initStdout, /Copied \.gcw\/engine\/runtime\/gcw_workflow_contracts\.py/);
+
+    const { stdout: doctorStdout } = await runPackagedCli(installed.gcwBin, ["doctor"], { cwd: downstream });
+    assert.match(doctorStdout, /Git repository: ok/);
+    assert.match(doctorStdout, /GCW assets: ok/);
+    assert.match(doctorStdout, /python3: ok/);
+
+    assert.equal(await exists(path.join(downstream, ".agents", "skills", "gcw", "SKILL.md")), true);
+    assert.equal(
+      await exists(path.join(downstream, ".agents", "skills", "planning-with-files", "templates", "task_plan.md")),
+      true,
+    );
+    assert.equal(await exists(path.join(downstream, ".gcw", "engine", "runtime", "gcw_workflow_contracts.py")), true);
+    assert.equal(await exists(path.join(downstream, ".gcw", "issues")), false);
+  } finally {
+    await cleanup(downstream);
+    if (packDir) {
+      await cleanup(packDir);
+    }
+    if (globalPrefix) {
+      await cleanup(globalPrefix);
+    }
   }
 });
 

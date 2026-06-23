@@ -1,0 +1,54 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-23T15:58:57Z",
+  "event": "gcw-implement-check",
+  "event_id": "gcw-30-005-gcw-implement-check",
+  "parent": {
+    "expected_last_seq": 4
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "implementation_readiness",
+          "ok": true
+        }
+      ],
+      "ok": true,
+      "validation": []
+    },
+    "planning_links": {
+      "findings": "https://github.com/fzf-labs/gcw/blob/gcw/issue-30/.gcw/issues/30/findings.md",
+      "progress": "https://github.com/fzf-labs/gcw/blob/gcw/issue-30/.gcw/issues/30/progress.md",
+      "task_plan": "https://github.com/fzf-labs/gcw/blob/gcw/issue-30/.gcw/issues/30/task_plan.md"
+    },
+    "progress_comment_body_hash": "sha256:0a00ed435749e9a3b8579f10517a0d3b17cb4bb6872234a832975bf7efac11f2",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/30#issuecomment-4781038443",
+    "review_request": {
+      "issue_link": "Closes #30",
+      "summary": "Implements the planned workflow change.",
+      "title": "feat: issue 30"
+    },
+    "reviewer_notes": "Review the scoped issue diff and generated workflow artifacts.",
+    "risks": "Low risk; changes are scoped to the current issue branch.",
+    "scope": "Current issue branch only.",
+    "self_review": {
+      "progress_section": "## Local Self-Review",
+      "recorded": true
+    },
+    "spec_refs": {
+      "findings_sha": "sha256:bd1a91c678ea46ca314b5b95441e82cf6cbda5709feb618358aa1c1f6d8c6421",
+      "progress_sha": "sha256:f460d95234385123beaf24323f4423524bbc185ff9c18a0401c832d046493038",
+      "task_plan_sha": "sha256:4088bb2084fcb1175e5f8d67e72f80fcbbdd23c8aa7fb01b2636509afb00774f"
+    }
+  },
+  "refs": {
+    "branch": "gcw/issue-30",
+    "issue": "30"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 5
+}

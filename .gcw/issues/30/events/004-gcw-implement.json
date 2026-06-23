@@ -1,0 +1,23 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-23T15:48:25Z",
+  "event": "gcw-implement",
+  "event_id": "gcw-30-004-gcw-implement",
+  "parent": {
+    "expected_last_seq": 3
+  },
+  "payload": {
+    "progress_comment_body_hash": "sha256:7567b62ab8ead55865c5c94f01fa8becf7cb8780801b076897f552d3f4208b19",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/30#issuecomment-4780943874",
+    "work_summary": "Start implementation of the downstream packaged gcw init smoke test."
+  },
+  "refs": {
+    "branch": "gcw/issue-30",
+    "issue": "30"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 4
+}
