@@ -1,0 +1,48 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-23T14:45:52Z",
+  "event": "gcw-issue-triage",
+  "event_id": "gcw-28-000-gcw-issue-triage",
+  "parent": {
+    "expected_last_seq": -1
+  },
+  "payload": {
+    "branch": "gcw/issue-28",
+    "classification": {
+      "area": "area:tests",
+      "priority": "priority:p2",
+      "type": "documentation"
+    },
+    "issue": "28",
+    "labels_applied": [
+      "triaged",
+      "area:tests",
+      "gcw:executor-local"
+    ],
+    "owner": {
+      "id": "gcw-cli",
+      "kind": "local"
+    },
+    "platform": "github",
+    "progress_comment_body_hash": "sha256:5c7e252fc2862fb68ae3882efa79a3cc20b48f480aec4e7dd937bc74ca0e7404",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/28#issuecomment-4780420490",
+    "remote_sync": {
+      "issue_type": "Feature",
+      "labels": [
+        "triaged",
+        "area:tests",
+        "gcw:executor-local"
+      ],
+      "platform": "github",
+      "priority": "Medium"
+    },
+    "repository": "fzf-labs/gcw",
+    "summary": "Clarify skipped GCW runs in hosted docs"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 0
+}
