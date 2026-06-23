@@ -180,10 +180,40 @@ python .agents/skills/gcw/scripts/verify_gcw_remote_evidence.py progress-comment
 
 ## 故障排查
 
+### `gh run list` 显示 `skipped` 时先查什么
+
+1. **Workflow run 整行就是 `skipped`**：通常是 job 级 `if` 未满足（见下表「Job `if` gate」）。Actions 不会 checkout issue branch，也不会运行 `prepare_gcw_hosted_step.py`。
+2. **Run 为 `success` 但日志里出现 `GCW hosted skip`**：job 已启动，跳过发生在 `prepare_gcw_hosted_step.py` 的 executor / phase / idempotent gate。查看 `Report phase skip` 步骤输出中的 `Gate:` 行。
+3. **Issue labels**：确认 `gcw:executor-hosted` 存在且没有 `gcw:executor-local`（本地 agent 默认会打后者）。
+4. **Phase**：在 issue branch 上读 `.gcw/issues/<id>/workflow.json` 的 `phase` 与 `next_allowed_steps`，对照 trigger label 是否匹配。
+5. **幂等**：查 `events/` 中 `last_completed_step`；若步骤已完成或被更晚的 milestone 取代，hosted job 会 no-op。
+
+```bash
+gh run list --workflow gcw-spec-check.yml --limit 5
+gh run view <run-id> --log | rg 'GCW hosted skip|Gate:'
+gh issue view <n> --json labels
+git fetch origin gcw/issue-<n> && git show origin/gcw/issue-<n>:.gcw/issues/<n>/workflow.json
+```
+
+### Skip gate 对照表
+
+| Gate | 典型日志 / `skip_reason` | 含义 | 优先检查 |
+| --- | --- | --- | --- |
+| Job `if` gate | Workflow run 状态 `skipped`，无 `GCW hosted skip` 日志 | `issues`/`issue_comment` 触发时 job `if` 要求 `gcw:executor-hosted`、对应 `gcw:run-*`、assign/mention 契约 | Issue labels、assignee、`AGENT_LOGIN`、评论是否 `@mention` |
+| Executor gate | `Gate: executor gate`；`gcw:executor-local blocks hosted execution` 或 `missing gcw:executor-hosted` | Hosted 总开关未通过 | Issue labels；GitLab 另查 `GCW_EXECUTOR` |
+| Phase gate | `Gate: phase gate`；`phase '…' is not in […] for <step>` | 当前 workflow phase 不允许该步骤 | `workflow.json` phase、`next_allowed_steps`、trigger label |
+| Idempotent no-op | `Gate: idempotent no-op`；`<step> already completed` 或 `superseded by <step>` | 步骤已完成或已被后续 milestone 取代 | `.gcw/issues/<id>/events/`、`last_completed_step` |
+| Infrastructure | `Gate: infrastructure`；`issue directory not found` 等 | Issue branch 上缺少 GCW 状态 | 是否 checkout 正确 branch、是否已 triage |
+
+### 常见现象（简表）
+
 | 现象 | 可能原因 |
 | --- | --- |
 | Workflow 被 skip | Job 级 `if` 未满足 label/assign/mention 契约，或缺少 `gcw:executor-hosted` |
-| `should_run=false` | `workflow.json` phase 与步骤不匹配，或步骤已完成 / 被后续步骤取代 |
+| `GCW hosted skip` + `executor gate` | Issue 带 `gcw:executor-local` 或未打 `gcw:executor-hosted` |
+| `GCW hosted skip` + `phase gate` | `workflow.json` phase 与步骤不匹配 |
+| `GCW hosted skip` + `idempotent no-op` | 步骤已完成或被更晚步骤取代 |
+| `should_run=false`（旧日志） | 同上；新日志应包含 `Gate:` 分类行 |
 | `OPENAI_API_ENDPOINT is not set` | 未配置 Variable |
 | codex 成功但 milestone 失败 | planning 文件路径不对或未通过 `test -f` |
 | push 失败 | `GITHUB_TOKEN` 无 `contents: write` 或分支保护 |

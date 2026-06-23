@@ -60,7 +60,10 @@ variables:
         --issue-labels "$GCW_EXECUTOR" \
         --github-output .gcw-runtime/gitlab-prepare.env
     - cat .gcw-runtime/gitlab-prepare.env
-    - grep -q "should_run=true" .gcw-runtime/gitlab-prepare.env || { echo "GCW step skipped by phase gate"; exit 0; }
+    - grep -q "should_run=true" .gcw-runtime/gitlab-prepare.env || {
+        python3 .gcw/engine/hosted/report_gcw_skip.py --env-file .gcw-runtime/gitlab-prepare.env;
+        exit 0;
+      }
 
 .gcw:push-state:
   after_script:

@@ -130,7 +130,12 @@ jobs:
 
       - name: Report phase skip
         if: steps.event.outputs.should_trigger == 'true' && steps.prepare.outputs.should_run != 'true'
-        run: echo "${{ steps.prepare.outputs.skip_reason }}"
+        run: |
+          python3 .gcw/engine/hosted/report_gcw_skip.py \
+            --step "gcw-issue-triage" \
+            --skip-gate "${{ steps.prepare.outputs.skip_gate }}" \
+            --skip-reason "${{ steps.prepare.outputs.skip_reason }}" \
+            --phase "${{ steps.prepare.outputs.phase }}"
 
   classify:
     needs: preflight

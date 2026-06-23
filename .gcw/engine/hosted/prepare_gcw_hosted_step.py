@@ -24,6 +24,7 @@ from gcw_executor_gate import (
     hosted_executor_allowed,
 )
 from gcw_hosted_policy import prepare_hosted_step, validate_command_for_step
+from gcw_skip_diagnostics import attach_skip_gate
 
 
 def issue_branch(issue_number: str, issue_branch_input: str) -> str:
@@ -154,6 +155,8 @@ def write_github_output(path: str | None, result: dict) -> None:
         handle.write(f"validate_command={result.get('validate_command', '')}\n")
         handle.write(f"run_mode={result.get('run_mode', '')}\n")
         handle.write(f"record_step={'true' if result.get('record_step') else 'false'}\n")
+        handle.write(f"skip_gate={result.get('skip_gate', '')}\n")
+        handle.write(f"step={result.get('step', '')}\n")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -182,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     except ValueError as exc:
         result = {"ok": False, "should_run": False, "skip_reason": str(exc), "issue_branch": ""}
+    result["step"] = args.step
+    result = attach_skip_gate(result)
     write_github_output(args.github_output or os.environ.get("GITHUB_OUTPUT"), result)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 1

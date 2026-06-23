@@ -8,27 +8,27 @@ Make skipped or no-op GCW hosted runs easier to diagnose by mapping each skip pa
 
 ### Phase 1 — Skip gate taxonomy
 
-- [ ] Add a shared classifier for `skip_reason` strings (`executor`, `phase`, `idempotent`, `infrastructure`).
-- [ ] Emit `skip_gate` from `prepare_gcw_hosted_step.py` alongside existing `skip_reason`.
-- **Status:** pending
+- [x] Add a shared classifier for `skip_reason` strings (`executor`, `phase`, `idempotent`, `infrastructure`).
+- [x] Emit `skip_gate` from `prepare_gcw_hosted_step.py` alongside existing `skip_reason`.
+- **Status:** complete
 
 ### Phase 2 — Workflow and CI logging
 
-- [ ] Replace bare `echo "$skip_reason"` in GitHub workflow `Report phase skip` steps with a structured summary script.
-- [ ] Update GitLab `.gitlab-ci.yml` skip path to print the classified gate and `skip_reason` from prepare output.
-- **Status:** pending
+- [x] Replace bare `echo "$skip_reason"` in GitHub workflow `Report phase skip` steps with a structured summary script.
+- [x] Update GitLab `.gitlab-ci.yml` skip path to print the classified gate and `skip_reason` from prepare output.
+- **Status:** complete
 
 ### Phase 3 — Documentation
 
-- [ ] Expand `docs/hosted-agent.md` troubleshooting with a skip matrix (job-level `if` skip vs executor gate vs phase gate vs idempotent no-op).
-- [ ] Add a “check first” section for `gh run list` showing `skipped`.
-- **Status:** pending
+- [x] Expand `docs/hosted-agent.md` troubleshooting with a skip matrix (job-level `if` skip vs executor gate vs phase gate vs idempotent no-op).
+- [x] Add a “check first” section for `gh run list` showing `skipped`.
+- **Status:** complete
 
 ### Phase 4 — Tests and verification
 
-- [ ] Add or extend tests covering skip gate classification and summary wording.
+- [x] Add or extend tests covering skip gate classification and summary wording.
 - [ ] Run existing hosted workflow tests.
-- **Status:** pending
+- **Status:** in_progress
 
 ## Acceptance Criteria
 

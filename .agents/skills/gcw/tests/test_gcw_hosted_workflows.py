@@ -5,7 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
-import shutil
+import unittest.mock
 from pathlib import Path
 
 import yaml
@@ -22,6 +22,15 @@ sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 
 from prepare_gcw_hosted_step import prepare  # noqa: E402
 from gcw_executor_gate import EXECUTOR_HOSTED, EXECUTOR_LOCAL  # noqa: E402
+from gcw_skip_diagnostics import (  # noqa: E402
+    SKIP_GATE_EXECUTOR,
+    SKIP_GATE_IDEMPOTENT,
+    SKIP_GATE_PHASE,
+    attach_skip_gate,
+    classify_skip_gate,
+    format_skip_summary,
+)
+from report_gcw_skip import main as report_skip_main  # noqa: E402
 
 
 EXPECTED_WORKFLOWS = {
@@ -484,6 +493,70 @@ class PrepareHostedStepTest(unittest.TestCase):
             )
         self.assertFalse(result["should_run"])
         self.assertIn("already completed", result["skip_reason"])
+
+
+class SkipDiagnosticsTest(unittest.TestCase):
+    def test_classify_executor_local_skip(self) -> None:
+        reason = f"{EXECUTOR_LOCAL} blocks hosted execution"
+        self.assertEqual(classify_skip_gate(reason), SKIP_GATE_EXECUTOR)
+
+    def test_classify_phase_skip(self) -> None:
+        reason = "phase 'planned' is not in [ready-for-implementation] for gcw-implement"
+        self.assertEqual(classify_skip_gate(reason), SKIP_GATE_PHASE)
+
+    def test_classify_idempotent_skip(self) -> None:
+        self.assertEqual(classify_skip_gate("gcw-spec-check already completed"), SKIP_GATE_IDEMPOTENT)
+        self.assertEqual(classify_skip_gate("superseded by gcw-pr-publish"), SKIP_GATE_IDEMPOTENT)
+
+    def test_format_skip_summary_includes_gate_label(self) -> None:
+        summary = format_skip_summary(
+            step="gcw-spec-check",
+            skip_gate=SKIP_GATE_PHASE,
+            skip_reason="phase 'planned' is not in [ready-for-implementation] for gcw-implement",
+            phase="planned",
+        )
+        self.assertIn("Gate: phase gate", summary)
+        self.assertIn("Phase: planned", summary)
+        self.assertIn("What to check:", summary)
+
+    def test_prepare_attaches_skip_gate_for_executor_block(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / ".gcw" / "issues" / "88"
+            result = prepare(
+                "gcw-issue-triage",
+                issue_dir,
+                "88",
+                "",
+                issue_labels=[EXECUTOR_LOCAL],
+            )
+        enriched = attach_skip_gate(result)
+        self.assertEqual(enriched["skip_gate"], SKIP_GATE_EXECUTOR)
+
+    def test_report_skip_reads_env_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_root:
+            env_path = Path(temp_root) / "prepare.env"
+            env_path.write_text(
+                "\n".join(
+                    [
+                        "should_run=false",
+                        "skip_gate=phase",
+                        "skip_reason=phase 'planned' is not in [ready-for-implementation] for gcw-implement",
+                        "phase=planned",
+                        "step=gcw-implement",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            from io import StringIO
+
+            captured = StringIO()
+            with unittest.mock.patch("sys.stdout", captured):
+                exit_code = report_skip_main(["--env-file", str(env_path)])
+        self.assertEqual(exit_code, 0)
+        output = captured.getvalue()
+        self.assertIn("GCW hosted skip: gcw-implement", output)
+        self.assertIn("Gate: phase gate", output)
 
 
 if __name__ == "__main__":
