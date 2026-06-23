@@ -27,7 +27,22 @@ def render_milestone_progress_body(
     )
 
 
-def _publish_body(issue_dir: Path, body: str, *, dry_run: bool) -> dict[str, Any]:
+def _publish_target(issue_dir: Path, fallback_payload: dict[str, Any] | None) -> dict[str, Any]:
+    try:
+        return load_projection(issue_dir)["projection"]
+    except WorkflowError:
+        if fallback_payload:
+            return fallback_payload
+        raise
+
+
+def _publish_body(
+    issue_dir: Path,
+    body: str,
+    *,
+    dry_run: bool,
+    fallback_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     digest = body_hash(body)
     if dry_run:
         return {
@@ -38,7 +53,7 @@ def _publish_body(issue_dir: Path, body: str, *, dry_run: bool) -> dict[str, Any
             "progress_comment_url": "",
         }
 
-    projection = load_projection(issue_dir)["projection"]
+    projection = _publish_target(issue_dir, fallback_payload)
     platform = str(projection.get("platform", "github"))
     repository = str(projection.get("repository", "")).strip()
     issue = projection.get("issue")
@@ -67,7 +82,8 @@ def publish_milestone_progress_comment(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     body = render_milestone_progress_body(issue_dir, milestone_event, milestone_payload)
-    return _publish_body(issue_dir, body, dry_run=dry_run)
+    fallback_payload = milestone_payload if milestone_event == "gcw-issue-triage" else None
+    return _publish_body(issue_dir, body, dry_run=dry_run, fallback_payload=fallback_payload)
 
 
 def publish_progress_comment(args: argparse.Namespace) -> dict[str, Any]:

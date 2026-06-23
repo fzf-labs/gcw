@@ -19,10 +19,10 @@ add_repo_root()
 
 from gcw_artifacts import render_review_request
 from gcw_terminal_workflow import human_handoff_reason, select_next_run_step, should_stop_for_human_handoff
-from gcw_workflow_commands import init_workflow, record_implement, rebuild_projection
+from gcw_workflow_commands import record_implement, rebuild_projection
 from gcw_workflow_contracts import PLANNING_FILES
 from gcw_workflow_errors import WorkflowError
-from gcw_workflow_lib import assert_projection_current, load_projection, validate_event_log
+from gcw_workflow_lib import assert_projection_current, load_events, load_projection, validate_event_log
 from progress import publish_milestone_progress_comment
 from run_gcw_step import run_step as run_single_step
 
@@ -425,6 +425,12 @@ def create_triage_options(target_root: Path, projection: dict[str, Any], issue_m
             "classification_priority": triage["classification_priority"],
             "labels_applied": triage["labels_applied"],
             "remote_sync_file": str(remote_sync_file),
+            "issue": projection.get("issue"),
+            "platform": projection.get("platform"),
+            "repository": projection.get("repository"),
+            "branch": projection.get("branch"),
+            "owner_kind": (projection.get("owner") or {}).get("kind", "local"),
+            "owner_id": (projection.get("owner") or {}).get("id", "gcw-cli"),
         },
     )
 
@@ -737,30 +743,26 @@ def options_file_for_step(target_root: Path, issue_dir: Path, projection: dict[s
     return None
 
 
-def ensure_issue_workflow(target_root: Path, issue: str) -> tuple[Path, bool, dict[str, Any] | None]:
+def ensure_issue_context(target_root: Path, issue: str) -> tuple[Path, bool, dict[str, Any] | None, dict[str, Any] | None]:
     issue_dir = issue_dir_for_target(target_root, issue)
-    if issue_dir.exists():
-        return issue_dir, False, None
+    if load_events(issue_dir):
+        return issue_dir, False, None, None
     platform, repository = parse_remote_repository(read_git_remote(target_root))
     issue_meta = fetch_issue_metadata(target_root, platform, repository, issue)
     branch = detect_branch(target_root, issue)
     (issue_dir / "events").mkdir(parents=True, exist_ok=True)
-    init_workflow(
-        argparse.Namespace(
-            issue_dir=issue_dir,
-            issue=issue_number_as_string(issue),
-            platform=platform,
-            repository=repository,
-            branch=branch,
-            owner_kind="local",
-            owner_id="gcw-cli",
-            actor_kind="local",
-            actor_id="gcw-cli",
-            expected_last_seq=None,
-            parent_projection_hash="",
-        )
-    )
-    return issue_dir, True, issue_meta
+    bootstrap_projection = {
+        "issue": issue_number_as_string(issue),
+        "platform": platform,
+        "repository": repository,
+        "branch": branch,
+        "owner": {"kind": "local", "id": "gcw-cli"},
+        "phase": "",
+        "last_completed_step": "",
+        "next_allowed_steps": ["gcw-issue-triage"],
+        "refs": {},
+    }
+    return issue_dir, True, issue_meta, bootstrap_projection
 
 
 def resolve_issue_metadata(target_root: Path, issue_dir: Path, projection: dict[str, Any], issue_meta: dict[str, Any] | None, issue_number: str) -> dict[str, Any] | None:
@@ -797,7 +799,7 @@ def summarize_projection_result(projection: dict[str, Any], executed_steps: list
 
 def run_step_command(target_root: Path, issue_dir: Path, projection: dict[str, Any], requested_step: str, issue_meta: dict[str, Any] | None) -> dict[str, Any]:
     if requested_step == "gcw-issue-intake":
-        raise WorkflowError("gcw-issue-intake should be run through gcw run or by targeting an issue outside GCW state")
+        raise WorkflowError("unsupported step: gcw-issue-intake")
 
     if requested_step == "gcw-implement":
         payload = write_json_temp("gcw-implement-", {"work_summary": "Implementation work recorded from terminal-first GCW CLI."})
@@ -863,15 +865,17 @@ def next_command(target_root: Path, issue: str) -> dict[str, Any]:
 
 
 def step_command(target_root: Path, issue: str, requested_step: str) -> dict[str, Any]:
+    if requested_step == "gcw-issue-intake":
+        raise WorkflowError("unsupported step: gcw-issue-intake")
     issue_number = issue_number_as_string(issue)
-    issue_dir, created, issue_meta = ensure_issue_workflow(target_root, issue_number)
+    issue_dir, bootstrapping, issue_meta, bootstrap_projection = ensure_issue_context(target_root, issue_number)
+    if bootstrapping:
+        if requested_step != "gcw-issue-triage":
+            raise WorkflowError(f"step {requested_step} is not allowed before gcw-issue-triage")
+        return run_step_command(target_root, issue_dir, bootstrap_projection or {}, requested_step, issue_meta)
+
     projection = read_projection(target_root, issue_dir)
     resolved_issue_meta = resolve_issue_metadata(target_root, issue_dir, projection, issue_meta, issue_number)
-    if requested_step == "gcw-issue-intake":
-        if created:
-            created_projection = read_projection(target_root, issue_dir)
-            return summarize_projection_result(created_projection, [requested_step])
-        raise WorkflowError(f"step {requested_step} is not allowed in phase {projection['phase']}")
     if requested_step not in (projection.get("next_allowed_steps") or []):
         raise WorkflowError(f"step {requested_step} is not allowed in phase {projection['phase']}")
     if requested_step == "gcw-implement" and not has_meaningful_implementation_changes(target_root, issue_dir):
@@ -893,12 +897,18 @@ def has_meaningful_implementation_changes(target_root: Path, issue_dir: Path) ->
 
 def run_command(target_root: Path, issue: str) -> dict[str, Any]:
     issue_number = issue_number_as_string(issue)
-    issue_dir, created, issue_meta = ensure_issue_workflow(target_root, issue_number)
-    projection = read_projection(target_root, issue_dir)
-    resolved_issue_meta = resolve_issue_metadata(target_root, issue_dir, projection, issue_meta, issue_number)
+    issue_dir, bootstrapping, issue_meta, bootstrap_projection = ensure_issue_context(target_root, issue_number)
     executed: list[str] = []
-    if created:
-        executed.append("gcw-issue-intake")
+    if bootstrapping:
+        step_result = run_step_command(target_root, issue_dir, bootstrap_projection or {}, "gcw-issue-triage", issue_meta)
+        if not step_result.get("ok"):
+            return step_result
+        executed.append("gcw-issue-triage")
+        projection = read_projection(target_root, issue_dir)
+        resolved_issue_meta = issue_meta
+    else:
+        projection = read_projection(target_root, issue_dir)
+        resolved_issue_meta = resolve_issue_metadata(target_root, issue_dir, projection, issue_meta, issue_number)
 
     while not should_stop_for_human_handoff(str(projection.get("phase", ""))):
         next_step = select_next_run_step(projection, git_changed_paths(target_root), str(issue_dir))

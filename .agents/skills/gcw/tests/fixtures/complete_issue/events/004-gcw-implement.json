@@ -5,9 +5,9 @@
   },
   "at": "2026-06-13T11:12:08Z",
   "event": "gcw-implement",
-  "event_id": "gcw-42-005-gcw-implement",
+  "event_id": "gcw-42-004-gcw-implement",
   "parent": {
-    "expected_last_seq": 4
+    "expected_last_seq": 3
   },
   "payload": {
     "progress_comment_body_hash": "sha256:d4919d51770d140cadf9173cfc18a11e8127a1c7b51460d102807408149ffa4b",
@@ -19,5 +19,5 @@
     "issue": "42"
   },
   "schema": "gcw.event/v1",
-  "seq": 5
+  "seq": 4
 }

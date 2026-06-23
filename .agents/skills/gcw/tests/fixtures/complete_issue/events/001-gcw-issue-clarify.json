@@ -5,9 +5,9 @@
   },
   "at": "2026-06-13T11:12:08Z",
   "event": "gcw-issue-clarify",
-  "event_id": "gcw-42-002-gcw-issue-clarify",
+  "event_id": "gcw-42-001-gcw-issue-clarify",
   "parent": {
-    "expected_last_seq": 1
+    "expected_last_seq": 0
   },
   "payload": {
     "gate": {
@@ -48,5 +48,5 @@
     "issue": "42"
   },
   "schema": "gcw.event/v1",
-  "seq": 2
+  "seq": 1
 }

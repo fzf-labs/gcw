@@ -29,7 +29,6 @@ def render_main_step_order(contracts: dict[str, Any]) -> str:
 
 def render_states(contracts: dict[str, Any]) -> str:
     state_summaries = {
-        "issue-opened": "Issue 已被 GCW 接入，但还没有完成分类。",
         "issue-triaged": "Issue 已完成分类和远端 metadata 同步，但还没完成可执行性判断。",
         "issue-clarifying": "Issue 信息不足或边界不清，需要通过评论继续讨论。",
         "ready-for-planning": "Issue 已经讨论清楚，可以开始从 Issue 生成 spec files。",
@@ -69,7 +68,7 @@ def render_human_handoff_states(contracts: dict[str, Any]) -> str:
 def render_step_matrix(contracts: dict[str, Any]) -> str:
     rows = []
     for step in contracts["MAIN_STEP_ORDER"]:
-        workflow_file = "none" if step == "gcw-issue-intake" else f"{step}.yml"
+        workflow_file = f"{step}.yml"
         rows.append(
             [
                 step,

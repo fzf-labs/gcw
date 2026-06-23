@@ -219,7 +219,6 @@
     "event": {
       "type": "string",
       "enum": [
-        "gcw-issue-intake",
         "gcw-issue-triage",
         "gcw-issue-clarify",
         "gcw-issue-to-spec",
@@ -304,11 +303,21 @@
     {
       "required": ["event", "payload"],
       "properties": {
-        "event": { "const": "gcw-issue-intake" },
+        "event": { "const": "gcw-issue-triage" },
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["issue", "platform", "repository", "branch", "owner"],
+          "required": [
+            "issue",
+            "platform",
+            "repository",
+            "branch",
+            "owner",
+            "classification",
+            "labels_applied",
+            "remote_sync",
+            "progress_comment_url"
+          ],
           "properties": {
             "issue": {
               "oneOf": [
@@ -342,20 +351,7 @@
                   "minLength": 1
                 }
               }
-            }
-          }
-        }
-      }
-    },
-    {
-      "required": ["event", "payload"],
-      "properties": {
-        "event": { "const": "gcw-issue-triage" },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["classification", "labels_applied", "remote_sync", "progress_comment_url"],
-          "properties": {
+            },
             "classification": {
               "$ref": "#/$defs/triage_classification"
             },
@@ -731,7 +727,6 @@
             "resume_phase": {
               "type": "string",
               "enum": [
-                "issue-opened",
                 "issue-triaged",
                 "issue-clarifying",
                 "ready-for-planning",
@@ -782,7 +777,7 @@
             "source_phase": {
               "type": "string",
               "enum": [
-                "issue-opened",
+                "issue-triaged",
                 "issue-clarifying",
                 "ready-for-planning",
                 "planned",

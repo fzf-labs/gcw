@@ -34,7 +34,7 @@ gcw init --with-gitlab-ci
 常用入口：
 
 - 编排：`/gcw <issue-number>`
-- 单步：各 `gcw-issue-intake`、`gcw-issue-triage`、`gcw-issue-clarify` 等 skill
+- 单步：各 `gcw-issue-triage`、`gcw-issue-clarify`、`gcw-issue-to-spec` 等 skill
 - 正式 CLI：`gcw run <issue-number>`、`gcw step <step-name> <issue-number>`、`gcw status <issue-number>`、`gcw next <issue-number>`
 
 CLI 与 skill 的分工建议：

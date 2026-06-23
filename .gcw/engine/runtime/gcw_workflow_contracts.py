@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 MAIN_STEP_ORDER: tuple[str, ...] = (
-    "gcw-issue-intake",
     "gcw-issue-triage",
     "gcw-issue-clarify",
     "gcw-issue-to-spec",
@@ -13,7 +12,6 @@ MAIN_STEP_ORDER: tuple[str, ...] = (
 )
 
 STATES: tuple[str, ...] = (
-    "issue-opened",
     "issue-triaged",
     "issue-clarifying",
     "ready-for-planning",
@@ -29,7 +27,6 @@ STATES: tuple[str, ...] = (
 
 VALID_EVENT_NAMES = frozenset(
     {
-        "gcw-issue-intake",
         "gcw-issue-triage",
         "gcw-issue-clarify",
         "gcw-issue-to-spec",
@@ -45,7 +42,6 @@ VALID_EVENT_NAMES = frozenset(
 )
 
 NEXT_ALLOWED_STEPS: dict[str, list[str]] = {
-    "issue-opened": ["gcw-issue-triage"],
     "issue-triaged": ["gcw-issue-clarify"],
     "issue-clarifying": ["gcw-issue-clarify"],
     "ready-for-planning": ["gcw-issue-to-spec"],
@@ -81,7 +77,7 @@ STEP_TRIGGER_LABELS: dict[str, str] = {
 }
 
 HOSTED_STEP_PHASES: dict[str, tuple[str, ...]] = {
-    "gcw-issue-triage": ("issue-opened",),
+    "gcw-issue-triage": ("",),
     "gcw-issue-clarify": ("issue-triaged", "issue-clarifying"),
     "gcw-issue-to-spec": ("ready-for-planning",),
     "gcw-spec-check": ("planned",),

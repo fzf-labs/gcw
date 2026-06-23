@@ -23,8 +23,8 @@ def _make_valid_event(overrides: dict | None = None) -> dict:
     event = {
         "schema": "gcw.event/v1",
         "seq": 0,
-        "event": "gcw-issue-intake",
-        "event_id": "gcw-42-000-gcw-issue-intake",
+        "event": "gcw-issue-triage",
+        "event_id": "gcw-42-000-gcw-issue-triage",
         "at": "2026-06-14T00:00:00Z",
         "actor": {"kind": "local", "id": "cursor-session"},
         "parent": {"expected_last_seq": -1},
@@ -35,6 +35,15 @@ def _make_valid_event(overrides: dict | None = None) -> dict:
             "repository": "owner/repo",
             "branch": "gcw/issue-42",
             "owner": {"kind": "local", "id": "cursor-session"},
+            "classification": {"type": "enhancement", "priority": "priority:p2"},
+            "labels_applied": ["triaged", "area:tests", "gcw:executor-local"],
+            "remote_sync": {
+                "platform": "github",
+                "issue_type": "Feature",
+                "priority": "Medium",
+                "labels": ["triaged", "area:tests", "gcw:executor-local"],
+            },
+            "progress_comment_url": "https://github.com/owner/repo/issues/42#issuecomment-0",
         },
     }
     if overrides:
@@ -62,7 +71,8 @@ class GcwSchemaTest(unittest.TestCase):
             if "event" in branch.get("properties", {})
         }
 
-        self.assertIn("gcw-issue-intake", event_names)
+        self.assertNotIn("gcw-issue-intake", event_names)
+        self.assertIn("gcw-issue-triage", event_names)
         self.assertIn("gcw-implement-check", event_names)
         self.assertIn("gcw-pr-publish", event_names)
         self.assertIn("gcw-pr-review", event_names)
@@ -111,9 +121,9 @@ class GcwSchemaTest(unittest.TestCase):
                 "repository": "owner/repo",
                 "branch": "gcw/issue-42",
                 "owner": {"kind": "local", "id": "cursor-session"},
-                "phase": "issue-opened",
-                "last_completed_step": "gcw-issue-intake",
-                "next_allowed_steps": ["gcw-issue-triage"],
+                "phase": "issue-triaged",
+                "last_completed_step": "gcw-issue-triage",
+                "next_allowed_steps": ["gcw-issue-clarify"],
                 "refs": {},
             },
             "extra_field": "should_fail",
@@ -125,7 +135,6 @@ class GcwSchemaTest(unittest.TestCase):
     def test_event_schema_all_event_types_have_payload_contracts(self) -> None:
         schema = _load_event_schema()
         expected_events = {
-            "gcw-issue-intake",
             "gcw-issue-triage",
             "gcw-issue-clarify",
             "gcw-issue-to-spec",
@@ -150,11 +159,16 @@ class GcwSchemaTest(unittest.TestCase):
         schema = _load_event_schema()
         event = _make_valid_event(
             {
-                "seq": 1,
+                "seq": 0,
                 "event": "gcw-issue-triage",
-                "event_id": "gcw-42-001-gcw-issue-triage",
-                "parent": {"expected_last_seq": 0},
+                "event_id": "gcw-42-000-gcw-issue-triage",
+                "parent": {"expected_last_seq": -1},
                 "payload": {
+                    "issue": 42,
+                    "platform": "github",
+                    "repository": "owner/repo",
+                    "branch": "gcw/issue-42",
+                    "owner": {"kind": "local", "id": "cursor-session"},
                     "classification": {"area": "area:tests"},
                     "labels_applied": ["triaged", "area:tests", "gcw:executor-local"],
                     "remote_sync": {

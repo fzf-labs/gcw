@@ -18,7 +18,9 @@ from gcw_workflow_lib import (
     WorkflowError,
     assert_projection_current,
     find_latest_event,
+    load_events,
     load_projection,
+    write_projection,
 )
 from gcw_workflow_commands import (
     record_implement_check,
@@ -144,34 +146,38 @@ class GcwStepRunner:
             raise WorkflowError(f"unsupported step: {step}")
 
         options = options or {}
-        current = assert_projection_current(issue_dir)
-        if not current["ok"]:
-            return StepResult(
-                ok=False,
-                step=step,
-                phase_before="",
-                phase_after="",
-                validation=[_run_validation("assert_projection_current", current["errors"])],
-                stop_reason="blocked",
-            )
+        events = load_events(issue_dir)
+        bootstrap_triage = step == "gcw-issue-triage" and not events
+        phase_before = ""
+        if not bootstrap_triage:
+            current = assert_projection_current(issue_dir)
+            if not current["ok"]:
+                return StepResult(
+                    ok=False,
+                    step=step,
+                    phase_before="",
+                    phase_after="",
+                    validation=[_run_validation("assert_projection_current", current["errors"])],
+                    stop_reason="blocked",
+                )
 
-        projection = current["projection"]
-        phase_before = str(projection.get("phase", ""))
-        allowed = projection.get("next_allowed_steps") or []
-        if step not in allowed:
-            return StepResult(
-                ok=False,
-                step=step,
-                phase_before=phase_before,
-                phase_after=phase_before,
-                validation=[
-                    _run_validation(
-                        "phase_routing",
-                        [f"step {step} not in next_allowed_steps {allowed}"],
-                    )
-                ],
-                stop_reason="illegal_phase",
-            )
+            projection = current["projection"]
+            phase_before = str(projection.get("phase", ""))
+            allowed = projection.get("next_allowed_steps") or []
+            if step not in allowed:
+                return StepResult(
+                    ok=False,
+                    step=step,
+                    phase_before=phase_before,
+                    phase_after=phase_before,
+                    validation=[
+                        _run_validation(
+                            "phase_routing",
+                            [f"step {step} not in next_allowed_steps {allowed}"],
+                        )
+                    ],
+                    stop_reason="illegal_phase",
+                )
 
         handler = _STEP_HANDLERS[step]
         validation, stop_reason = handler.validate(issue_dir, options)
@@ -249,6 +255,7 @@ class GcwStepRunner:
                 stop_reason="blocked",
             )
 
+        write_projection(issue_dir)
         updated = load_projection(issue_dir)["projection"]
         phase_after = str(updated.get("phase", phase_before))
         return StepResult(
@@ -299,6 +306,12 @@ class _TriageStepHandler(_StepHandler):
             for key in ("classification_type", "classification_priority", "labels_applied")
             if not options.get(key)
         ]
+        if not load_events(issue_dir):
+            missing.extend(
+                key
+                for key in ("issue", "platform", "repository", "branch", "owner_kind", "owner_id")
+                if not str(options.get(key, "") or "").strip()
+            )
         validation = [_run_validation("triage_metadata", missing)]
         if missing:
             return validation, "validation_failed"
@@ -327,6 +340,19 @@ class _TriageStepHandler(_StepHandler):
                 payload["remote_sync"] = remote_sync["remote_sync"]
             elif isinstance(remote_sync, dict) and remote_sync.get("platform"):
                 payload["remote_sync"] = remote_sync
+        if not load_events(issue_dir):
+            payload.update(
+                {
+                    "issue": options.get("issue"),
+                    "platform": options.get("platform"),
+                    "repository": options.get("repository"),
+                    "branch": options.get("branch"),
+                    "owner": {
+                        "kind": options.get("owner_kind"),
+                        "id": options.get("owner_id"),
+                    },
+                }
+            )
         return payload
 
     def record(
@@ -345,6 +371,12 @@ class _TriageStepHandler(_StepHandler):
             classification_priority=str(milestone_payload.get("classification", {}).get("priority", "")),
             labels_applied=",".join(milestone_payload.get("labels_applied", [])),
             remote_sync_file=Path(str(options["remote_sync_file"])) if options.get("remote_sync_file") else "",
+            issue=str(milestone_payload.get("issue", "")),
+            platform=str(milestone_payload.get("platform", "")),
+            repository=str(milestone_payload.get("repository", "")),
+            branch=str(milestone_payload.get("branch", "")),
+            owner_kind=str(milestone_payload.get("owner", {}).get("kind", "")),
+            owner_id=str(milestone_payload.get("owner", {}).get("id", "")),
         )
         record_issue_triage(args)
 

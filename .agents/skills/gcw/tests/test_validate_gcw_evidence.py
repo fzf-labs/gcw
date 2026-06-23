@@ -62,27 +62,10 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
         }
 
     def init(self) -> None:
-        self.run_manager(
-            "init-workflow",
-            "--issue-dir",
-            str(self.issue_dir),
-            "--issue",
-            "42",
-            "--platform",
-            "github",
-            "--repository",
-            "owner/repo",
-            "--branch",
-            "gcw/issue-42",
-            "--owner-kind",
-            "local",
-            "--owner-id",
-            "cursor-session",
-        )
+        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
 
     def planned_issue(self) -> None:
         self.init()
-        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=True))
         self.write_planning_files()
         shas = self._planning_shas()
@@ -161,7 +144,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             "--target",
             "owner/repo#7",
             "--rendered-from-event-id",
-            "gcw-42-006-gcw-implement-check",
+            "gcw-42-005-gcw-implement-check",
             "--progress-comment-url",
             progress_comment_url(6),
         )
@@ -184,13 +167,11 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
 
     def test_triage_check_accepts_issue_triaged(self) -> None:
         self.init()
-        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
         output = self.run_validate("triage-check")
         self.assertTrue(output["ok"], output)
 
     def test_issue_clarify_check_accepts_ready_and_not_ready(self) -> None:
         self.init()
-        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=False))
         output = self.run_validate("issue-clarify-check")
         self.assertTrue(output["ok"], output)
@@ -234,10 +215,10 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
     def test_workflow_rejects_invalid_payload(self) -> None:
         self.init()
         events_dir = self.issue_dir / "events"
-        intake_file = list(events_dir.glob("*gcw-issue-intake*.json"))[0]
-        data = json.loads(intake_file.read_text(encoding="utf-8"))
+        triage_file = list(events_dir.glob("*gcw-issue-triage*.json"))[0]
+        data = json.loads(triage_file.read_text(encoding="utf-8"))
         del data["payload"]["platform"]
-        intake_file.write_text(json.dumps(data), encoding="utf-8")
+        triage_file.write_text(json.dumps(data), encoding="utf-8")
         output = self.run_validate("workflow")
         self.assertFalse(output["ok"], output)
         self.assertTrue(any("platform" in e for e in output["errors"]))
@@ -245,10 +226,10 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
     def test_workflow_rejects_broken_parent_chain(self) -> None:
         self.init()
         events_dir = self.issue_dir / "events"
-        intake_file = list(events_dir.glob("*gcw-issue-intake*.json"))[0]
-        data = json.loads(intake_file.read_text(encoding="utf-8"))
+        triage_file = list(events_dir.glob("*gcw-issue-triage*.json"))[0]
+        data = json.loads(triage_file.read_text(encoding="utf-8"))
         data["parent"]["expected_last_seq"] = 0
-        intake_file.write_text(json.dumps(data), encoding="utf-8")
+        triage_file.write_text(json.dumps(data), encoding="utf-8")
         output = self.run_validate("workflow")
         self.assertFalse(output["ok"], output)
         self.assertTrue(any("expected_last_seq" in e for e in output["errors"]))
@@ -279,10 +260,10 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
     def test_rebuild_projection_rejects_invalid_event_log(self) -> None:
         self.init()
         events_dir = self.issue_dir / "events"
-        intake_file = list(events_dir.glob("*gcw-issue-intake*.json"))[0]
-        data = json.loads(intake_file.read_text(encoding="utf-8"))
+        triage_file = list(events_dir.glob("*gcw-issue-triage*.json"))[0]
+        data = json.loads(triage_file.read_text(encoding="utf-8"))
         del data["payload"]["platform"]
-        intake_file.write_text(json.dumps(data), encoding="utf-8")
+        triage_file.write_text(json.dumps(data), encoding="utf-8")
         result = subprocess.run(
             [sys.executable, str(MANAGER), "rebuild-projection", "--issue-dir", str(self.issue_dir)],
             check=False,
@@ -367,7 +348,7 @@ class ValidateGcwEvidenceTest(unittest.TestCase):
             "--question",
             "Need more details",
             "--source-phase",
-            "issue-opened",
+            "issue-triaged",
             "--progress-comment-url",
             progress_comment_url(8),
         )

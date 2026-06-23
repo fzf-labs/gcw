@@ -18,14 +18,14 @@ EXECUTOR_LOCAL = "gcw:executor-local"
 
 
 def hosted_executor_allowed(labels: list[str]) -> bool:
-    return EXECUTOR_HOSTED in labels
+    return EXECUTOR_HOSTED in labels and EXECUTOR_LOCAL not in labels
 
 
 def executor_gate_reason(labels: list[str]) -> tuple[bool, str]:
-    if hosted_executor_allowed(labels):
-        return True, EXECUTOR_HOSTED
     if EXECUTOR_LOCAL in labels:
         return False, f"{EXECUTOR_LOCAL} blocks hosted execution"
+    if hosted_executor_allowed(labels):
+        return True, EXECUTOR_HOSTED
     return False, f"missing {EXECUTOR_HOSTED} (default: local)"
 
 

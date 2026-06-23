@@ -35,20 +35,14 @@ def latest_triage_event(issue_dir: Path) -> dict[str, Any] | None:
     return None
 
 
-def intake_platform(issue_dir: Path) -> str:
-    intake_path = issue_dir / "events" / "000-gcw-issue-intake.json"
-    if intake_path.is_file():
-        intake = json.loads(intake_path.read_text(encoding="utf-8"))
-        payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
-        platform = str(payload.get("platform", "")).strip()
-        if platform:
-            return platform
-    return "github"
+def triage_payload(triage: dict[str, Any]) -> dict[str, Any]:
+    payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
+    return payload
 
 
 def verify_github(repo: str, issue: str, triage: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
+    payload = triage_payload(triage)
     classification = payload.get("classification") if isinstance(payload.get("classification"), dict) else {}
     labels_applied = payload.get("labels_applied") if isinstance(payload.get("labels_applied"), list) else []
     remote_sync = payload.get("remote_sync") if isinstance(payload.get("remote_sync"), dict) else {}
@@ -85,7 +79,7 @@ def verify_github(repo: str, issue: str, triage: dict[str, Any]) -> list[str]:
 
 def verify_gitlab(repo: str, issue: str, triage: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
+    payload = triage_payload(triage)
     classification = payload.get("classification") if isinstance(payload.get("classification"), dict) else {}
     labels_applied = payload.get("labels_applied") if isinstance(payload.get("labels_applied"), list) else []
     remote_sync = payload.get("remote_sync") if isinstance(payload.get("remote_sync"), dict) else {}
@@ -111,7 +105,7 @@ def verify_issue(
     if triage is None:
         return {"ok": False, "errors": ["no gcw-issue-triage event found"]}
 
-    payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
+    payload = triage_payload(triage)
     if not payload.get("remote_sync"):
         return {
             "ok": True,
@@ -119,11 +113,9 @@ def verify_issue(
             "errors": [],
         }
 
-    intake = json.loads((issue_dir / "events" / "000-gcw-issue-intake.json").read_text(encoding="utf-8"))
-    intake_payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
-    resolved_platform = platform or intake_platform(issue_dir)
-    resolved_repo = repo or str(intake_payload.get("repository", ""))
-    resolved_issue = issue or str(intake_payload.get("issue", ""))
+    resolved_platform = platform or str(payload.get("platform", "github")).strip() or "github"
+    resolved_repo = repo or str(payload.get("repository", ""))
+    resolved_issue = issue or str(payload.get("issue", ""))
     if not resolved_repo or not resolved_issue:
         return {"ok": False, "errors": ["repository and issue are required"]}
 

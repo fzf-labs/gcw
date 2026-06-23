@@ -27,7 +27,6 @@ class GcwWorkflowContractsTest(unittest.TestCase):
         self.assertEqual(
             MAIN_STEP_ORDER,
             (
-                "gcw-issue-intake",
                 "gcw-issue-triage",
                 "gcw-issue-clarify",
                 "gcw-issue-to-spec",
@@ -45,7 +44,9 @@ class GcwWorkflowContractsTest(unittest.TestCase):
             self.assertIn(step, STEP_TRIGGER_LABELS)
 
     def test_phase_and_step_tables_stay_aligned(self) -> None:
-        self.assertEqual(NEXT_ALLOWED_STEPS["issue-opened"], ["gcw-issue-triage"])
+        self.assertNotIn("issue-opened", STATES)
+        self.assertEqual(NEXT_ALLOWED_STEPS["issue-triaged"], ["gcw-issue-clarify"])
+        self.assertEqual(HOSTED_STEP_PHASES["gcw-issue-triage"], ("",))
         self.assertEqual(NEXT_ALLOWED_STEPS["reviewing"], ["gcw-pr-review"])
         self.assertEqual(REPEATABLE_WHILE_PHASE["gcw-implement"], ("implementing", "changes-requested", "ready-for-implementation"))
         self.assertEqual(VALIDATE_COMMANDS["gcw-pr-review"], "review-check")

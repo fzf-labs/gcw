@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / ".agents/skills/gcw/scripts"))
 sys.path.insert(0, str(ROOT / ".agents/skills/gcw/tests"))
 
 from publish_progress_comment import publish_progress_comment  # noqa: E402
-from gcw_test_helpers import READINESS_GATE_OK, clarify_event_payload, triage_event_payload  # noqa: E402
+from gcw_test_helpers import READINESS_GATE_OK, clarify_event_payload, triage_genesis_payload  # noqa: E402
 
 COMPLETE_FIXTURE = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
 
@@ -55,50 +55,65 @@ class PublishProgressCommentTest(unittest.TestCase):
         self.assertIn("<!-- gcw-progress -->", output["body"])
         self.assertEqual(output["progress_comment_url"], "")
 
+    @mock.patch("github.subprocess.run")
+    def test_bootstrap_triage_publish_uses_payload_before_workflow_exists(self, run_mock: mock.Mock) -> None:
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/45"
+        issue_dir.mkdir(parents=True)
+        (issue_dir / "events").mkdir()
+        payload = triage_genesis_payload(
+            issue="45",
+            repository="owner/repo",
+            branch="gcw/issue-45",
+            progress_comment_url="",
+        )
+        run_mock.return_value = mock.Mock(stdout="https://github.com/owner/repo/issues/45#issuecomment-1\n", returncode=0)
+
+        output = publish_progress_comment(
+            argparse.Namespace(
+                issue_dir=issue_dir,
+                dry_run=False,
+                milestone_event="gcw-issue-triage",
+                milestone_payload=payload,
+            )
+        )
+
+        self.assertTrue(output["ok"])
+        self.assertEqual(output["progress_comment_url"], "https://github.com/owner/repo/issues/45#issuecomment-1")
+        command = run_mock.call_args[0][0]
+        self.assertEqual(command[:4], ["gh", "issue", "comment", "45"])
+        self.assertIn("--repo", command)
+        self.assertIn("owner/repo", command)
+
     def test_milestone_clarify_preview_uses_post_record_phase(self) -> None:
-        intake_only = Path(self.tmp.name) / ".gcw/issues/44"
-        intake_only.mkdir(parents=True)
-        intake = {
+        issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
+        issue_dir.mkdir(parents=True)
+        events_dir = issue_dir / "events"
+        events_dir.mkdir(parents=True)
+        triage = {
             "actor": {"id": "cursor-session", "kind": "local"},
             "at": "2026-06-14T00:00:00Z",
-            "event": "gcw-issue-intake",
-            "event_id": "gcw-44-000-gcw-issue-intake",
+            "event": "gcw-issue-triage",
+            "event_id": "gcw-44-000-gcw-issue-triage",
             "parent": {"expected_last_seq": -1},
-            "payload": {
-                "branch": "feat/example-44",
-                "issue": "44",
-                "owner": {"id": "cursor-session", "kind": "local"},
-                "platform": "github",
-                "repository": "owner/repo",
-            },
+            "payload": triage_genesis_payload(
+                issue="44",
+                branch="feat/example-44",
+                progress_comment_url="https://github.com/owner/repo/issues/44#issuecomment-1",
+            ),
             "refs": {"branch": "feat/example-44", "issue": "44"},
             "schema": "gcw.event/v1",
             "seq": 0,
         }
-        events_dir = intake_only / "events"
-        events_dir.mkdir(parents=True)
-        (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
-        triage = {
-            "actor": {"id": "cursor-session", "kind": "local"},
-            "at": "2026-06-14T00:00:01Z",
-            "event": "gcw-issue-triage",
-            "event_id": "gcw-44-001-gcw-issue-triage",
-            "parent": {"expected_last_seq": 0},
-            "payload": triage_event_payload(progress_comment_url="https://github.com/owner/repo/issues/44#issuecomment-1"),
-            "refs": {"branch": "feat/example-44", "issue": "44"},
-            "schema": "gcw.event/v1",
-            "seq": 1,
-        }
-        (events_dir / "001-gcw-issue-triage.json").write_text(json.dumps(triage) + "\n", encoding="utf-8")
+        (events_dir / "000-gcw-issue-triage.json").write_text(json.dumps(triage) + "\n", encoding="utf-8")
         from gcw_workflow_lib import write_projection
 
-        write_projection(intake_only)
+        write_projection(issue_dir)
 
         payload = clarify_event_payload(ready=True, progress_comment_url="")
         payload["gate"] = READINESS_GATE_OK
         output = publish_progress_comment(
             argparse.Namespace(
-                issue_dir=intake_only,
+                issue_dir=issue_dir,
                 dry_run=True,
                 milestone_event="gcw-issue-clarify",
                 milestone_payload=payload,

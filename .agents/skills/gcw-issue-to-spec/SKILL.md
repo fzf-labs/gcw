@@ -35,7 +35,7 @@ Require:
 
 1. Create a repository-compliant issue branch and, when useful, an isolated worktree using Git directly.
 2. Reuse `planning-with-files` to create planning content under `.gcw/issues/<issue-id>/`.
-3. Append the `gcw-issue-intake` event if needed, then append `gcw-issue-to-spec` with planning links and spec refs.
+3. Confirm the workflow is already bootstrapped by `gcw-issue-triage`, then append `gcw-issue-to-spec` with planning links and spec refs.
 4. Commit only the initial spec/event/projection files as a focused planning commit, then push the issue branch without force pushing.
 5. Publish a new `<!-- gcw-progress -->` comment with `publish_progress_comment.py` using `--milestone-event gcw-issue-to-spec` and a payload file containing `spec_refs` (and `planning_commit_pushed` when applicable), then record the event with the returned URL. Do not edit previous progress comments, and do not publish a separate non-`gcw-progress` "GCW Planning Spec" comment.
 

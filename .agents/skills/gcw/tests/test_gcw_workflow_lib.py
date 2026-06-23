@@ -24,7 +24,7 @@ from gcw_workflow_lib import (  # noqa: E402
 )
 
 
-from gcw_test_helpers import clarify_event_payload, progress_comment_url, triage_event_payload  # noqa: E402
+from gcw_test_helpers import clarify_event_payload, progress_comment_url, triage_genesis_payload  # noqa: E402
 
 
 _FAKE_SHA = "sha256:" + "a" * 64
@@ -53,21 +53,11 @@ class GcwWorkflowLibTest(unittest.TestCase):
             },
         )
 
+    def append_triage(self, seq: int = 0) -> None:
+        self.append("gcw-issue-triage", triage_genesis_payload(progress_comment_url=progress_comment_url(seq)))
+
     def test_reducer_projects_main_path_to_reviewing(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
-        self.append(
-            "gcw-issue-triage",
-            triage_event_payload(progress_comment_url=progress_comment_url(0)),
-        )
+        self.append_triage()
         self.append(
             "gcw-issue-clarify",
             clarify_event_payload(ready=True, progress_comment_url=progress_comment_url(1)),
@@ -113,7 +103,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
             "gcw-pr-publish",
             {
                 "review_request_url": "https://github.com/owner/repo/pull/7",
-                "rendered_from_event_id": "gcw-42-006-gcw-implement-check",
+                "rendered_from_event_id": "gcw-42-005-gcw-implement-check",
                 "body_hash": _FAKE_SHA,
                 "progress_comment_url": progress_comment_url(6),
                 "effects": [
@@ -138,20 +128,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertEqual(projection["refs"]["progress_comment_url"], progress_comment_url(6))
 
     def test_reducer_projects_issue_triaged_to_clarify(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
-        self.append(
-            "gcw-issue-triage",
-            triage_event_payload(progress_comment_url=progress_comment_url(0)),
-        )
+        self.append_triage()
 
         projection = reduce_workflow(load_events(self.issue_dir))
 
@@ -161,17 +138,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertEqual(projection["refs"]["progress_comment_url"], progress_comment_url(0))
 
     def test_reducer_loops_issue_clarifying_through_clarify(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
-        self.append("gcw-issue-triage", triage_event_payload(progress_comment_url=progress_comment_url(0)))
+        self.append_triage()
         self.append("gcw-issue-clarify", clarify_event_payload(ready=False, progress_comment_url=progress_comment_url(1)))
 
         projection = reduce_workflow(load_events(self.issue_dir))
@@ -185,34 +152,12 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertNotIn("active_feedback", projection)
 
     def test_unknown_issue_event_is_rejected(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
+        self.append_triage()
         with self.assertRaises(WorkflowError):
             self.append("gcw-unknown-event", {"ready": True})
 
     def test_reducer_tracks_latest_progress_comment_url(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
-        self.append(
-            "gcw-issue-triage",
-            triage_event_payload(progress_comment_url=progress_comment_url(0)),
-        )
+        self.append_triage()
         self.append(
             "gcw-issue-clarify",
             clarify_event_payload(ready=True, progress_comment_url=progress_comment_url(1)),
@@ -238,50 +183,23 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertEqual(projection["refs"]["progress_comment_url"], progress_comment_url(3))
 
     def test_projection_is_rebuildable_cache(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
+        self.append_triage()
 
         write_projection(self.issue_dir)
         (self.issue_dir / "workflow.json").unlink()
         rebuilt = write_projection(self.issue_dir)
 
-        self.assertEqual(rebuilt["projection"]["phase"], "issue-opened")
+        self.assertEqual(rebuilt["projection"]["phase"], "issue-triaged")
         self.assertTrue(assert_projection_current(self.issue_dir)["ok"])
 
 
     def test_reducer_rejects_unknown_event(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
+        self.append_triage()
         with self.assertRaises(WorkflowError):
             self.append("gcw-unknown-event", {})
 
     def test_reducer_rejects_invalid_phase_transition(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
+        self.append_triage()
         self.append("gcw-implement", {"work_summary": "Invalid transition."})
         with self.assertRaises(WorkflowError):
             reduce_workflow(load_events(self.issue_dir))
@@ -290,7 +208,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         with self.assertRaises(WorkflowError):
             reduce_workflow([])
 
-    def test_reducer_rejects_first_event_not_intake(self) -> None:
+    def test_reducer_rejects_first_event_not_triage(self) -> None:
         events = [
             {
                 "seq": 0,
@@ -307,14 +225,8 @@ class GcwWorkflowLibTest(unittest.TestCase):
         events = [
             {
                 "seq": 0,
-                "event": "gcw-issue-intake",
-                "payload": {
-                    "issue": 42,
-                    "platform": "github",
-                    "repository": "owner/repo",
-                    "branch": "gcw/issue-42",
-                    "owner": {"kind": "local", "id": "cursor-session"},
-                },
+                "event": "gcw-issue-triage",
+                "payload": triage_genesis_payload(progress_comment_url=progress_comment_url(0)),
                 "refs": {},
                 "actor": {"kind": "local", "id": "cursor-session"},
             },
@@ -330,38 +242,23 @@ class GcwWorkflowLibTest(unittest.TestCase):
             reduce_workflow(events)
 
     def test_append_event_rejects_duplicate_seq(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
+        self.append_triage()
         events_dir = self.issue_dir / "events"
         existing_file = list(events_dir.glob("*.json"))[0]
         with self.assertRaises(WorkflowError):
             append_event(
                 self.issue_dir,
                 {
-                    "event": "gcw-issue-intake",
+                    "event": "gcw-issue-triage",
                     "actor": {"kind": "local", "id": "cursor-session"},
                     "refs": {"issue": 42, "branch": "gcw/issue-42", "base_branch": "main"},
-                    "payload": {
-                        "issue": 42,
-                        "platform": "github",
-                        "repository": "owner/repo",
-                        "branch": "gcw/issue-42",
-                        "owner": {"kind": "local", "id": "cursor-session"},
-                    },
+                    "payload": triage_genesis_payload(progress_comment_url=progress_comment_url(0)),
                 },
                 expected_last_seq=-1,
             )
 
     def test_validate_payload_rejects_missing_fields(self) -> None:
-        errors = validate_payload("gcw-issue-intake", {})
+        errors = validate_payload("gcw-issue-triage", {})
         self.assertTrue(len(errors) > 0)
         self.assertTrue(any("issue" in e for e in errors))
         self.assertTrue(any("platform" in e for e in errors))
@@ -370,8 +267,12 @@ class GcwWorkflowLibTest(unittest.TestCase):
 
     def test_validate_payload_rejects_invalid_platform(self) -> None:
         errors = validate_payload(
-            "gcw-issue-intake",
+            "gcw-issue-triage",
             {
+                "classification": {"type": "enhancement", "priority": "priority:p2"},
+                "labels_applied": ["triaged"],
+                "remote_sync": {"platform": "github", "labels": ["triaged"]},
+                "progress_comment_url": progress_comment_url(0),
                 "issue": 42,
                 "platform": "svn",
                 "repository": "owner/repo",
@@ -404,15 +305,9 @@ class GcwWorkflowLibTest(unittest.TestCase):
         events = [
             {
                 "seq": 0,
-                "event": "gcw-issue-intake",
+                "event": "gcw-issue-triage",
                 "parent": {"expected_last_seq": -1},
-                "payload": {
-                    "issue": 42,
-                    "platform": "github",
-                    "repository": "owner/repo",
-                    "branch": "gcw/issue-42",
-                    "owner": {"kind": "local", "id": "cursor-session"},
-                },
+                "payload": triage_genesis_payload(progress_comment_url=progress_comment_url(0)),
             },
             {
                 "seq": 1,
@@ -425,20 +320,11 @@ class GcwWorkflowLibTest(unittest.TestCase):
         self.assertTrue(any("seq 1" in e and "expected_last_seq" in e for e in errors))
 
     def test_validate_event_log_rejects_invalid_payload(self) -> None:
-        self.append(
-            "gcw-issue-intake",
-            {
-                "issue": 42,
-                "platform": "github",
-                "repository": "owner/repo",
-                "branch": "gcw/issue-42",
-                "owner": {"kind": "local", "id": "cursor-session"},
-            },
-        )
+        self.append_triage()
         events_dir = self.issue_dir / "events"
-        intake_file = list(events_dir.glob("*.json"))[0]
-        intake_file.write_text(
-            intake_file.read_text(encoding="utf-8").replace('"platform": "github"', '"platform": "svn"'),
+        triage_file = list(events_dir.glob("*.json"))[0]
+        triage_file.write_text(
+            triage_file.read_text(encoding="utf-8").replace('"platform": "github"', '"platform": "svn"', 1),
             encoding="utf-8",
         )
         errors = validate_event_log(self.issue_dir)
@@ -449,7 +335,7 @@ class GcwWorkflowLibTest(unittest.TestCase):
         events_dir.mkdir(parents=True, exist_ok=True)
         mismatch_file = events_dir / "005-gcw-unknown-event.json"
         mismatch_file.write_text(
-            '{"seq": 3, "event": "gcw-issue-intake", "payload": {}, "refs": {}, "actor": {"kind": "local", "id": "test"}}',
+            '{"seq": 3, "event": "gcw-issue-triage", "payload": {}, "refs": {}, "actor": {"kind": "local", "id": "test"}}',
             encoding="utf-8",
         )
         errors = validate_events_integrity(self.issue_dir)

@@ -22,7 +22,6 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 <!-- gcw-contract:step-matrix:start -->
 | GCW step | Workflow file | Trigger label |
 | --- | --- | --- |
-| gcw-issue-intake | none |  |
 | gcw-issue-triage | gcw-issue-triage.yml | gcw:run-triage |
 | gcw-issue-clarify | gcw-issue-clarify.yml | gcw:run-clarify |
 | gcw-issue-to-spec | gcw-issue-to-spec.yml | gcw:ready-for-planning |
@@ -63,7 +62,7 @@ Agent **不得**在 codex prompt 中执行 `git`、`gh` 或 GitHub API；提交�
 
 `GLAB_TOKEN` 建议使用 project access token 或机器人 personal access token，并授予最小需要的 repository / issue / merge request 读写权限。若项目启用了 protected branch，需允许该 token push issue branch。
 
-GitLab CI 当前以手动 job 为主：在 pipeline 中设置 `GCW_ISSUE_NUMBER` 后，选择对应 job（例如 `gcw:spec-check`、`gcw:implement-check`）运行。Job 会先 checkout `GCW_ISSUE_BRANCH`，再调用 `prepare_gcw_hosted_step.py` 做 phase gate，最后委托现有 Python 脚本执行实际 GCW step。
+GitLab CI 当前以手动 job 为主：在 pipeline 中设置 `GCW_ISSUE_NUMBER` 后，选择对应 job（例如 `gcw:triage`、`gcw:spec-check`、`gcw:implement-check`）运行。Triage job 可以从默认分支创建 `GCW_ISSUE_BRANCH`；其余 job 会切换到已有 issue branch，再调用 `prepare_gcw_hosted_step.py` 做 phase gate，最后委托现有 Python 脚本执行实际 GCW step。
 
 GitLab hosted path 的 executor gate 来自 pipeline variable `GCW_EXECUTOR`，不是从 Issue labels 反查。若本地 agent 已在 Issue 上标记 `gcw:executor-local`，但维护者仍以默认 `GCW_EXECUTOR=gcw:executor-hosted` 手动运行 GitLab job，CI 仍会按 hosted 路径执行；需要跳过时请把 pipeline variable 设为 `gcw:executor-local`。
 
@@ -115,11 +114,11 @@ Issue/comment 自动触发会在 job `if` 中先检查 `gcw:executor-hosted` 并
 
 | 步骤 | 默认（local） | Hosted（`gcw:executor-hosted`） |
 | --- | --- | --- |
-| intake → spec-check | Agent 本地 | 可选 Action |
+| triage → spec-check | Agent 本地 | 可选 Action |
 | implement → pr-publish | Agent 本地 | 可选 Action |
 | `gcw-pr-review` | **不**由本地 agent 记录 | Action 负责自动 review gate |
 
-`prepare_gcw_hosted_step.py` 在 phase gate 之外还会：检查 executor label、跳过已完成步骤，并对已通过的 `gcw-pr-review` 仅运行 `review-check` 校验（`run_mode=verify-only`）。
+`gcw-issue-triage.yml` 可以在 issue branch 不存在时从默认分支创建并推送 `gcw/issue-<n>`，写入 `.gcw/issues/<n>/events/000-gcw-issue-triage.json` 和 `workflow.json`。`prepare_gcw_hosted_step.py` 在 phase gate 之外还会：检查 executor label、跳过已完成步骤，并对已通过的 `gcw-pr-review` 仅运行 `review-check` 校验（`run_mode=verify-only`）。
 
 典型自动触发流程：
 

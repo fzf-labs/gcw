@@ -1,6 +1,6 @@
 ---
 name: gcw
-description: Orchestrate the Git Collaboration Workflow from an existing GitHub or GitLab issue by routing through the nine current `gcw-*` step skills. Use when the user invokes /gcw or asks to process an issue through GCW; stop at clarification, blockers, review feedback, or review completion.
+description: Orchestrate the Git Collaboration Workflow from an existing GitHub or GitLab issue by routing through the eight current `gcw-*` step skills. Use when the user invokes /gcw or asks to process an issue through GCW; stop at clarification, blockers, review feedback, or review completion.
 ---
 
 # GCW
@@ -11,9 +11,9 @@ Top-level orchestrator for the Git Collaboration Workflow. Use this skill only t
 
 This skill is self-contained. It includes the GCW steps, states, Action roles, pipelines, and stop conditions. Do not read any external workflow document as the contract source before running GCW.
 
-GCW starts from exactly one existing GitHub or GitLab issue. It does not start from implementation. The issue may be created by a human on the platform or by an agent before GCW starts. The GCW main flow intakes the issue, classifies it, clarifies requirements, and decides whether it is ready for development.
+GCW starts from exactly one existing GitHub or GitLab issue. It does not start from implementation. The issue may be created by a human on the platform or by an agent before GCW starts. The GCW main flow starts with triage, which bootstraps the issue branch and workflow state, classifies the issue, clarifies requirements, and decides whether it is ready for development.
 
-After GCW intake starts, stable workflow facts are appended under `.gcw/issues/<issue-id>/events/` on the issue branch. `.gcw/issues/<issue-id>/workflow.json` is a generated projection cache; validate it against the event log before using it for routing.
+After GCW triage starts, stable workflow facts are appended under `.gcw/issues/<issue-id>/events/` on the issue branch. `.gcw/issues/<issue-id>/workflow.json` is a generated projection cache; validate it against the event log before using it for routing.
 
 GCW has three collaborators:
 
@@ -27,27 +27,25 @@ Before routing, identify the current workflow state in this order:
 
 1. If `.gcw/issues/<issue-id>/events/` exists on the issue branch or current worktree, treat the event log as the authoritative state source.
 2. Validate `.gcw/issues/<issue-id>/workflow.json` with the GCW validation scripts; if it is missing or stale, rebuild it from events before routing.
-3. If event files do not exist yet, infer state from issue comments, labels, and the current conversation or handoff context.
+3. If event files do not exist yet, treat `gcw-issue-triage` as the required bootstrap step.
 4. If a PR/MR exists, inspect platform metadata and review/check results to distinguish `reviewing`, `changes-requested`, and `review-complete`.
 5. If state is ambiguous or sources conflict, stop and ask the user to resolve the state before running a step.
 
 ## Steps
 
-1. `gcw-issue-intake`
-2. `gcw-issue-triage`
-3. `gcw-issue-clarify`
-4. `gcw-issue-to-spec`
-5. `gcw-spec-check`
-6. `gcw-implement`
-7. `gcw-implement-check`
-8. `gcw-pr-publish`
-9. `gcw-pr-review`
+1. `gcw-issue-triage`
+2. `gcw-issue-clarify`
+3. `gcw-issue-to-spec`
+4. `gcw-spec-check`
+5. `gcw-implement`
+6. `gcw-implement-check`
+7. `gcw-pr-publish`
+8. `gcw-pr-review`
 
 Main flow:
 
 ```text
 Existing Issue
-  -> gcw-issue-intake
   -> gcw-issue-triage
   -> gcw-issue-clarify
   -> gcw-issue-to-spec
@@ -67,8 +65,7 @@ If `gcw-spec-check` finds that the issue is still unclear, return to `issue-clar
 
 | Step | GitHub Action file | Goal | Owner | Action role | Next state |
 | --- | --- | --- | --- | --- | --- |
-| `gcw-issue-intake` | none | Intake an existing issue, create/switch `gcw/issue-<id>`, bootstrap `.gcw/issues/<id>/events/`, and initialize GCW state. | Human / agent | Not needed. Issue intake is initiated by a human or agent, not by a hosted pipeline. | `issue-opened` |
-| `gcw-issue-triage` | `gcw-issue-triage.yml` | Classify the issue and apply structured remote triage metadata. | Human / agent / Action | Needed. Run agent classification, sync labels/fields, verify remote metadata, and record state. | `issue-triaged` |
+| `gcw-issue-triage` | `gcw-issue-triage.yml` | Bootstrap an existing issue into GCW, create/switch `gcw/issue-<id>`, classify it, and apply structured remote triage metadata. | Human / agent / Action | Needed. Run agent classification, sync labels/fields, verify remote metadata, and record state. | `issue-triaged` |
 | `gcw-issue-clarify` | `gcw-issue-clarify.yml` | Check whether issue information is sufficient for spec writing and organize clarification questions. | Human / agent / Action | Needed. Run the structural readiness gate and publish structured clarification or readiness progress without replacing human business judgment. | `ready-for-planning` or `issue-clarifying` |
 | `gcw-issue-to-spec` | `gcw-issue-to-spec.yml` | Create an isolated worktree, generate spec files from the issue, commit and push them, and link them from an issue comment. | Agent / Action | Recommended. Generate and persist planning files, then record the planning milestone. | `planned` |
 | `gcw-spec-check` | `gcw-spec-check.yml` | Check that spec files were generated and pushed, the issue comment links them, and the content is sufficient for implementation. | Agent / Action | Should exist. This is the remote gate before implementation. | `ready-for-implementation`, `issue-clarifying`, or `blocked` |
@@ -83,8 +80,7 @@ Human review and `review-complete` are not main workflow steps. They happen on G
 
 | Current state | Next step |
 | --- | --- |
-| Existing Issue outside GCW | `gcw-issue-intake` |
-| `issue-opened` | `gcw-issue-triage` |
+| Existing Issue outside GCW | `gcw-issue-triage` |
 | `issue-triaged` | `gcw-issue-clarify` |
 | `issue-clarifying` | Stop until the missing answer is available, then run `gcw-issue-clarify` |
 | `ready-for-planning` | `gcw-issue-to-spec` |
@@ -127,11 +123,11 @@ Initial implementation and feedback fixes both finish through `gcw-implement` ->
 
 ## Action Pipelines
 
-Main steps are the smallest workflow units. Except for `gcw-issue-intake`, main steps that need an Action should have a same-named workflow file. An Action pipeline may group consecutive main steps into one automation entrypoint; this only changes orchestration granularity and does not change main-step state semantics.
+Main steps are the smallest workflow units. Main steps that need an Action should have a same-named workflow file. An Action pipeline may group consecutive main steps into one automation entrypoint; this only changes orchestration granularity and does not change main-step state semantics.
 
 | Pipeline | Included steps | Human role | Agent role | Action role | Output state |
 | --- | --- | --- | --- | --- | --- |
-| Intake, triage, and clarification | `gcw-issue-intake`, `gcw-issue-triage`, `gcw-issue-clarify` | Create or confirm the issue and answer key business questions. | Intake, classify, draft discussion, and check readiness. | Does not run `gcw-issue-intake`; triage syncs metadata, clarify runs readiness and records discussion plus state. | `ready-for-planning` or `issue-clarifying` |
+| Triage and clarification | `gcw-issue-triage`, `gcw-issue-clarify` | Create or confirm the issue and answer key business questions. | Bootstrap, classify, draft discussion, and check readiness. | Triage syncs metadata, clarify runs readiness and records discussion plus state. | `ready-for-planning` or `issue-clarifying` |
 | Planning | `gcw-issue-to-spec`, `gcw-spec-check` | Add clarification when spec information is insufficient. | Generate spec files and self-check content. | Run an agent to generate the spec, push the branch, and verify the hard gate. | `ready-for-implementation`, `issue-clarifying`, or `blocked` |
 | Implementation | `gcw-implement`, `gcw-implement-check`, `gcw-pr-publish` | Intervene for decisions when needed. | Write code, add tests, self-check, and create the review request. | May run an implementation agent or receive local agent handoff; must own the check gate and should own PR/MR publication. | `reviewing` |
 | Review | `gcw-pr-review` | Continue platform human review based on automatic check results; platform events may request changes or end review. | Return to the implementation pipeline when fixing feedback. Local agents may summarize existing remote checks and review evidence. | Run CI, static checks, AI review, and summarize results as the automatic review gate. | Automatic checks produce `reviewing`, `changes-requested`, or `blocked`; platform events may produce `review-complete` or `changes-requested` |

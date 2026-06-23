@@ -155,13 +155,10 @@ process.exit(1);
     def test_run_publishes_gitlab_merge_request(self) -> None:
         fixture = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
         shutil.copytree(fixture, self.issue_dir, dirs_exist_ok=True)
-        intake_path = self.issue_dir / "events" / "000-gcw-issue-intake.json"
-        intake = json.loads(intake_path.read_text(encoding="utf-8"))
-        intake["payload"]["platform"] = "gitlab"
-        intake["payload"]["repository"] = "group/project"
-        intake_path.write_text(json.dumps(intake, indent=2) + "\n", encoding="utf-8")
-        triage_path = self.issue_dir / "events" / "001-gcw-issue-triage.json"
+        triage_path = self.issue_dir / "events" / "000-gcw-issue-triage.json"
         triage = json.loads(triage_path.read_text(encoding="utf-8"))
+        triage["payload"]["platform"] = "gitlab"
+        triage["payload"]["repository"] = "group/project"
         triage["payload"]["remote_sync"]["platform"] = "gitlab"
         triage_path.write_text(json.dumps(triage, indent=2) + "\n", encoding="utf-8")
         env = self.fake_glab_env()

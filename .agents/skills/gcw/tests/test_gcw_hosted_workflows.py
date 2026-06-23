@@ -209,6 +209,24 @@ class HostedWorkflowYamlTest(unittest.TestCase):
         self.assertEqual(jobs["classify"]["needs"], "preflight")
         self.assertEqual(jobs["finalize"]["needs"], ["preflight", "classify"])
 
+    def test_triage_workflow_bootstraps_missing_issue_branch(self) -> None:
+        data = workflow_data("gcw-issue-triage.yml")
+        preflight_steps = data["jobs"]["preflight"]["steps"]
+        self.assertFalse(
+            any(step.get("name") == "Checkout issue branch" for step in preflight_steps if isinstance(step, dict))
+        )
+
+        text = workflow_text("gcw-issue-triage.yml")
+        self.assertIn("Create or switch issue branch", text)
+        self.assertIn("git fetch origin \"$issue_branch:refs/remotes/origin/$issue_branch\"", text)
+        self.assertIn("git switch --track -c \"$issue_branch\" \"origin/$issue_branch\"", text)
+        self.assertIn("git switch -c \"$issue_branch\"", text)
+        self.assertIn('"issue": "${{ needs.preflight.outputs.issue_number }}"', text)
+        self.assertIn('"platform": "github"', text)
+        self.assertIn('"repository": "${{ github.repository }}"', text)
+        self.assertIn('"branch": "${{ needs.preflight.outputs.issue_branch }}"', text)
+        self.assertIn('"owner_kind": "github-actions"', text)
+
 
 class GitLabCiTemplateTest(unittest.TestCase):
     EXPECTED_JOBS = (
@@ -268,8 +286,50 @@ class GitLabCiTemplateTest(unittest.TestCase):
         ):
             self.assertIn(command, text)
 
+    def test_gitlab_ci_triage_bootstraps_missing_issue_branch(self) -> None:
+        text = self.template_text()
+        self.assertIn('if git fetch origin "$GCW_RESOLVED_BRANCH:refs/remotes/origin/$GCW_RESOLVED_BRANCH"; then', text)
+        self.assertIn('git switch --track -c "$GCW_RESOLVED_BRANCH" "origin/$GCW_RESOLVED_BRANCH"', text)
+        self.assertIn('git switch -c "$GCW_RESOLVED_BRANCH"', text)
+        self.assertIn('if [ "$GCW_STEP" != "gcw-issue-triage" ]; then', text)
+        self.assertIn('"issue": os.environ["GCW_ISSUE_NUMBER"]', text)
+        self.assertIn('"platform": "gitlab"', text)
+        self.assertIn('"repository": os.environ["CI_PROJECT_PATH"]', text)
+        self.assertIn('"branch": os.environ["GCW_RESOLVED_BRANCH"]', text)
+        self.assertIn('"owner_kind": "gitlab-ci"', text)
+
 
 class PrepareHostedStepTest(unittest.TestCase):
+    def test_prepare_bootstraps_triage_when_issue_state_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / ".gcw" / "issues" / "88"
+            result = prepare(
+                "gcw-issue-triage",
+                issue_dir,
+                "88",
+                "",
+                issue_labels=[EXECUTOR_HOSTED],
+            )
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["should_run"])
+        self.assertEqual(result["phase"], "")
+        self.assertEqual(result["issue_branch"], "gcw/issue-88")
+        self.assertEqual(result["executor_gate"], EXECUTOR_HOSTED)
+
+    def test_prepare_blocks_triage_bootstrap_with_local_executor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_root:
+            issue_dir = Path(temp_root) / ".gcw" / "issues" / "88"
+            result = prepare(
+                "gcw-issue-triage",
+                issue_dir,
+                "88",
+                "",
+                issue_labels=[EXECUTOR_HOSTED, EXECUTOR_LOCAL],
+            )
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["should_run"])
+        self.assertIn(EXECUTOR_LOCAL, result["skip_reason"])
+
     def test_prepare_allows_implement_from_implementing(self) -> None:
         issue_dir = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
         projection = json.loads((issue_dir / "workflow.json").read_text(encoding="utf-8"))

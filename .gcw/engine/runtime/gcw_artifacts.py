@@ -118,8 +118,6 @@ def _classification_from_triage(issue_dir: Path) -> dict[str, Any]:
 
 
 def _triage_lines(issue_dir: Path, phase: str) -> list[str]:
-    if phase == "issue-opened":
-        return []
     classification = _classification_from_triage(issue_dir)
 
     def field(name: str, key: str) -> str:

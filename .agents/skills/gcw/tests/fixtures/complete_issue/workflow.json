@@ -1,8 +1,8 @@
 {
   "generated_from": {
-    "events_hash": "sha256:dacd9dc2218b2827272ba03c545cdab1d0ad5afc5cd0a433dca8f502ff217ce5",
-    "generated_at": "2026-06-18T09:24:04Z",
-    "last_seq": 6
+    "events_hash": "sha256:6dcef0484a351cf34970494b636bda2cdcd3f4153fc27ab27e4cf47b41347f63",
+    "generated_at": "2026-06-23T09:26:48Z",
+    "last_seq": 5
   },
   "projection": {
     "branch": "feat/example-42",

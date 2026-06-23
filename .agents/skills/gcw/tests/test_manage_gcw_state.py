@@ -73,7 +73,7 @@ class ManageGcwStateTest(unittest.TestCase):
             str(self.issue_dir),
             "--planning-commit-pushed",
             "--progress-comment-url",
-            "https://github.com/owner/repo/issues/42#issuecomment-1",
+            progress_comment_url(2),
             "--task-plan-sha",
             shas["task_plan_sha"],
             "--findings-sha",
@@ -82,26 +82,9 @@ class ManageGcwStateTest(unittest.TestCase):
             shas["progress_sha"],
         )
 
-    def init(self, state: str = "issue-opened") -> None:
-        result = self.run_manager(
-            "init-workflow",
-            "--issue-dir",
-            str(self.issue_dir),
-            "--issue",
-            "42",
-            "--platform",
-            "github",
-            "--repository",
-            "owner/repo",
-            "--branch",
-            "gcw/issue-42",
-            "--owner-kind",
-            "local",
-            "--owner-id",
-            "cursor-session",
-        )
-        if state != "issue-opened":
-            self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
+    def init(self, state: str = "issue-triaged") -> None:
+        result = self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
+        if state != "issue-triaged":
             self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=True))
         if state == "implementing":
             self.write_planning_files()
@@ -113,7 +96,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--result",
                 "passed",
                 "--progress-comment-url",
-                progress_comment_url(2),
+                progress_comment_url(3),
             )
             self.run_manager(
                 "record-implement",
@@ -122,7 +105,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--work-summary",
                 "Started work.",
                 "--progress-comment-url",
-                progress_comment_url(3),
+                progress_comment_url(4),
             )
         elif state == "reviewing":
             self.write_planning_files()
@@ -134,7 +117,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--result",
                 "passed",
                 "--progress-comment-url",
-                progress_comment_url(2),
+                progress_comment_url(3),
             )
             self.run_manager(
                 "record-implement",
@@ -143,7 +126,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--work-summary",
                 "Implemented.",
                 "--progress-comment-url",
-                progress_comment_url(3),
+                progress_comment_url(4),
             )
             payload = self.issue_dir / "implement-check-payload.json"
             payload.write_text(json.dumps(self.implement_check_payload()), encoding="utf-8")
@@ -154,7 +137,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--payload-file",
                 str(payload),
                 "--progress-comment-url",
-                progress_comment_url(4),
+                progress_comment_url(5),
             )
             self.run_manager(
                 "record-pr-publish",
@@ -167,7 +150,7 @@ class ManageGcwStateTest(unittest.TestCase):
                 "--target",
                 "owner/repo#7",
                 "--progress-comment-url",
-                progress_comment_url(5),
+                progress_comment_url(6),
             )
         self.assertTrue(result["ok"])
 
@@ -193,7 +176,6 @@ class ManageGcwStateTest(unittest.TestCase):
 
     def test_main_path_reaches_reviewing(self) -> None:
         self.init()
-        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=True))
         self.write_planning_files()
         self.record_issue_to_spec()
@@ -248,7 +230,6 @@ class ManageGcwStateTest(unittest.TestCase):
 
     def test_clarify_not_ready_records_issue_clarifying(self) -> None:
         self.init()
-        self.run_manager(*triage_record_cli_args(self.issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(self.issue_dir, seq=1, ready=False))
         projection = self.workflow()["projection"]
         self.assertEqual(projection["phase"], "issue-clarifying")
@@ -266,7 +247,7 @@ class ManageGcwStateTest(unittest.TestCase):
             "--feedback-source",
             "human-review",
             "--progress-comment-url",
-            progress_comment_url(6),
+            progress_comment_url(7),
         )
         projection = self.workflow()["projection"]
         self.assertEqual(projection["phase"], "changes-requested")

@@ -78,6 +78,19 @@ def prepare(
             "executor_gate": EXECUTOR_HOSTED if hosted_executor_allowed(labels) else "",
         }
 
+    if step == "gcw-issue-triage" and not issue_dir.is_dir():
+        return {
+            **base,
+            "ok": True,
+            "should_run": True,
+            "skip_reason": "",
+            "phase": "",
+            "run_mode": "full",
+            "record_step": True,
+            "validate_command": validate_command_for_step(step),
+            "executor_gate": EXECUTOR_HOSTED,
+        }
+
     if not issue_dir.is_dir():
         return {
             **base,
@@ -86,7 +99,22 @@ def prepare(
             "skip_reason": f"issue directory not found: {issue_dir}",
         }
 
-    projection = load_projection(issue_dir)
+    try:
+        projection = load_projection(issue_dir)
+    except ValueError:
+        if step == "gcw-issue-triage":
+            return {
+                **base,
+                "ok": True,
+                "should_run": True,
+                "skip_reason": "",
+                "phase": "",
+                "run_mode": "full",
+                "record_step": True,
+                "validate_command": validate_command_for_step(step),
+                "executor_gate": EXECUTOR_HOSTED,
+            }
+        raise
     idempotent = prepare_hosted_step(step, projection, issue_dir)
     if not idempotent["should_run"] and idempotent.get("skip_reason"):
         return {

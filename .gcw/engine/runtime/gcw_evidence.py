@@ -14,6 +14,7 @@ from gcw_workflow_lib import (
     WorkflowError,
     assert_projection_current,
     find_latest_event,
+    load_events,
     validate_event_log,
 )
 from gcw_artifacts import render_recorded_progress_comment
@@ -183,23 +184,22 @@ def _clarify_payload_errors(payload: dict[str, Any]) -> list[str]:
 
 
 def _readiness_gate_body_errors(issue_dir: Path, gate: dict[str, Any]) -> list[str]:
-    intake_path = issue_dir / "events" / "000-gcw-issue-intake.json"
-    if not intake_path.is_file():
+    events = load_events(issue_dir)
+    if not events:
         return []
 
     readiness_lib = _import_readiness_lib()
     if readiness_lib is None:
         return []
 
-    try:
-        intake = json.loads(intake_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    first = events[0]
+    if first.get("event") != "gcw-issue-triage":
         return []
 
-    intake_payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
-    platform = str(intake_payload.get("platform", "github"))
-    repo = str(intake_payload.get("repository", "")).strip()
-    issue = str(intake_payload.get("issue", "")).strip()
+    triage_payload = first.get("payload") if isinstance(first.get("payload"), dict) else {}
+    platform = str(triage_payload.get("platform", "github"))
+    repo = str(triage_payload.get("repository", "")).strip()
+    issue = str(triage_payload.get("issue", "")).strip()
     if not repo or not issue:
         return []
 

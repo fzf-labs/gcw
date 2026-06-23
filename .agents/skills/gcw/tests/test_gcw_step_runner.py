@@ -13,7 +13,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from base import RecordingAdapter
 from gcw_steps import GcwStepRunner, SUPPORTED_STEPS
-from gcw_test_helpers import DEFAULT_TRIAGE_LABELS, write_readiness_gate_file, write_remote_sync_file
+from gcw_test_helpers import (
+    DEFAULT_TRIAGE_LABELS,
+    progress_comment_url,
+    triage_genesis_payload,
+    write_readiness_gate_file,
+    write_remote_sync_file,
+)
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -38,7 +44,7 @@ class GcwStepRunnerTest(unittest.TestCase):
         for name in ("task_plan.md", "findings.md", "progress.md"):
             shutil.copy2(FIXTURE / name, self.issue_dir / name)
         for path in sorted((self.issue_dir / "events").glob("*.json")):
-            if int(path.name.split("-", 1)[0]) > 3:
+            if int(path.name.split("-", 1)[0]) > 2:
                 path.unlink()
         from gcw_workflow_lib import write_projection
 
@@ -64,7 +70,7 @@ class GcwStepRunnerTest(unittest.TestCase):
         self.assertEqual(result.stop_reason, "illegal_phase")
         self.assertEqual(result.phase_before, "planned")
         self.assertEqual(result.phase_after, "planned")
-        self.assertEqual(self.event_count(), 4)
+        self.assertEqual(self.event_count(), 3)
 
     def test_dry_run_does_not_append_events(self) -> None:
         self.copy_planned_fixture()
@@ -110,40 +116,23 @@ class GcwStepRunnerTest(unittest.TestCase):
         self.assertEqual(result.phase_after, "ready-for-implementation")
         self.assertEqual(result.stop_reason, None)
         self.assertTrue(result.validation)
-        self.assertEqual(self.event_count(), 5)
+        self.assertEqual(self.event_count(), 4)
         self.assertEqual(len(adapter.published_urls), 1)
 
     def test_triage_step_requires_remote_sync_file(self) -> None:
         shutil.rmtree(self.issue_dir)
         self.issue_dir.mkdir(parents=True)
-        intake = {
-            "actor": {"id": "cursor-session", "kind": "local"},
-            "at": "2026-06-14T00:00:00Z",
-            "event": "gcw-issue-intake",
-            "event_id": "gcw-42-000-gcw-issue-intake",
-            "parent": {"expected_last_seq": -1},
-            "payload": {
-                "branch": "feat/example-42",
-                "issue": "42",
-                "owner": {"id": "cursor-session", "kind": "local"},
-                "platform": "github",
-                "repository": "owner/repo",
-            },
-            "refs": {"branch": "feat/example-42", "issue": "42"},
-            "schema": "gcw.event/v1",
-            "seq": 0,
-        }
-        events_dir = self.issue_dir / "events"
-        events_dir.mkdir(parents=True)
-        (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
-        from gcw_workflow_lib import write_projection
-
-        write_projection(self.issue_dir)
         runner = GcwStepRunner(adapter=RecordingAdapter())
         result = runner.run(
             "gcw-issue-triage",
             self.issue_dir,
             options={
+                "issue": "42",
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "feat/example-42",
+                "owner_kind": "local",
+                "owner_id": "cursor-session",
                 "classification_type": "enhancement",
                 "classification_priority": "priority:p2",
                 "labels_applied": DEFAULT_TRIAGE_LABELS,
@@ -155,29 +144,6 @@ class GcwStepRunnerTest(unittest.TestCase):
     def test_triage_dry_run_renders_post_record_phase(self) -> None:
         shutil.rmtree(self.issue_dir)
         self.issue_dir.mkdir(parents=True)
-        intake = {
-            "actor": {"id": "cursor-session", "kind": "local"},
-            "at": "2026-06-14T00:00:00Z",
-            "event": "gcw-issue-intake",
-            "event_id": "gcw-42-000-gcw-issue-intake",
-            "parent": {"expected_last_seq": -1},
-            "payload": {
-                "branch": "feat/example-42",
-                "issue": "42",
-                "owner": {"id": "cursor-session", "kind": "local"},
-                "platform": "github",
-                "repository": "owner/repo",
-            },
-            "refs": {"branch": "feat/example-42", "issue": "42"},
-            "schema": "gcw.event/v1",
-            "seq": 0,
-        }
-        events_dir = self.issue_dir / "events"
-        events_dir.mkdir(parents=True)
-        (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
-        from gcw_workflow_lib import write_projection
-
-        write_projection(self.issue_dir)
         remote_sync_file = write_remote_sync_file(self.issue_dir / "remote-sync.json", DEFAULT_TRIAGE_LABELS)
         runner = GcwStepRunner(adapter=RecordingAdapter())
         result = runner.run(
@@ -185,6 +151,12 @@ class GcwStepRunnerTest(unittest.TestCase):
             self.issue_dir,
             dry_run=True,
             options={
+                "issue": "42",
+                "platform": "github",
+                "repository": "owner/repo",
+                "branch": "feat/example-42",
+                "owner_kind": "local",
+                "owner_id": "cursor-session",
                 "classification_type": "enhancement",
                 "classification_area": "area:tests",
                 "classification_priority": "priority:p2",
@@ -203,46 +175,18 @@ class GcwStepRunnerTest(unittest.TestCase):
         self.issue_dir.mkdir(parents=True)
         events_dir = self.issue_dir / "events"
         events_dir.mkdir(parents=True)
-        intake = {
+        triage = {
             "actor": {"id": "cursor-session", "kind": "local"},
             "at": "2026-06-14T00:00:00Z",
-            "event": "gcw-issue-intake",
-            "event_id": "gcw-42-000-gcw-issue-intake",
+            "event": "gcw-issue-triage",
+            "event_id": "gcw-42-000-gcw-issue-triage",
             "parent": {"expected_last_seq": -1},
-            "payload": {
-                "branch": "feat/example-42",
-                "issue": "42",
-                "owner": {"id": "cursor-session", "kind": "local"},
-                "platform": "github",
-                "repository": "owner/repo",
-            },
+            "payload": triage_genesis_payload(progress_comment_url=progress_comment_url(0), branch="feat/example-42"),
             "refs": {"branch": "feat/example-42", "issue": "42"},
             "schema": "gcw.event/v1",
             "seq": 0,
         }
-        triage = {
-            "actor": {"id": "cursor-session", "kind": "local"},
-            "at": "2026-06-14T00:00:01Z",
-            "event": "gcw-issue-triage",
-            "event_id": "gcw-42-001-gcw-issue-triage",
-            "parent": {"expected_last_seq": 0},
-            "payload": {
-                "classification": {"type": "enhancement", "area": "area:tests", "priority": "priority:p2"},
-                "labels_applied": DEFAULT_TRIAGE_LABELS,
-                "remote_sync": {
-                    "platform": "github",
-                    "issue_type": "Feature",
-                    "priority": "Medium",
-                    "labels": DEFAULT_TRIAGE_LABELS,
-                },
-                "progress_comment_url": "https://github.com/test/repo/issues/1#issuecomment-1",
-            },
-            "refs": {"branch": "feat/example-42", "issue": "42"},
-            "schema": "gcw.event/v1",
-            "seq": 1,
-        }
-        (events_dir / "000-gcw-issue-intake.json").write_text(json.dumps(intake) + "\n", encoding="utf-8")
-        (events_dir / "001-gcw-issue-triage.json").write_text(json.dumps(triage) + "\n", encoding="utf-8")
+        (events_dir / "000-gcw-issue-triage.json").write_text(json.dumps(triage) + "\n", encoding="utf-8")
         from gcw_workflow_lib import write_projection
 
         write_projection(self.issue_dir)

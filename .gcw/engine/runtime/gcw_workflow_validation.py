@@ -38,15 +38,19 @@ def _load_label_groups() -> dict[str, list[str]]:
     return grouped
 
 
-def _intake_platform(issue_dir: Path) -> str:
-    intake_path = events_dir(issue_dir) / "000-gcw-issue-intake.json"
-    if not intake_path.is_file():
+def _workflow_platform(issue_dir: Path) -> str:
+    events = load_events(issue_dir)
+    if not events:
         return "github"
-    try:
-        intake = read_json(intake_path)
-    except WorkflowError:
-        return "github"
-    payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
+    payload = events[0].get("payload") if isinstance(events[0].get("payload"), dict) else {}
+    platform = str(payload.get("platform", "")).strip()
+    return platform or "github"
+
+
+def _triage_validation_platform(payload: dict[str, Any], issue_dir: Path) -> str:
+    events = load_events(issue_dir)
+    if events:
+        return _workflow_platform(issue_dir)
     platform = str(payload.get("platform", "")).strip()
     return platform or "github"
 
@@ -77,7 +81,7 @@ def _validate_triage_payload(payload: dict[str, Any], platform: str, event_name:
     else:
         sync_platform = str(remote_sync.get("platform", "")).strip()
         if sync_platform and sync_platform != platform:
-            errors.append(f"{event_name} remote_sync.platform does not match intake platform")
+            errors.append(f"{event_name} remote_sync.platform does not match workflow platform")
         labels = remote_sync.get("labels")
         if isinstance(labels_applied, list) and isinstance(labels, list):
             if sorted(str(x) for x in labels_applied) != sorted(str(x) for x in labels):
@@ -159,16 +163,15 @@ def apply_progress_comment_url(
 
 def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path | None = None) -> list[str]:
     errors: list[str] = []
-    if event_name == "gcw-issue-intake":
+    if event_name == "gcw-issue-triage":
         for key in ("issue", "platform", "repository", "branch"):
             if key not in payload:
-                errors.append(f"gcw-issue-intake missing payload.{key}")
+                errors.append(f"gcw-issue-triage missing payload.{key}")
         owner = payload.get("owner")
         if not isinstance(owner, dict) or "kind" not in owner or "id" not in owner:
-            errors.append("gcw-issue-intake payload.owner must have kind and id")
+            errors.append("gcw-issue-triage payload.owner must have kind and id")
         if "platform" in payload and payload["platform"] not in ("github", "gitlab"):
-            errors.append("gcw-issue-intake payload.platform must be github or gitlab")
-    elif event_name == "gcw-issue-triage":
+            errors.append("gcw-issue-triage payload.platform must be github or gitlab")
         if not str(payload.get("progress_comment_url", "")).strip():
             errors.append("gcw-issue-triage requires progress_comment_url")
         classification = payload.get("classification")
@@ -183,7 +186,7 @@ def validate_payload(event_name: str, payload: dict[str, Any], issue_dir: Path |
         if not isinstance(payload.get("remote_sync"), dict) or not payload.get("remote_sync"):
             errors.append("gcw-issue-triage remote_sync is required")
         if issue_dir is not None:
-            errors.extend(_validate_triage_payload(payload, _intake_platform(issue_dir)))
+            errors.extend(_validate_triage_payload(payload, _triage_validation_platform(payload, issue_dir)))
     elif event_name == "gcw-issue-clarify":
         if "ready" not in payload:
             errors.append("gcw-issue-clarify missing payload.ready")
@@ -287,8 +290,8 @@ def validate_event_sequence(events: list[dict[str, Any]]) -> None:
     for expected, event in enumerate(events):
         if event.get("seq") != expected:
             raise WorkflowError(f"event sequence must be continuous; expected {expected}, found {event.get('seq')}")
-    if events and events[0].get("event") != "gcw-issue-intake":
-        raise WorkflowError("first event must be gcw-issue-intake")
+    if events and events[0].get("event") != "gcw-issue-triage":
+        raise WorkflowError("first event must be gcw-issue-triage")
 
 
 def _validate_event_integrity(event: dict[str, Any], path: Path | None = None) -> list[str]:

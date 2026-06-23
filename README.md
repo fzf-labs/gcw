@@ -67,7 +67,6 @@ gcw run <issue-number>
 
 ```text
 已有 Issue
-  -> gcw-issue-intake
   -> gcw-issue-triage
   -> gcw-issue-clarify
   -> gcw-issue-to-spec
@@ -82,15 +81,14 @@ gcw run <issue-number>
 <!-- gcw-contract:main-step-order:start -->
 | # | Step |
 | --- | --- |
-| 1 | gcw-issue-intake |
-| 2 | gcw-issue-triage |
-| 3 | gcw-issue-clarify |
-| 4 | gcw-issue-to-spec |
-| 5 | gcw-spec-check |
-| 6 | gcw-implement |
-| 7 | gcw-implement-check |
-| 8 | gcw-pr-publish |
-| 9 | gcw-pr-review |
+| 1 | gcw-issue-triage |
+| 2 | gcw-issue-clarify |
+| 3 | gcw-issue-to-spec |
+| 4 | gcw-spec-check |
+| 5 | gcw-implement |
+| 6 | gcw-implement-check |
+| 7 | gcw-pr-publish |
+| 8 | gcw-pr-review |
 <!-- gcw-contract:main-step-order:end -->
 
 spec files 提交在 Issue 分支的 `.gcw/issues/<issue-id>/`，通过 Issue 评论链接到远程文件，而不是直接写入 Issue 正文。

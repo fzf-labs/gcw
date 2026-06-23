@@ -39,10 +39,17 @@ variables:
     - test -n "$GLAB_TOKEN" || { echo "GLAB_TOKEN is required for GitLab GCW jobs" >&2; exit 1; }
     - glab auth status || true
     - export GCW_RESOLVED_BRANCH="${GCW_ISSUE_BRANCH:-gcw/issue-${GCW_ISSUE_NUMBER}}"
-    - git fetch origin "$GCW_RESOLVED_BRANCH"
-    - git checkout "$GCW_RESOLVED_BRANCH"
+    - |
+      if git fetch origin "$GCW_RESOLVED_BRANCH:refs/remotes/origin/$GCW_RESOLVED_BRANCH"; then
+        git switch --track -c "$GCW_RESOLVED_BRANCH" "origin/$GCW_RESOLVED_BRANCH" 2>/dev/null || git switch "$GCW_RESOLVED_BRANCH"
+      else
+        git switch -c "$GCW_RESOLVED_BRANCH"
+      fi
     - export GCW_ISSUE_DIR=".gcw/issues/${GCW_ISSUE_NUMBER}"
-    - test -d "$GCW_ISSUE_DIR" || { echo "missing $GCW_ISSUE_DIR" >&2; exit 1; }
+    - |
+      if [ "$GCW_STEP" != "gcw-issue-triage" ]; then
+        test -d "$GCW_ISSUE_DIR" || { echo "missing $GCW_ISSUE_DIR" >&2; exit 1; }
+      fi
     - mkdir -p .gcw-runtime
     - |
       python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
@@ -76,6 +83,7 @@ gcw:issue-triage:
     GCW_STEP: gcw-issue-triage
   script:
     - python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync --platform gitlab --repo "$CI_PROJECT_PATH"
+    - mkdir -p "$GCW_ISSUE_DIR/remote"
     - |
       python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py apply-metadata \
         --platform gitlab \
@@ -94,6 +102,12 @@ gcw:issue-triage:
       from pathlib import Path
       issue_dir = Path(sys.argv[1])
       options = {
+          "issue": os.environ["GCW_ISSUE_NUMBER"],
+          "platform": "gitlab",
+          "repository": os.environ["CI_PROJECT_PATH"],
+          "branch": os.environ["GCW_RESOLVED_BRANCH"],
+          "owner_kind": "gitlab-ci",
+          "owner_id": os.environ.get("GITLAB_USER_LOGIN") or os.environ.get("CI_JOB_ID", "gitlab-ci"),
           "classification_type": os.environ.get("GCW_CLASSIFICATION_TYPE", "enhancement"),
           "classification_area": os.environ.get("GCW_CLASSIFICATION_AREA", "area:workflow"),
           "classification_priority": os.environ.get("GCW_CLASSIFICATION_PRIORITY", "priority:p2"),

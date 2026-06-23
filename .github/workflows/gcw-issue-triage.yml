@@ -71,7 +71,13 @@ jobs:
       phase: ${{ steps.prepare.outputs.phase }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install hosted tools
+        uses: ./.github/actions/gcw-setup
         with:
           fetch-depth: 1
 
@@ -79,6 +85,7 @@ jobs:
         id: event
         env:
           AGENT_LOGIN: ${{ vars.AGENT_LOGIN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 .gcw/engine/hosted/gcw_workflow_event.py \
             --step gcw-issue-triage \
@@ -94,22 +101,31 @@ jobs:
         if: steps.event.outputs.should_trigger != 'true'
         run: echo "${{ steps.event.outputs.trigger_reason }}"
 
-      - name: Checkout issue branch
+      - name: Create or switch issue branch
         if: steps.event.outputs.should_trigger == 'true'
-        uses: ./.github/actions/gcw-setup
-        with:
-          ref: ${{ steps.event.outputs.issue_branch != '' && steps.event.outputs.issue_branch || format('gcw/issue-{0}', steps.event.outputs.issue_number) }}
-          fetch-depth: 0
+        id: issue_branch
+        shell: bash
+        run: |
+          issue_branch="${{ steps.event.outputs.issue_branch != '' && steps.event.outputs.issue_branch || format('gcw/issue-{0}', steps.event.outputs.issue_number) }}"
+          if git fetch origin "$issue_branch:refs/remotes/origin/$issue_branch"; then
+            git switch --track -c "$issue_branch" "origin/$issue_branch" 2>/dev/null || git switch "$issue_branch"
+          else
+            git switch -c "$issue_branch"
+          fi
+          echo "issue_branch=$issue_branch" >> "$GITHUB_OUTPUT"
 
       - name: Prepare hosted step
         if: steps.event.outputs.should_trigger == 'true'
         id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 .gcw/engine/hosted/prepare_gcw_hosted_step.py \
             --step gcw-issue-triage \
             --issue-number "${{ steps.event.outputs.issue_number }}" \
             --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
-            --issue-branch "${{ steps.event.outputs.issue_branch }}" \
+            --issue-branch "${{ steps.issue_branch.outputs.issue_branch }}" \
+            --repo "${{ github.repository }}" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Report phase skip
@@ -127,15 +143,25 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout default branch
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Checkout issue branch
+      - name: Install hosted tools
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ needs.preflight.outputs.issue_branch }}
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Create or switch issue branch
+        shell: bash
+        run: |
+          issue_branch="${{ needs.preflight.outputs.issue_branch }}"
+          if git fetch origin "$issue_branch:refs/remotes/origin/$issue_branch"; then
+            git switch --track -c "$issue_branch" "origin/$issue_branch" 2>/dev/null || git switch "$issue_branch"
+          else
+            git switch -c "$issue_branch"
+          fi
 
       - name: Sync triage label definitions
         env:
@@ -196,15 +222,25 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout default branch
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Checkout issue branch
+      - name: Install hosted tools
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ needs.preflight.outputs.issue_branch }}
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Create or switch issue branch
+        shell: bash
+        run: |
+          issue_branch="${{ needs.preflight.outputs.issue_branch }}"
+          if git fetch origin "$issue_branch:refs/remotes/origin/$issue_branch"; then
+            git switch --track -c "$issue_branch" "origin/$issue_branch" 2>/dev/null || git switch "$issue_branch"
+          else
+            git switch -c "$issue_branch"
+          fi
 
       - uses: actions/download-artifact@v4
         with:
@@ -231,6 +267,12 @@ jobs:
           from pathlib import Path
           data = json.loads(Path(".gcw-runtime/handoff/triage_result.json").read_text(encoding="utf-8"))
           options = {
+              "issue": "${{ needs.preflight.outputs.issue_number }}",
+              "platform": "github",
+              "repository": "${{ github.repository }}",
+              "branch": "${{ needs.preflight.outputs.issue_branch }}",
+              "owner_kind": "github-actions",
+              "owner_id": "github-actions[bot]",
               "classification_type": data["classification_type"],
               "classification_priority": data["classification_priority"],
               "labels_applied": data.get("labels_applied") or [],
@@ -274,17 +316,61 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout default branch
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Checkout issue branch
+      - name: Install hosted tools
         uses: ./.github/actions/gcw-setup
         with:
-          ref: ${{ needs.preflight.outputs.issue_branch }}
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Dry-run workflow validation
+      - name: Create or switch issue branch
+        shell: bash
         run: |
-          python3 .agents/skills/gcw/scripts/validate_gcw_evidence.py workflow \
-            --issue-dir ".gcw/issues/${{ needs.preflight.outputs.issue_number }}"
+          issue_branch="${{ needs.preflight.outputs.issue_branch }}"
+          if git fetch origin "$issue_branch:refs/remotes/origin/$issue_branch"; then
+            git switch --track -c "$issue_branch" "origin/$issue_branch" 2>/dev/null || git switch "$issue_branch"
+          else
+            git switch -c "$issue_branch"
+          fi
+
+      - name: Dry-run triage bootstrap
+        run: |
+          python3 - <<'PY' > /tmp/triage_remote_sync.json
+          import json
+          labels = [label.strip() for label in "${{ inputs.labels_applied || 'triaged' }}".split(",") if label.strip()]
+          print(json.dumps({
+              "remote_sync": {
+                  "platform": "github",
+                  "issue_type": "${{ inputs.classification_type || 'enhancement' }}",
+                  "priority": "${{ inputs.classification_priority || 'priority:p2' }}",
+                  "labels": labels,
+              }
+          }))
+          PY
+          python3 - <<'PY' > /tmp/triage_options.json
+          import json
+          labels = [label.strip() for label in "${{ inputs.labels_applied || 'triaged' }}".split(",") if label.strip()]
+          options = {
+              "issue": "${{ needs.preflight.outputs.issue_number }}",
+              "platform": "github",
+              "repository": "${{ github.repository }}",
+              "branch": "${{ needs.preflight.outputs.issue_branch }}",
+              "owner_kind": "github-actions",
+              "owner_id": "github-actions[bot]",
+              "classification_type": "${{ inputs.classification_type || 'enhancement' }}",
+              "classification_priority": "${{ inputs.classification_priority || 'priority:p2' }}",
+              "labels_applied": labels,
+              "remote_sync_file": "/tmp/triage_remote_sync.json",
+          }
+          area = "${{ inputs.classification_area || '' }}".strip()
+          if area:
+              options["classification_area"] = area
+          print(json.dumps(options))
+          PY
+          python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage \
+            --issue-dir ".gcw/issues/${{ needs.preflight.outputs.issue_number }}" \
+            --dry-run \
+            --options-file /tmp/triage_options.json

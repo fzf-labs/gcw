@@ -5,9 +5,9 @@
   },
   "at": "2026-06-13T11:12:08Z",
   "event": "gcw-implement-check",
-  "event_id": "gcw-42-006-gcw-implement-check",
+  "event_id": "gcw-42-005-gcw-implement-check",
   "parent": {
-    "expected_last_seq": 5
+    "expected_last_seq": 4
   },
   "payload": {
     "gate": {
@@ -56,5 +56,5 @@
     "issue": "42"
   },
   "schema": "gcw.event/v1",
-  "seq": 6
+  "seq": 5
 }

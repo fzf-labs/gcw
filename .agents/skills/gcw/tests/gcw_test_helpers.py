@@ -86,6 +86,31 @@ def triage_event_payload(
     return payload
 
 
+def triage_genesis_payload(
+    *,
+    progress_comment_url: str,
+    labels: list[str] | None = None,
+    issue: int | str = 42,
+    platform: str = "github",
+    repository: str = "owner/repo",
+    branch: str = "gcw/issue-42",
+    owner: dict | None = None,
+    **extra: object,
+) -> dict:
+    payload = triage_event_payload(progress_comment_url=progress_comment_url, labels=labels)
+    payload.update(
+        {
+            "issue": issue,
+            "platform": platform,
+            "repository": repository,
+            "branch": branch,
+            "owner": owner or {"kind": "local", "id": "cursor-session"},
+        }
+    )
+    payload.update(extra)
+    return payload
+
+
 def clarify_event_payload(
     *,
     ready: bool,
@@ -135,10 +160,17 @@ def triage_record_cli_args(
     *,
     seq: int = 0,
     labels: list[str] | None = None,
+    bootstrap: bool = True,
+    issue: int | str = 42,
+    platform: str = "github",
+    repository: str = "owner/repo",
+    branch: str = "gcw/issue-42",
+    owner_kind: str = "local",
+    owner_id: str = "cursor-session",
 ) -> list[str]:
     labels = labels or list(DEFAULT_TRIAGE_LABELS)
     remote_sync_file = write_remote_sync_file(issue_dir / "remote-sync.json", labels)
-    return [
+    args = [
         "record-issue-triage",
         "--issue-dir",
         str(issue_dir),
@@ -155,6 +187,24 @@ def triage_record_cli_args(
         "--remote-sync-file",
         str(remote_sync_file),
     ]
+    if bootstrap:
+        args.extend(
+            [
+                "--issue",
+                str(issue),
+                "--platform",
+                platform,
+                "--repository",
+                repository,
+                "--branch",
+                branch,
+                "--owner-kind",
+                owner_kind,
+                "--owner-id",
+                owner_id,
+            ]
+        )
+    return args
 
 
 def clarify_record_cli_args(

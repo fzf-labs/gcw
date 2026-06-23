@@ -69,23 +69,13 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         issue_dir = Path(self.tmp.name) / ".gcw/issues/44"
         issue_dir.mkdir(parents=True)
         self.run_manager(
-            "init-workflow",
-            "--issue-dir",
-            str(issue_dir),
-            "--issue",
-            "44",
-            "--platform",
-            "github",
-            "--repository",
-            "owner/repo",
-            "--branch",
-            "feat/example-44",
-            "--owner-kind",
-            "local",
-            "--owner-id",
-            "cursor-session",
+            *triage_record_cli_args(
+                issue_dir,
+                seq=0,
+                issue=44,
+                branch="feat/example-44",
+            )
         )
-        self.run_manager(*triage_record_cli_args(issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(issue_dir, seq=1, ready=True))
 
         result = self.run_render("progress-comment", "--issue-dir", str(issue_dir))
@@ -99,23 +89,15 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
         issue_dir = Path(self.tmp.name) / ".gcw/issues/43"
         issue_dir.mkdir(parents=True)
         self.run_manager(
-            "init-workflow",
-            "--issue-dir",
-            str(issue_dir),
-            "--issue",
-            "43",
-            "--platform",
-            "github",
-            "--repository",
-            "owner/repo",
-            "--branch",
-            "feat/example-43",
-            "--owner-kind",
-            "github-actions",
-            "--owner-id",
-            "workflow-run-1",
+            *triage_record_cli_args(
+                issue_dir,
+                seq=0,
+                issue=43,
+                branch="feat/example-43",
+                owner_kind="github-actions",
+                owner_id="workflow-run-1",
+            )
         )
-        self.run_manager(*triage_record_cli_args(issue_dir, seq=0))
         self.run_manager(*clarify_record_cli_args(issue_dir, seq=1, ready=True))
         for name in ("task_plan.md", "findings.md", "progress.md"):
             (issue_dir / name).write_text(f"# {name}\n", encoding="utf-8")
@@ -222,7 +204,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
     def test_render_review_request_body_uses_explicit_validation_fallback_when_missing(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/47"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        event_path = issue_dir / "events/006-gcw-implement-check.json"
+        event_path = issue_dir / "events/005-gcw-implement-check.json"
         event = json.loads(event_path.read_text(encoding="utf-8"))
         event["payload"]["gate"].pop("validation", None)
         event_path.write_text(json.dumps(event, indent=2), encoding="utf-8")
@@ -275,7 +257,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
     def test_render_review_request_adds_closes_from_projection_when_issue_link_is_url(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        event_path = issue_dir / "events/006-gcw-implement-check.json"
+        event_path = issue_dir / "events/005-gcw-implement-check.json"
         event = json.loads(event_path.read_text(encoding="utf-8"))
         event["payload"]["review_request"]["issue_link"] = "https://github.com/owner/repo/issues/42"
         event_path.write_text(json.dumps(event, indent=2), encoding="utf-8")
@@ -290,7 +272,7 @@ class RenderGcwHostedArtifactsTest(unittest.TestCase):
     def test_render_review_request_includes_optional_scope_and_reviewer_notes(self) -> None:
         issue_dir = Path(self.tmp.name) / ".gcw/issues/42"
         shutil.copytree(COMPLETE_FIXTURE, issue_dir)
-        event_path = issue_dir / "events/006-gcw-implement-check.json"
+        event_path = issue_dir / "events/005-gcw-implement-check.json"
         event = json.loads(event_path.read_text(encoding="utf-8"))
         event["payload"]["scope"] = "Only the example module."
         event["payload"]["reviewer_notes"] = "Focus on the state transitions."

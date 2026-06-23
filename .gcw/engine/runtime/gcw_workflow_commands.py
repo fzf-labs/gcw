@@ -12,6 +12,7 @@ from gcw_workflow_lib import (
     append_event,
     assert_projection_current,
     find_latest_event,
+    load_events,
     load_projection,
     validate_event_log,
     write_projection,
@@ -110,20 +111,6 @@ def append_and_finish(args: argparse.Namespace, event_name: str, payload: dict[s
     return finish(args.issue_dir, event)
 
 
-def init_workflow(args: argparse.Namespace) -> dict[str, Any]:
-    payload = {
-        "issue": args.issue,
-        "platform": args.platform,
-        "repository": args.repository,
-        "branch": args.branch,
-        "owner": {
-            "kind": args.owner_kind,
-            "id": args.owner_id,
-        },
-    }
-    return append_and_finish(args, "gcw-issue-intake", payload, {"issue": args.issue, "branch": args.branch})
-
-
 def record_issue_triage(args: argparse.Namespace) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "classification": {
@@ -140,6 +127,19 @@ def record_issue_triage(args: argparse.Namespace) -> dict[str, Any]:
     if args.remote_sync_file and args.remote_sync_file.is_file():
         remote_sync = read_payload(args.remote_sync_file)
         payload["remote_sync"] = remote_sync.get("remote_sync") if isinstance(remote_sync.get("remote_sync"), dict) else remote_sync
+    if not load_events(args.issue_dir):
+        for key in ("issue", "platform", "repository", "branch", "owner_kind", "owner_id"):
+            if not str(getattr(args, key, "") or "").strip():
+                raise WorkflowError(f"record-issue-triage requires --{key.replace('_', '-')} when bootstrapping workflow")
+        payload.update(
+            {
+                "issue": args.issue,
+                "platform": args.platform,
+                "repository": args.repository,
+                "branch": args.branch,
+                "owner": {"kind": args.owner_kind, "id": args.owner_id},
+            }
+        )
     return append_and_finish(args, "gcw-issue-triage", payload)
 
 
@@ -318,18 +318,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage GCW workflow event logs and projections.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    init = subparsers.add_parser("init-workflow")
-    add_common(init)
-    init.add_argument("--issue", required=True)
-    init.add_argument("--platform", required=True, choices=("github", "gitlab"))
-    init.add_argument("--repository", required=True)
-    init.add_argument("--branch", required=True)
-    init.add_argument("--owner-kind", required=True, choices=("local", "github-actions", "gitlab-ci", "manual"))
-    init.add_argument("--owner-id", required=True)
-    init.set_defaults(handler=init_workflow)
-
     triage = subparsers.add_parser("record-issue-triage")
     add_common(triage)
+    triage.add_argument("--issue", default="")
+    triage.add_argument("--platform", choices=("github", "gitlab"), default="")
+    triage.add_argument("--repository", default="")
+    triage.add_argument("--branch", default="")
+    triage.add_argument("--owner-kind", choices=("local", "github-actions", "gitlab-ci", "manual"), default="")
+    triage.add_argument("--owner-id", default="")
     triage.add_argument("--progress-comment-url", required=True)
     triage.add_argument("--summary", default="")
     triage.add_argument("--classification-type", required=True)

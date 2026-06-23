@@ -457,9 +457,9 @@ test("gcw next prints the next allowed step for a planned issue", async () => {
   const target = await tempDir();
   try {
     const issueDir = await copyCompleteIssueFixture(target);
-    await rm(path.join(issueDir, "events", "004-gcw-spec-check.json"));
-    await rm(path.join(issueDir, "events", "005-gcw-implement.json"));
-    await rm(path.join(issueDir, "events", "006-gcw-implement-check.json"));
+    await rm(path.join(issueDir, "events", "003-gcw-spec-check.json"));
+    await rm(path.join(issueDir, "events", "004-gcw-implement.json"));
+    await rm(path.join(issueDir, "events", "005-gcw-implement-check.json"));
     await execFileAsync(
       "python3",
       [path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"), "rebuild-projection", "--issue-dir", issueDir],
@@ -481,9 +481,9 @@ test("gcw step runs one supported step from the current phase", async () => {
   try {
     const issueDir = await copyCompleteIssueFixture(target);
     const env = await createFakeGhEnv();
-    await rm(path.join(issueDir, "events", "004-gcw-spec-check.json"));
-    await rm(path.join(issueDir, "events", "005-gcw-implement.json"));
-    await rm(path.join(issueDir, "events", "006-gcw-implement-check.json"));
+    await rm(path.join(issueDir, "events", "003-gcw-spec-check.json"));
+    await rm(path.join(issueDir, "events", "004-gcw-implement.json"));
+    await rm(path.join(issueDir, "events", "005-gcw-implement-check.json"));
     await execFileAsync(
       "python3",
       [path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"), "rebuild-projection", "--issue-dir", issueDir],
@@ -506,9 +506,9 @@ test("gcw step returns a non-zero error for an illegal phase transition", async 
   try {
     const issueDir = await copyCompleteIssueFixture(target);
     const env = await createFakeGhEnv();
-    await rm(path.join(issueDir, "events", "004-gcw-spec-check.json"));
-    await rm(path.join(issueDir, "events", "005-gcw-implement.json"));
-    await rm(path.join(issueDir, "events", "006-gcw-implement-check.json"));
+    await rm(path.join(issueDir, "events", "003-gcw-spec-check.json"));
+    await rm(path.join(issueDir, "events", "004-gcw-implement.json"));
+    await rm(path.join(issueDir, "events", "005-gcw-implement-check.json"));
     await execFileAsync(
       "python3",
       [path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"), "rebuild-projection", "--issue-dir", issueDir],
@@ -558,7 +558,7 @@ None - can start immediately
     const { stdout } = await runCli(["run", "24"], { cwd: target, env });
 
     assert.match(stdout, /Issue: 24/);
-    assert.match(stdout, /Executed steps: gcw-issue-intake, gcw-issue-triage, gcw-issue-clarify, gcw-issue-to-spec/);
+    assert.match(stdout, /Executed steps: gcw-issue-triage, gcw-issue-clarify, gcw-issue-to-spec/);
     assert.match(stdout, /Phase: planned/);
     assert.match(stdout, /Last completed step: gcw-issue-to-spec/);
     assert.match(stdout, /Next allowed steps: gcw-spec-check/);
@@ -573,7 +573,7 @@ test("gcw run continues from implementing to the reviewing handoff state", async
   try {
     const issueDir = await copyCompleteIssueFixture(target);
     const env = await createFakeGhEnv();
-    await rm(path.join(issueDir, "events", "006-gcw-implement-check.json"));
+    await rm(path.join(issueDir, "events", "005-gcw-implement-check.json"));
     await execFileAsync(
       "python3",
       [path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"), "rebuild-projection", "--issue-dir", issueDir],
@@ -601,16 +601,13 @@ test("gcw run publishes a GitLab merge request when the issue is on GitLab", asy
     await execFileAsync("git", ["remote", "add", "origin", "git@gitlab.com:group/project.git"], { cwd: target });
     const issueDir = path.join(target, ".gcw", "issues", "42");
     await cp(path.join(repoRoot, ".agents", "skills", "gcw", "tests", "fixtures", "complete_issue"), issueDir, { recursive: true });
-    const intakePath = path.join(issueDir, "events", "000-gcw-issue-intake.json");
-    const intake = JSON.parse(await readFile(intakePath, "utf8"));
-    intake.payload.platform = "gitlab";
-    intake.payload.repository = "group/project";
-    await writeFile(intakePath, `${JSON.stringify(intake, null, 2)}\n`, "utf8");
-    const triagePath = path.join(issueDir, "events", "001-gcw-issue-triage.json");
+    const triagePath = path.join(issueDir, "events", "000-gcw-issue-triage.json");
     const triage = JSON.parse(await readFile(triagePath, "utf8"));
+    triage.payload.platform = "gitlab";
+    triage.payload.repository = "group/project";
     triage.payload.remote_sync.platform = "gitlab";
     await writeFile(triagePath, `${JSON.stringify(triage, null, 2)}\n`, "utf8");
-    await rm(path.join(issueDir, "events", "006-gcw-implement-check.json"));
+    await rm(path.join(issueDir, "events", "005-gcw-implement-check.json"));
     await execFileAsync(
       "python3",
       [path.join(repoRoot, ".agents", "skills", "gcw", "scripts", "manage_gcw_workflow.py"), "rebuild-projection", "--issue-dir", issueDir],

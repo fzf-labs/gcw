@@ -7,7 +7,6 @@ const templateRoot = path.join(repoRoot, "dist", "templates", "repo");
 
 const assetRoots = [
   ".agents/skills/gcw",
-  ".agents/skills/gcw-issue-intake",
   ".agents/skills/gcw-issue-triage",
   ".agents/skills/gcw-issue-clarify",
   ".agents/skills/gcw-issue-to-spec",

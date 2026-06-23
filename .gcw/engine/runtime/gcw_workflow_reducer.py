@@ -45,17 +45,21 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
         if payload_errors:
             raise WorkflowError(f"seq {event.get('seq', '?')}: {'; '.join(payload_errors)}")
 
-    intake = events[0]
-    payload = intake.get("payload") if isinstance(intake.get("payload"), dict) else {}
+    triage = events[0]
+    payload = triage.get("payload") if isinstance(triage.get("payload"), dict) else {}
     for key in ("issue", "platform", "repository", "branch", "owner"):
         if key not in payload:
-            raise WorkflowError(f"gcw-issue-intake missing payload.{key}")
+            raise WorkflowError(f"gcw-issue-triage missing payload.{key}")
 
-    phase = "issue-opened"
-    last_completed_step = "gcw-issue-intake"
+    phase = "issue-triaged"
+    last_completed_step = "gcw-issue-triage"
     refs: dict[str, Any] = {}
     active_feedback: dict[str, Any] | None = None
     active_blocker: dict[str, Any] | None = None
+
+    url_errors = apply_progress_comment_url(refs, "gcw-issue-triage", payload, "")
+    if url_errors:
+        raise WorkflowError(f"seq {triage.get('seq', '?')}: {'; '.join(url_errors)}")
 
     for event in events[1:]:
         event_name = str(event.get("event", ""))
@@ -64,8 +68,7 @@ def reduce_workflow(events: list[dict[str, Any]]) -> dict[str, Any]:
         phase_before = phase
 
         if event_name == "gcw-issue-triage":
-            _require_phase(phase, {"issue-opened"}, event_name)
-            phase = "issue-triaged"
+            _require_phase(phase, set(), event_name)
         elif event_name == "gcw-issue-clarify":
             _require_phase(phase, {"issue-triaged", "issue-clarifying"}, event_name)
             if event_payload.get("ready") is True:

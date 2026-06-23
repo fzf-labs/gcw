@@ -287,24 +287,7 @@ class VerifyGcwRemoteEvidenceTest(unittest.TestCase):
 
     def test_progress_comment_verification_reports_missing_projection_url(self) -> None:
         issue_dir = self.tmp_path / "issue"
-        (issue_dir / "events").mkdir(parents=True)
-        shutil.copy(
-            COMPLETE_FIXTURE / "events" / "000-gcw-issue-intake.json",
-            issue_dir / "events" / "000-gcw-issue-intake.json",
-        )
-        subprocess.run(
-            [
-                sys.executable,
-                str(ROOT / ".agents/skills/gcw/scripts/manage_gcw_workflow.py"),
-                "rebuild-projection",
-                "--issue-dir",
-                str(issue_dir),
-            ],
-            check=True,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        issue_dir.mkdir(parents=True)
 
         args = argparse.Namespace(
             issue_dir=issue_dir,
@@ -357,7 +340,7 @@ class VerifyGcwRemoteEvidenceTest(unittest.TestCase):
                 "--progress-comment-url",
                 "https://github.com/owner/repo/issues/42#issuecomment-6",
                 "--rendered-from-event-id",
-                "gcw-42-006-gcw-implement-check",
+                "gcw-42-005-gcw-implement-check",
             ],
             check=True,
             text=True,
