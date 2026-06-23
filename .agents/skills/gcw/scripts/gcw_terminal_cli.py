@@ -55,6 +55,25 @@ def write_json_temp(prefix: str, data: dict[str, Any]) -> Path:
     return path
 
 
+def issue_artifact_path(issue_dir: Path, name: str) -> Path:
+    artifacts_dir = issue_dir / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    return artifacts_dir / name
+
+
+def existing_issue_artifact_path(issue_dir: Path, name: str) -> Path:
+    artifacts_path = issue_dir / "artifacts" / name
+    if artifacts_path.is_file():
+        return artifacts_path
+    return issue_dir / name
+
+
+def write_issue_artifact_json(issue_dir: Path, name: str, data: dict[str, Any]) -> Path:
+    path = issue_artifact_path(issue_dir, name)
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 def run_json_command(command: str, args: list[str], *, cwd: Path | None = None) -> dict[str, Any]:
     result = subprocess.run(
         [command, *args],
@@ -371,7 +390,7 @@ def planning_links_for_projection(projection: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def create_triage_options(target_root: Path, projection: dict[str, Any], issue_meta: dict[str, Any] | None) -> Path:
+def create_triage_options(target_root: Path, issue_dir: Path, projection: dict[str, Any], issue_meta: dict[str, Any] | None) -> Path:
     triage = infer_triage(issue_meta)
     remote_sync = {
         "remote_sync": {
@@ -389,7 +408,7 @@ def create_triage_options(target_root: Path, projection: dict[str, Any], issue_m
             "labels": triage["labels_applied"],
         }
     }
-    remote_sync_file = write_json_temp("gcw-triage-", remote_sync)
+    remote_sync_file = write_issue_artifact_json(issue_dir, "triage-remote-sync.json", remote_sync)
     if projection.get("platform") in {"github", "gitlab"}:
         try:
             run_json_command(
@@ -416,8 +435,9 @@ def create_triage_options(target_root: Path, projection: dict[str, Any], issue_m
             )
         except Exception:
             pass
-    return write_json_temp(
-        "gcw-step-",
+    return write_issue_artifact_json(
+        issue_dir,
+        "triage-options.json",
         {
             "summary": triage["summary"],
             "classification_type": triage["classification_type"],
@@ -435,8 +455,9 @@ def create_triage_options(target_root: Path, projection: dict[str, Any], issue_m
     )
 
 
-def create_clarify_options(target_root: Path, projection: dict[str, Any]) -> Path:
-    gate_file = write_json_temp("gcw-clarify-gate-", {})
+def create_clarify_options(target_root: Path, issue_dir: Path, projection: dict[str, Any]) -> Path:
+    gate_file = issue_artifact_path(issue_dir, "clarify-gate.json")
+    gate_file.write_text("{}\n", encoding="utf-8")
     result = subprocess.run(
         [
             "python3",
@@ -469,12 +490,12 @@ def create_clarify_options(target_root: Path, projection: dict[str, Any]) -> Pat
     else:
         question = gate.get("errors") or []
         options["question"] = "Please update the issue so GCW can continue." if not question else "Please update the issue so GCW can continue:\n- " + "\n- ".join(question)
-    return write_json_temp("gcw-step-", options)
+    return write_issue_artifact_json(issue_dir, "clarify-options.json", options)
 
 
 def create_issue_to_spec_options(target_root: Path, issue_dir: Path, issue_meta: dict[str, Any] | None) -> Path:
     write_planning_files_from_templates(target_root, issue_dir, issue_meta)
-    return write_json_temp("gcw-step-", {"planning_commit_pushed": True})
+    return write_issue_artifact_json(issue_dir, "to-spec-options.json", {"planning_commit_pushed": True})
 
 
 def create_implement_check_payload(issue_dir: Path, projection: dict[str, Any]) -> Path:
@@ -537,7 +558,7 @@ def upsert_github_pull_request(target_root: Path, projection: dict[str, Any], is
     review_request = {
         "title": f"feat: issue {projection['issue']}",
     }
-    payload_path = issue_dir / "implement-check-payload.json"
+    payload_path = existing_issue_artifact_path(issue_dir, "implement-check-payload.json")
     if payload_path.is_file():
         try:
             implement_payload = read_json(payload_path)
@@ -597,7 +618,7 @@ def upsert_gitlab_merge_request(target_root: Path, projection: dict[str, Any], i
         "title": f"feat: issue {projection['issue']}",
         "description": review_request_body,
     }
-    payload_path = issue_dir / "implement-check-payload.json"
+    payload_path = existing_issue_artifact_path(issue_dir, "implement-check-payload.json")
     if payload_path.is_file():
         try:
             implement_payload = read_json(payload_path)
@@ -719,27 +740,27 @@ def upsert_gitlab_merge_request(target_root: Path, projection: dict[str, Any], i
 
 def options_file_for_step(target_root: Path, issue_dir: Path, projection: dict[str, Any], step_name: str, issue_meta: dict[str, Any] | None) -> Path | None:
     if step_name == "gcw-issue-triage":
-        return create_triage_options(target_root, projection, issue_meta)
+        return create_triage_options(target_root, issue_dir, projection, issue_meta)
     if step_name == "gcw-issue-clarify":
-        return create_clarify_options(target_root, projection)
+        return create_clarify_options(target_root, issue_dir, projection)
     if step_name == "gcw-issue-to-spec":
         return create_issue_to_spec_options(target_root, issue_dir, issue_meta)
     if step_name == "gcw-spec-check":
-        return write_json_temp("gcw-step-", {"result": "passed"})
+        return write_issue_artifact_json(issue_dir, "spec-check-options.json", {"result": "passed"})
     if step_name == "gcw-implement-check":
         payload_file = create_implement_check_payload(issue_dir, projection)
-        persisted_payload = issue_dir / "implement-check-payload.json"
+        persisted_payload = issue_artifact_path(issue_dir, "implement-check-payload.json")
         persisted_payload.write_text(payload_file.read_text(encoding="utf-8"), encoding="utf-8")
-        return write_json_temp("gcw-step-", {"payload_file": str(persisted_payload)})
+        return write_issue_artifact_json(issue_dir, "implement-check-options.json", {"payload_file": str(persisted_payload)})
     if step_name == "gcw-pr-publish":
         platform = str(projection.get("platform", "github"))
         if platform == "gitlab":
             review_request_url = upsert_gitlab_merge_request(target_root, projection, issue_dir)
-            return write_json_temp("gcw-step-", {"review_request_url": review_request_url, "target": "gitlab_mr"})
+            return write_issue_artifact_json(issue_dir, "pr-publish-options.json", {"review_request_url": review_request_url, "target": "gitlab_mr"})
         review_request_url = upsert_github_pull_request(target_root, projection, issue_dir)
-        return write_json_temp("gcw-step-", {"review_request_url": review_request_url, "target": "github_pr"})
+        return write_issue_artifact_json(issue_dir, "pr-publish-options.json", {"review_request_url": review_request_url, "target": "github_pr"})
     if step_name == "gcw-pr-review":
-        return write_json_temp("gcw-step-", {"result": "passed"})
+        return write_issue_artifact_json(issue_dir, "pr-review-options.json", {"result": "passed"})
     return None
 
 

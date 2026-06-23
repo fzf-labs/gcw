@@ -11,6 +11,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
 CLI = ROOT / ".agents/skills/gcw/scripts/gcw_terminal_cli.py"
+sys.path.insert(0, str(ROOT / ".gcw" / "engine" / "runtime"))
+
+from gcw_workflow_projection import write_projection  # noqa: E402
 
 
 class GcwTerminalCliTest(unittest.TestCase):
@@ -166,6 +169,23 @@ process.exit(1);
         data = json.loads(result.stdout)
         self.assertEqual(data["phase"], "reviewing")
         self.assertTrue(data["executed_steps"])
+
+    def test_step_writes_generated_issue_artifacts_under_artifacts_dir(self) -> None:
+        fixture = ROOT / ".agents/skills/gcw/tests/fixtures/complete_issue"
+        shutil.copytree(fixture, self.issue_dir, dirs_exist_ok=True)
+        (self.issue_dir / "events" / "005-gcw-implement-check.json").unlink()
+        write_projection(self.issue_dir)
+
+        env = self.fake_gh_env()
+        result = self.run_cli("step", "--target", self.tmp.name, "gcw-implement-check", "42", env=env)
+
+        data = json.loads(result.stdout)
+        self.assertTrue(data["ok"], msg=result.stdout + result.stderr)
+        self.assertEqual(data["phase"], "ready-for-review")
+        self.assertTrue((self.issue_dir / "artifacts" / "implement-check-payload.json").is_file())
+        self.assertTrue((self.issue_dir / "artifacts" / "implement-check-options.json").is_file())
+        self.assertFalse((self.issue_dir / "implement-check-payload.json").exists())
+        self.assertFalse((self.issue_dir / "implement-check-options.json").exists())
 
 
 if __name__ == "__main__":

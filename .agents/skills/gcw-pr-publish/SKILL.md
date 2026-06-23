@@ -44,10 +44,10 @@ Or run the unified step runner:
 ```bash
 python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-publish \
   --issue-dir .gcw/issues/<issue-id> \
-  --options-file /tmp/pr_publish_options.json
+  --options-file .gcw/issues/<issue-id>/artifacts/pr-publish-options.json
 ```
 
-`pr_publish_options.json` must include `review_request_url` and `target` after the PR/MR upsert succeeds.
+`pr-publish-options.json` must include `review_request_url` and `target` after the PR/MR upsert succeeds.
 
 ## State Transition
 

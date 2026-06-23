@@ -1,7 +1,0 @@
-{
-  "body": "<!-- gcw-progress -->\nGCW Status: implementing\n\n## Context\n- Issue: 21\n- Branch: gcw/issue-21\n- Owner: local/cursor-session\n- Last completed step: gcw-implement\n\n## Triage\n- Type: enhancement\n- Area: area:workflow\n- Priority: priority:p2\n\n## Implementation\n- Work: Starting implementation for GitLab CI support in GCW hosted execution.\n",
-  "body_hash": "sha256:0f1f59d444be58971cebeb218d29dc6a9632381a2adddb6b6fab0bcf21979deb",
-  "dry_run": false,
-  "ok": true,
-  "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/21#issuecomment-4719747131"
-}

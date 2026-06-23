@@ -45,10 +45,10 @@ Or run the unified step runner:
 ```bash
 python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-spec-check \
   --issue-dir .gcw/issues/<issue-id> \
-  --options-file /tmp/spec_check_options.json
+  --options-file .gcw/issues/<issue-id>/artifacts/spec-check-options.json
 ```
 
-`spec_check_options.json` may set `"result": "passed"` (default), `"clarifying"`, or `"blocked"`.
+`spec-check-options.json` may set `"result": "passed"` (default), `"clarifying"`, or `"blocked"`.
 
 ## State Transition
 

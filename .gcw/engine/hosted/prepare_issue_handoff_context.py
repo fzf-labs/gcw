@@ -47,7 +47,7 @@ _STEP_CONFIG: dict[str, dict[str, Any]] = {
     },
     "gcw-implement-check": {
         "skill_paths": [".agents/skills/gcw-implement-check/SKILL.md"],
-        "allowed_write_globs": [".gcw/issues/*/implement-check-payload.json"],
+        "allowed_write_globs": [".gcw/issues/*/artifacts/implement-check-payload.json"],
         "handoff_outputs": [],
     },
     "gcw-pr-review": {

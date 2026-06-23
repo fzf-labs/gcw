@@ -106,7 +106,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          title="$(python3 -c 'import json; from pathlib import Path; p=Path(".gcw/issues/${{ steps.event.outputs.issue_number }}/implement-check-payload.json"); d=json.loads(p.read_text()); print(d.get("review_request",{}).get("title","gcw: review request"))')"
+          title="$(python3 -c 'import json; from pathlib import Path; p=Path(".gcw/issues/${{ steps.event.outputs.issue_number }}/artifacts/implement-check-payload.json"); d=json.loads(p.read_text()); print(d.get("review_request",{}).get("title","gcw: review request"))')"
           python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py upsert-pr \
             --repo "${{ github.repository }}" \
             --branch "${{ steps.prepare.outputs.issue_branch }}" \

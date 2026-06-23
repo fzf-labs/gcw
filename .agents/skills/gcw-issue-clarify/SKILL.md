@@ -58,10 +58,10 @@ Or pass `--body-file` when the issue body is already saved locally.
 ```bash
 python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-clarify \
   --issue-dir .gcw/issues/42 \
-  --options-file /tmp/clarify_options.json
+  --options-file .gcw/issues/42/artifacts/clarify-options.json
 ```
 
-`clarify_options.json` must include `gate_file`. Include `summary` when ready and `question` when not ready.
+`clarify-options.json` must include `gate_file`. Include `summary` when ready and `question` when not ready.
 
 ## Event payload
 

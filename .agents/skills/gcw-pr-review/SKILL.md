@@ -44,10 +44,10 @@ Or record the automatic review outcome via the unified step runner after checks 
 ```bash
 python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-pr-review \
   --issue-dir .gcw/issues/<issue-id> \
-  --options-file /tmp/pr_review_options.json
+  --options-file .gcw/issues/<issue-id>/artifacts/pr-review-options.json
 ```
 
-`pr_review_options.json` must include `"result": "passed"`, `"changes-requested"`, or `"blocked"`.
+`pr-review-options.json` must include `"result": "passed"`, `"changes-requested"`, or `"blocked"`.
 
 ## State Transition
 

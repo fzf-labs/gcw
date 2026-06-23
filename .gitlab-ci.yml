@@ -83,7 +83,7 @@ gcw:issue-triage:
     GCW_STEP: gcw-issue-triage
   script:
     - python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync --platform gitlab --repo "$CI_PROJECT_PATH"
-    - mkdir -p "$GCW_ISSUE_DIR/remote"
+    - mkdir -p "$GCW_ISSUE_DIR/artifacts"
     - |
       python3 .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py apply-metadata \
         --platform gitlab \
@@ -93,7 +93,7 @@ gcw:issue-triage:
         --priority "${GCW_CLASSIFICATION_PRIORITY:-priority:p2}" \
         --labels "${GCW_LABELS_APPLIED:-triaged,area:workflow}" \
         --executor none \
-        > "$GCW_ISSUE_DIR/remote/triage-sync.json"
+        > "$GCW_ISSUE_DIR/artifacts/gitlab-triage-sync.json"
     - |
       python3 - "$GCW_ISSUE_DIR" <<'PY'
       import json
@@ -112,11 +112,11 @@ gcw:issue-triage:
           "classification_area": os.environ.get("GCW_CLASSIFICATION_AREA", "area:workflow"),
           "classification_priority": os.environ.get("GCW_CLASSIFICATION_PRIORITY", "priority:p2"),
           "labels_applied": [label.strip() for label in os.environ.get("GCW_LABELS_APPLIED", "triaged,area:workflow").split(",") if label.strip()],
-          "remote_sync_file": str(issue_dir / "remote" / "triage-sync.json"),
+          "remote_sync_file": str(issue_dir / "artifacts" / "gitlab-triage-sync.json"),
       }
-      (issue_dir / "gitlab-triage-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
+      (issue_dir / "artifacts" / "gitlab-triage-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
       PY
-    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage --issue-dir "$GCW_ISSUE_DIR" --options-file "$GCW_ISSUE_DIR/gitlab-triage-options.json"
+    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage --issue-dir "$GCW_ISSUE_DIR" --options-file "$GCW_ISSUE_DIR/artifacts/gitlab-triage-options.json"
 
 gcw:issue-clarify:
   extends:
@@ -125,13 +125,14 @@ gcw:issue-clarify:
   variables:
     GCW_STEP: gcw-issue-clarify
   script:
+    - mkdir -p "$GCW_ISSUE_DIR/artifacts"
     - |
       python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
         --profile enhancement \
         --platform gitlab \
         --repo "$CI_PROJECT_PATH" \
         --issue "$GCW_ISSUE_NUMBER" \
-        --output "$GCW_ISSUE_DIR/gitlab-clarify-gate.json" \
+        --output "$GCW_ISSUE_DIR/artifacts/gitlab-clarify-gate.json" \
         --question
     - |
       python3 - "$GCW_ISSUE_DIR" <<'PY'
@@ -139,15 +140,15 @@ gcw:issue-clarify:
       import sys
       from pathlib import Path
       issue_dir = Path(sys.argv[1])
-      options = {"gate_file": str(issue_dir / "gitlab-clarify-gate.json")}
-      gate = json.loads((issue_dir / "gitlab-clarify-gate.json").read_text(encoding="utf-8"))
+      options = {"gate_file": str(issue_dir / "artifacts" / "gitlab-clarify-gate.json")}
+      gate = json.loads((issue_dir / "artifacts" / "gitlab-clarify-gate.json").read_text(encoding="utf-8"))
       if gate.get("ok"):
           options["summary"] = "Issue is structurally ready for planning."
       else:
           options["question"] = "Please update the issue so GCW can write the spec."
-      (issue_dir / "gitlab-clarify-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
+      (issue_dir / "artifacts" / "gitlab-clarify-options.json").write_text(json.dumps(options, indent=2) + "\n", encoding="utf-8")
       PY
-    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-clarify --issue-dir "$GCW_ISSUE_DIR" --options-file "$GCW_ISSUE_DIR/gitlab-clarify-options.json"
+    - python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-clarify --issue-dir "$GCW_ISSUE_DIR" --options-file "$GCW_ISSUE_DIR/artifacts/gitlab-clarify-options.json"
 
 gcw:issue-to-spec:
   extends:
@@ -197,7 +198,7 @@ gcw:implement-check:
     - |
       python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-implement-check \
         --issue-dir "$GCW_ISSUE_DIR" \
-        --options-file "$GCW_ISSUE_DIR/implement-check-options.json"
+        --options-file "$GCW_ISSUE_DIR/artifacts/implement-check-options.json"
 
 gcw:pr-publish:
   extends:

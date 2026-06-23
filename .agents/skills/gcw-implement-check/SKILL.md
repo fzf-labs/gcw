@@ -45,10 +45,10 @@ Or run the unified step runner:
 ```bash
 python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-implement-check \
   --issue-dir .gcw/issues/<issue-id> \
-  --options-file /tmp/implement_check_options.json
+  --options-file .gcw/issues/<issue-id>/artifacts/implement-check-options.json
 ```
 
-`implement_check_options.json` must include `payload_file` pointing at the implement-check event payload JSON.
+`implement-check-options.json` must include `payload_file` pointing at the implement-check event payload JSON.
 
 ## State Transition
 

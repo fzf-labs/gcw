@@ -61,7 +61,7 @@ python .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py sync \
   --platform github --repo OWNER/REPO
 ```
 
-6. Apply metadata. 本地 agent 接管 GCW 时必须让 issue 带有 `gcw:executor-local`；`apply-metadata` 默认会在缺少 executor label 时补上它，示例中仍显式写出该标签以保持 `triage_options.json` 清晰：
+6. Apply metadata. 本地 agent 接管 GCW 时必须让 issue 带有 `gcw:executor-local`；`apply-metadata` 默认会在缺少 executor label 时补上它，示例中仍显式写出该标签以保持 `triage-options.json` 清晰：
 
 ```bash
 python .agents/skills/gcw-issue-triage/scripts/manage_triage_metadata.py apply-metadata \
@@ -84,10 +84,10 @@ python .agents/skills/gcw-issue-triage/scripts/verify_remote_triage.py \
 ```bash
 python .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-issue-triage \
   --issue-dir .gcw/issues/42 \
-  --options-file /tmp/triage_options.json
+  --options-file .gcw/issues/42/artifacts/triage-options.json
 ```
 
-When bootstrapping an empty workflow, `triage_options.json` must include `issue`, `platform`, `repository`, `branch`, `owner_kind`, `owner_id`, `classification_type`, `classification_priority`, `labels_applied`, and `remote_sync_file`. Include `classification_area` when known. For local agent triage, keep `labels_applied` in sync with the remote sync output and include `gcw:executor-local`.
+When bootstrapping an empty workflow, `triage-options.json` must include `issue`, `platform`, `repository`, `branch`, `owner_kind`, `owner_id`, `classification_type`, `classification_priority`, `labels_applied`, and `remote_sync_file`. Include `classification_area` when known. For local agent triage, keep `labels_applied` in sync with the remote sync output and include `gcw:executor-local`.
 
 ## Event payload
 

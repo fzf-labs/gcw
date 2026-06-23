@@ -119,7 +119,7 @@ jobs:
           prompt: |
             Create implement-check payload per .agents/skills/gcw-implement-check/SKILL.md.
             Read git diff, spec files, and validation context from the workspace.
-            Write .gcw/issues/<issue-id>/implement-check-payload.json (use issue_dir from issue_context.json).
+            Write .gcw/issues/<issue-id>/artifacts/implement-check-payload.json (use issue_dir from issue_context.json).
             Include gate, planning_links, review_request, risks, scope, reviewer_notes, self_review, spec_refs.
             Do not run git/gh.
 
@@ -131,7 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          payload=".gcw/issues/${{ steps.event.outputs.issue_number }}/implement-check-payload.json"
+          payload=".gcw/issues/${{ steps.event.outputs.issue_number }}/artifacts/implement-check-payload.json"
           test -f "$payload" || { echo "missing $payload" >&2; exit 1; }
           python3 .gcw/engine/hosted/finalize_gcw_hosted_step.py commit-push \
             --paths "$payload" \
@@ -143,7 +143,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          payload_file=".gcw/issues/${{ steps.event.outputs.issue_number }}/implement-check-payload.json"
+          payload_file=".gcw/issues/${{ steps.event.outputs.issue_number }}/artifacts/implement-check-payload.json"
           python3 .agents/skills/gcw/scripts/run_gcw_step.py --step gcw-implement-check \
             --issue-dir ".gcw/issues/${{ steps.event.outputs.issue_number }}" \
             --options-file /dev/stdin <<EOF
@@ -174,5 +174,5 @@ jobs:
           name: gcw-implement-check-${{ github.run_id }}
           path: |
             .gcw-runtime/handoff
-            .gcw/issues/${{ steps.event.outputs.issue_number }}/implement-check-payload.json
+            .gcw/issues/${{ steps.event.outputs.issue_number }}/artifacts/implement-check-payload.json
           if-no-files-found: ignore
