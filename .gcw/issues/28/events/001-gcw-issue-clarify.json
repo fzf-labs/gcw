@@ -1,0 +1,52 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-23T14:45:55Z",
+  "event": "gcw-issue-clarify",
+  "event_id": "gcw-28-001-gcw-issue-clarify",
+  "parent": {
+    "expected_last_seq": 0
+  },
+  "payload": {
+    "gate": {
+      "checks": [
+        {
+          "id": "has_what_to_build",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "has_acceptance_criteria",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "blocker_resolved",
+          "ok": true,
+          "source": "structural"
+        },
+        {
+          "id": "body_not_placeholder",
+          "ok": true,
+          "source": "structural"
+        }
+      ],
+      "errors": [],
+      "ok": true,
+      "profile": "enhancement",
+      "rubric_version": "issue-clarify-readiness/v1"
+    },
+    "progress_comment_body_hash": "sha256:e0bd6ac1f400ad7f96fd57a20bc081fea964ea3afa3c96835b81f975226a5dcc",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/28#issuecomment-4780420864",
+    "ready": true,
+    "summary": "scope clear"
+  },
+  "refs": {
+    "branch": "gcw/issue-28",
+    "issue": "28"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 1
+}

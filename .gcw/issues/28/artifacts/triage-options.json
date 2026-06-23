@@ -1,0 +1,18 @@
+{
+  "branch": "gcw/issue-28",
+  "classification_area": "area:tests",
+  "classification_priority": "priority:p2",
+  "classification_type": "documentation",
+  "issue": "28",
+  "labels_applied": [
+    "triaged",
+    "area:tests",
+    "gcw:executor-local"
+  ],
+  "owner_id": "gcw-cli",
+  "owner_kind": "local",
+  "platform": "github",
+  "remote_sync_file": "/Users/fuzhifei/code/go/src/github.com/fzf-labs/gcw/.gcw/issues/28/artifacts/triage-remote-sync.json",
+  "repository": "fzf-labs/gcw",
+  "summary": "Clarify skipped GCW runs in hosted docs"
+}
