@@ -1,0 +1,26 @@
+{
+  "generated_from": {
+    "events_hash": "sha256:42bd3876fa6316d3b62082298b72d1181995f4271cb5d7b5b59f0c22f845148f",
+    "generated_at": "2026-06-23T15:32:39Z",
+    "last_seq": 2
+  },
+  "projection": {
+    "branch": "gcw/issue-30",
+    "issue": "30",
+    "last_completed_step": "gcw-issue-to-spec",
+    "next_allowed_steps": [
+      "gcw-spec-check"
+    ],
+    "owner": {
+      "id": "gcw-cli",
+      "kind": "local"
+    },
+    "phase": "planned",
+    "platform": "github",
+    "refs": {
+      "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/30#issuecomment-4780653562"
+    },
+    "repository": "fzf-labs/gcw"
+  },
+  "schema": "gcw.workflow_projection/v1"
+}

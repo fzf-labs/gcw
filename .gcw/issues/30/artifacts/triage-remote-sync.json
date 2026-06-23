@@ -1,0 +1,12 @@
+{
+  "remote_sync": {
+    "issue_type": "Task",
+    "labels": [
+      "triaged",
+      "area:tests",
+      "gcw:executor-local"
+    ],
+    "platform": "github",
+    "priority": "Medium"
+  }
+}
