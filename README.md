@@ -23,6 +23,7 @@ gcw init --with-gitlab-ci
 ```
 
 默认不会覆盖已有文件；需要明确覆盖时加 `--force`。发布包前可用 `npm pack --dry-run` 检查实际包含的 template assets。
+`npm test` 也会覆盖一个打包后的下游仓库 smoke，验证 `gcw init` 和 `gcw doctor` 的 quickstart 路径。
 
 初始化后可以直接使用正式 CLI 入口：
 

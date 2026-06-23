@@ -1,0 +1,48 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-23T15:15:15Z",
+  "event": "gcw-issue-triage",
+  "event_id": "gcw-30-000-gcw-issue-triage",
+  "parent": {
+    "expected_last_seq": -1
+  },
+  "payload": {
+    "branch": "gcw/issue-30",
+    "classification": {
+      "area": "area:tests",
+      "priority": "priority:p2",
+      "type": "documentation"
+    },
+    "issue": "30",
+    "labels_applied": [
+      "triaged",
+      "area:tests",
+      "gcw:executor-local"
+    ],
+    "owner": {
+      "id": "gcw-cli",
+      "kind": "local"
+    },
+    "platform": "github",
+    "progress_comment_body_hash": "sha256:afaf2d08c7f2a4fab79f0d4f2520955a842b665adae53f808481aae488f55fb6",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/30#issuecomment-4780652938",
+    "remote_sync": {
+      "issue_type": "Task",
+      "labels": [
+        "triaged",
+        "area:tests",
+        "gcw:executor-local"
+      ],
+      "platform": "github",
+      "priority": "Medium"
+    },
+    "repository": "fzf-labs/gcw",
+    "summary": "Add clean downstream gcw init smoke test"
+  },
+  "refs": {},
+  "schema": "gcw.event/v1",
+  "seq": 0
+}

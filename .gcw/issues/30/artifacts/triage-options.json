@@ -1,0 +1,18 @@
+{
+  "branch": "gcw/issue-30",
+  "classification_area": "area:tests",
+  "classification_priority": "priority:p2",
+  "classification_type": "documentation",
+  "issue": "30",
+  "labels_applied": [
+    "triaged",
+    "area:tests",
+    "gcw:executor-local"
+  ],
+  "owner_id": "gcw-cli",
+  "owner_kind": "local",
+  "platform": "github",
+  "remote_sync_file": "/Users/fuzhifei/code/go/src/github.com/fzf-labs/gcw/.gcw/issues/30/artifacts/triage-remote-sync.json",
+  "repository": "fzf-labs/gcw",
+  "summary": "Add clean downstream gcw init smoke test"
+}
