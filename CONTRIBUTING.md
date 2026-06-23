@@ -92,7 +92,7 @@ python3 .agents/skills/gcw-issue-clarify/scripts/evaluate_issue_readiness.py \
 - npm 账号拥有 `@fzf-labs` scope 的发布权限
 - `npm test`、`npm run build`、`npm pack --dry-run` 均通过
 - tarball 中包含 `bin/gcw.js` 与 `dist/templates/repo/`，且不包含 `.gcw/issues/`
-- 仓库 license 策略已经确定；当前 package manifest 标记为 `UNLICENSED`
+- 仓库采用 [MIT License](LICENSE)；`package.json` 的 `"license"` 字段与仓库一致
 
 ## 提 Issue
 

@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "remote_sync": {
+    "platform": "github",
+    "issue_type": "Task",
+    "priority": "Medium",
+    "labels": [
+      "triaged",
+      "gcw:executor-local"
+    ]
+  },
+  "labels_added": [
+    "triaged",
+    "gcw:executor-local"
+  ],
+  "labels_removed": []
+}
