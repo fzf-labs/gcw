@@ -14,9 +14,9 @@
     "progress_comment_body_hash": "sha256:138beb4a64b59967d25bda171b9c5137abf51cbbfe8f1ba5e7c780569cb7560a",
     "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/28#issuecomment-4780421122",
     "spec_refs": {
-      "findings_sha": "sha256:b5e64d73704daefa8492356d2c2c67ffeb78d79d448b316c0a0debc9226ad785",
-      "progress_sha": "sha256:e684212f74aebcf5ae2346f7718a2dd5e3baeca9d8620c939548bc91b7529d33",
-      "task_plan_sha": "sha256:03e08791f2aca7ddcba02b7a60edf2252bb3ceb0aa45f016566f6c5a660b88ae"
+      "findings_sha": "sha256:ef31f9557ab5befbe37256c18aecea3407f3ad28eb6a933248321cdb8f4b200f",
+      "progress_sha": "sha256:485a9ee145c391014860822f14c8ccdb9624b748d55a87d3f80e8aa25b8c11ec",
+      "task_plan_sha": "sha256:3deaad03e54a95af2e5e3f6f3c622cd9dbad4a9e643d7ec1a31b587ecfe72e1b"
     }
   },
   "refs": {
