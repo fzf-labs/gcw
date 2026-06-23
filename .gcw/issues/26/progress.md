@@ -6,24 +6,27 @@
 | --- | --- | --- |
 | `gcw-issue-triage` | Complete | Classified as documentation / priority:p2 / local executor |
 | `gcw-issue-clarify` | Complete | Structural readiness passed |
-| `gcw-issue-to-spec` | In progress | Spec files drafted; awaiting human license confirmation |
+| `gcw-issue-to-spec` | Complete | Planning specs linked from issue |
+| `gcw-spec-check` | Complete | Spec gate passed; MIT default accepted |
+| `gcw-implement` | In progress | Added MIT `LICENSE`, updated package metadata and docs |
 
 ## Current status
 
-- **Phase:** `planned` (expected after issue-to-spec)
-- **Blocker for implementation:** Human spec review must confirm the SPDX license choice (recommended `MIT`).
-- **Next GCW step after approval:** `gcw-spec-check`
+- **Phase:** `implementing` (expected after implement event)
+- **License decision:** MIT
+- **Next GCW step:** `gcw-implement-check`
 
-## Planned file changes (after license confirmation)
+## Implementation summary
 
-- `LICENSE` — new file with chosen license text
-- `package.json` — update `"license"` from `UNLICENSED`
-- `CONTRIBUTING.md` — replace undecided-license note with chosen policy
+- Added root `LICENSE` (MIT, copyright fzf-labs)
+- Updated `package.json` `"license"` from `UNLICENSED` to `MIT`
+- Updated `CONTRIBUTING.md` npm publish checklist
 
-## Verification checklist (for implementation)
+## Verification checklist
 
-- [ ] `LICENSE` present at repo root
-- [ ] `package.json` license field matches SPDX id
-- [ ] `CONTRIBUTING.md` no longer says license strategy is undecided
+- [x] `LICENSE` present at repo root
+- [x] `package.json` license field is `MIT`
+- [x] `CONTRIBUTING.md` no longer says license strategy is undecided
 - [ ] `npm pack --dry-run` succeeds
-- [ ] Existing tests pass
+- [ ] `npm test` passes
+- [ ] Python GCW tests pass

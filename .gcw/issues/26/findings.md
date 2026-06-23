@@ -35,8 +35,8 @@ Issue #26 asks GCW to resolve the open licensing question called out during issu
 3. Set `package.json` `"license"` to the same SPDX id.
 4. Update `CONTRIBUTING.md` and any install/publish notes that still describe licensing as undecided.
 
-## Open questions for spec review
+## Decisions (confirmed)
 
-1. **Which SPDX license should `fzf-labs/gcw` use?** Default recommendation: `MIT`.
-2. **Copyright holder line:** use `fzf-labs` / repository maintainers unless a different legal entity is required.
-3. **Source file headers:** not required for this issue unless maintainers want per-file notices added later.
+1. **SPDX license:** `MIT`
+2. **Copyright holder line:** `fzf-labs`
+3. **Source file headers:** out of scope for this issue

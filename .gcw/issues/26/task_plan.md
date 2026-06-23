@@ -6,24 +6,24 @@ Choose a repository license, add the corresponding `LICENSE` file at the repo ro
 
 ## Phases
 
-### Phase 1 — License decision (human review required)
+### Phase 1 — License decision
 
-- [ ] Confirm the SPDX license identifier with maintainers (recommended default: `MIT`).
-- [ ] Record the decision in this spec and in the issue if the choice differs from the recommendation.
-- **Status:** pending
+- [x] Confirm the SPDX license identifier: **MIT**
+- [x] Record the decision in spec files
+- **Status:** complete
 
 ### Phase 2 — Repository license file
 
-- [ ] Add root `LICENSE` with the full license text for the chosen SPDX id.
-- [ ] Use the standard copyright holder line for `fzf-labs/gcw` maintainers.
-- **Status:** pending
+- [x] Add root `LICENSE` with MIT license text
+- [x] Copyright holder: `fzf-labs`
+- **Status:** complete
 
 ### Phase 3 — Package and documentation alignment
 
-- [ ] Update `package.json` `"license"` field to match the chosen SPDX id.
-- [ ] Update `CONTRIBUTING.md` to remove the "license strategy still open" note and describe the chosen license.
-- [ ] Scan `README.md` and publish/install notes for any licensing mentions that still reference `UNLICENSED` or an undecided policy.
-- **Status:** pending
+- [x] Update `package.json` `"license"` field to `MIT`
+- [x] Update `CONTRIBUTING.md` publish notes
+- [x] `README.md` has no undecided licensing references
+- **Status:** complete
 
 ### Phase 4 — Verification
 
@@ -31,7 +31,7 @@ Choose a repository license, add the corresponding `LICENSE` file at the repo ro
 - [ ] Confirm `package.json` license metadata matches the repository license.
 - [ ] Run `npm pack --dry-run` and verify package metadata still looks correct.
 - [ ] Run existing tests (`npm test`, Python GCW tests) to ensure no packaging regressions.
-- **Status:** pending
+- **Status:** in_progress
 
 ## Acceptance Criteria
 

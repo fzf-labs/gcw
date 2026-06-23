@@ -1,0 +1,28 @@
+{
+  "actor": {
+    "id": "cursor-session",
+    "kind": "local"
+  },
+  "at": "2026-06-23T12:23:29Z",
+  "event": "gcw-spec-check",
+  "event_id": "gcw-26-004-gcw-spec-check",
+  "parent": {
+    "expected_last_seq": 3
+  },
+  "payload": {
+    "gate": {
+      "checks": [],
+      "errors": [],
+      "ok": true
+    },
+    "progress_comment_body_hash": "sha256:ff1ff80e101d8ea687e5ef58132e55b80791926f05dc50c66db8d79700efe485",
+    "progress_comment_url": "https://github.com/fzf-labs/gcw/issues/26#issuecomment-4779137986",
+    "result": "passed"
+  },
+  "refs": {
+    "branch": "gcw/issue-26",
+    "issue": "26"
+  },
+  "schema": "gcw.event/v1",
+  "seq": 4
+}
